@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Astro Studio
+GenericName=Astronomical Image Orchestrator
+Comment=Zero-processing GUI for astronomical CLI backends
+Exec=@EXEC@
+Icon=astro-studio
+Terminal=false
+Categories=Science;
+Keywords=astronomy;astrophotography;fits;raw;image;
+StartupNotify=true

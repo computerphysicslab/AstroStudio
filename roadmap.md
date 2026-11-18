@@ -25,6 +25,7 @@ read-only, and tests for every adapter.
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
 - [x] Git version control initialized on `main` with an initial commit.
+- [x] Desktop integration: SVG icon, user-level installer, `.desktop` entry and launcher script.
 
 ## v0.2.0 — Conversion and inspection completeness
 

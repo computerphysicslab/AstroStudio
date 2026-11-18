@@ -28,6 +28,26 @@ sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-gdkpixbuf-2.0 imagemagick libi
 python3 -m astrostudio
 ```
 
+## Install as a desktop application
+
+The installer is user-level (no `sudo`) and registers a launcher, icon and desktop
+entry under `$XDG_DATA_HOME` (`~/.local/share` by default):
+
+```bash
+./packaging/install.sh
+```
+
+It installs `astro-studio.desktop` in `applications/`, the scalable SVG icon and
+rasterized PNG sizes in `icons/hicolor/`, refreshes the desktop and icon caches, and
+points the launcher at `packaging/astro-studio`. After installation, search for
+**Astro Studio** in the application menu or run:
+
+```bash
+gtk-launch astro-studio
+```
+
+To verify the installation: `desktop-file-validate ~/.local/share/applications/astro-studio.desktop`.
+
 On startup the app probes every connector binary for installation and version. The
 **Backends** panel lists the result, and menu actions are enabled only when their
 backend is installed and an adapter exists. A missing binary leaves the action
@@ -71,6 +91,7 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
 - `astrostudio/adapters/` — CLI connectors (ImageMagick, ExifTool).
 - `astrostudio/ui/` — GTK window, menus, inspector, log drawer and preview canvas.
 - `tests/` — unit and lifecycle tests.
+- `packaging/` — SVG icon, `.desktop` template, launcher script and user-level installer.
 - `Context/` — authoritative specifications and living AI project context.
 - `roadmap.md` — milestones v0.1.0 to v1.0.0.
 
