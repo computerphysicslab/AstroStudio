@@ -16,7 +16,7 @@ This document specifies the graphical interface of Astro Studio. Astro Studio is
 * **Child Image Canvas Panes:** Multi-document/single-document view supporting multiple loaded files, zoom from fit-to-window to custom magnification, and read-only pixel inspection. The canvas never modifies the buffer it displays; a transformed image is a *new file* produced by a backend and reloaded into view.
 * **Metadata Panel:** Read-only ExifTool/FITS panel docked on the right with the Backends and Terminal panels. It is hidden until the (i) Metadata action is invoked, then shows two tabs (PNG preview and 16-bit TIFF working) and can be closed with its X button.
 * **No Parameter Inspector:** CLI flags are never typed by the user. Menus and small option dialogs ask for intent (scale percentage, sharpening preset, export format) and the GUI generates the exact adapter flags internally.
-* **Terminal Drawer:** Chronological log of every CLI invocation sent to a connector: date/time, job id, complete `argv` and the backend response (`stdout`/`stderr` lines and exit code, including errors). Backend installation/version status is reported only in the Backends panel, never repeated here. There is no user-facing cancel button; jobs are cancelled internally on shutdown.
+* **Terminal Drawer:** Chronological log of every CLI invocation sent to a connector: date/time, job id, complete `argv` and the backend response (`stdout`/`stderr` lines and exit code, including errors). It auto-scrolls to the newest line, has its own close button, and is restored via *View > Toggle Terminal Drawer*. Backend installation/version status and metadata tag output are never duplicated here. There is no user-facing cancel button; jobs are cancelled internally on shutdown.
 * **Status Bar:** Cursor coordinates (X, Y), intensity value read from the rendered preview (display only), zoom percentage, active backend, and job status.
 
 ## 2. Universal Action Flow (applies to every item below)
@@ -31,7 +31,7 @@ Input paths + GUI parameters
 ```
 
 * **Scratch location:** `<XDG_RUNTIME_DIR>/astro-studio/<session>/<job>/`, falling back to `/tmp/astro_studio_<pid>/`. Raw inputs are never written to; all outputs go to scratch or an explicit user export path.
-* **Dual-format invariant:** every opened image is stored in scratch as a 16-bit `working.tiff` (the only input for external CLI transforms) and an 8-bit `preview.png` generated from that TIFF. A transform replaces the TIFF and regenerates the PNG; the canvas renders the PNG only. The GUI never derives or modifies pixels itself.
+* **Dual-format invariant:** every opened image is stored in scratch as a 16-bit `working.tiff` (the only input for external CLI transforms) and an 8-bit `preview.png` generated from that TIFF. A transform replaces the TIFF and regenerates the PNG; the canvas renders the PNG only, restoring the previous zoom and scroll position. The GUI never derives or modifies pixels itself.
 * **Formats:** Scientific linear artifacts (`.fits`, `.xisf`, `.f32raw`, 16/32-bit `.tiff`) are kept distinct in the UI from display-stretched previews (8-bit `.jpg`, `.png`, `.bmp`). Metadata/WCS headers are preserved when the target backend supports it.
 * **Startup discovery:** On activation the app checks every connector binary for installation and queries its version asynchronously (`Gio.Subprocess`, e.g. `magick -version`, `exiftool -ver`). Results appear only in the "Backends" panel; menu actions are enabled only when their adapter is implemented and at least one required backend is installed. The Backends panel has a close button and can be restored with *View > Toggle Backends Viewer*. Missing version output keeps the backend available with version `unknown`.
 * **Missing backend:** If a binary is absent (`ENOENT`) or exits non-zero, the action stays disabled/marked unavailable and the error is reported in the terminal drawer; the GUI never falls back to an in-process implementation.
@@ -67,35 +67,44 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 * **Image Geometry:** Resize, rotate, flip, and mirror are serialized as backend flags (`magick -resize`, `-rotate`, `-flip`, `-flop`) from menu/dialog choices, never from a parameter inspector. [P1 for resize; P2 for the rest]
 * **Field Derotator / Planet Alignment:** Delegated to an external alignment backend; unavailable until an adapter exists. [P3]
 
-### 3.4 Arithmetic (`Arithmetic`)
+### 3.4 Astrometry (`Astrometry`)
+
+* **Plate Solve...:** optional RA/Dec seed dialog; SkyStacker runs `--plate-solve --json-report` on the source image and the GUI presents the reported field of view/centre from `plate_solution.json`. [P1]
+* **Gaia Sky Map...:** SkyStacker `--image-op sky-map` writes a Gaia catalog SVG; an external CLI converts it to PNG for display. [P1]
+* **Survey Cutout...:** SkyStacker `--image-op survey-cutout` fetches a HiPS FITS cutout of the same area and the GUI reports the artifact path. [P1]
+
+All three write only to scratch, require a real star field (and catalog/network access for maps/cutouts), and report failures instead of fabricating results.
+
+### 3.5 Arithmetic (`Arithmetic`)
 
 * **Image Combination (Add / Subtract / Multiply / Divide):** Two input paths plus the operator are mapped to backend expression flags (e.g. `magick ... -evaluate-sequence Add/Subtract/Multiply/Divide`); output is a new scratch file. [P2]
 * **Constant Operations:** Scalar operations are serialized as CLI evaluate arguments, never applied to a GUI buffer. [P2]
 * **RGB / LRGB Combination:** Channel file paths are passed to the backend's channel-combine flags. [P2]
 * **Split Channels:** Delegated to `magick` channel separation into scratch outputs. [P2]
 
-### 3.5 Color (`Color`)
+### 3.6 Color (`Color`)
 
 * **Histogram Manipulation:** Black point, white point, and gamma controls set backend stretch flags (e.g. RawTherapee `.pp3`, darktable XMP, Siril STF/MTF). The GUI only displays the resulting file. [P2]
 * **Curves Adjustment (RGB / Luminance):** Control points are written into a backend-readable profile (`.pp3`, XMP, `.pfp`) passed as a CLI argument; no in-app spline evaluation. [P3]
 * **Color Saturation / Balance:** Serialized as backend flags (e.g. `magick -modulate`, white-balance coefficients in RAW developer profiles). [P2]
 * **Background Neutralization / Gradient Removal:** Delegated to Siril/PhotoFlow background-extraction flags. Linear-space operations are chained only before non-linear stretching unless the user explicitly overrides the linear guard. [P2]
 
-### 3.6 Filter (`Filter`)
+### 3.7 Filter (`Filter`)
 
 * **Sharpening:** Unsharp mask and other sharpening are serialized as backend flags (e.g. `magick -unsharp 1.5x1+0.7+0.02`). Deconvolution is delegated to Siril/PhotoFlow. [P1 for unsharp; P2 for deconvolution]
 * **Smoothing & Denoising:** Gaussian/median/wavelet denoise delegated to `magick` or RAW developers (`rawtherapee-cli`, `darktable-cli`). [P2]
 * **Specialized Astronomical Filters:** Star-size reduction, spike suppression, and morphological filters delegated to Siril/skystacker adapters. [P3]
 
-### 3.7 View (`View`)
+### 3.8 View (`View`)
 
 * **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window. Processing > Precise Scale provides the full percentage list. [P1]
 * **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It does not compute pixel statistics internally. [P2]
 * **Pixel Line Profile (`Pixellinie als Diagramm`):** A drawn line becomes a crop/coordinate request to the backend (e.g. `magick ... txt:`); the returned values are plotted by the GUI. [P3]
 * **Metadata Viewer:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` is invoked by the (i) button for both the rendered PNG and the high-depth TIFF, filling the two tabs of the on-demand Metadata panel; no pixel decoding. [P1]
 * **Toggle Backends Viewer:** Shows or hides the Backends panel. [P1]
+* **Toggle Terminal Drawer:** Shows or hides the Terminal Drawer. [P1]
 
-### 3.8 Options / Settings (`Options`)
+### 3.9 Options / Settings (`Options`)
 
 * **Backend Settings:** Binary paths, scratch directory, cache location (`nside=64` Gaia DR3 cache), offline mode, and thread limits. These values are injected into adapter argv; they never change GUI internals. The Backends panel lists installation status and detected version for every connector, and menu sensitivity follows that status. [P1 partial]
 * **Language Selection:** Interface strings (English, German, Spanish, Japanese). [P3]

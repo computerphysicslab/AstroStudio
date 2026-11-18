@@ -7,12 +7,20 @@ from typing import List, Optional
 import gi
 
 gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, Gio, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, Gtk, Pango  # noqa: E402
 
-from ..adapters import ExifToolAdapter, ImageMagickAdapter  # noqa: E402
-from ..core import EXPORT_FORMATS, ExportFormat, ImageWorkspace, WorkingImage  # noqa: E402
+from ..adapters import ExifToolAdapter, ImageMagickAdapter, SkyStackerAdapter  # noqa: E402
+from ..core import (  # noqa: E402
+    EXPORT_FORMATS,
+    ExportFormat,
+    ImageWorkspace,
+    WorkingImage,
+    find_output,
+    summarize_solution,
+)
 from .preview import PreviewPane  # noqa: E402
 
 MENU_LAYOUT = (
@@ -68,6 +76,14 @@ MENU_LAYOUT = (
         ),
     ),
     (
+        "Astrometry",
+        (
+            ("Plate Solve...", "plate-solve"),
+            ("Gaia Sky Map...", "sky-map"),
+            ("Survey Cutout...", "survey-cutout"),
+        ),
+    ),
+    (
         "Arithmetic",
         (
             ("Image Combination", "arithmetic"),
@@ -105,6 +121,7 @@ MENU_LAYOUT = (
             ("Pixel Line Profile", "line-profile"),
             ("Metadata Viewer", "metadata"),
             ("Toggle Backends Viewer", "toggle-backends"),
+            ("Toggle Terminal Drawer", "toggle-terminal"),
         ),
     ),
     (
@@ -137,6 +154,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.adapters = {
             "ImageMagick": self._magick_adapter,
             "ExifTool": ExifToolAdapter(),
+            "SkyStacker": SkyStackerAdapter(),
         }
         self.workspace = ImageWorkspace(scratch, engine, self._magick_adapter)
         self.current_images: List[WorkingImage] = []
@@ -166,9 +184,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         frame = Gtk.Frame(label="Preview (PNG rendered from TIFF)")
-        scroll = Gtk.ScrolledWindow()
-        scroll.add(self.preview)
-        frame.add(scroll)
+        self.preview_scroll = Gtk.ScrolledWindow()
+        self.preview_scroll.add(self.preview)
+        frame.add(self.preview_scroll)
         left.pack_start(frame, True, True, 0)
         paned.pack1(left, True, False)
 
@@ -181,9 +199,12 @@ class MainWindow(Gtk.ApplicationWindow):
             "Metadata (ExifTool, read-only)", self._build_metadata_content()
         )
         self.metadata_panel.set_no_show_all(True)
+        self.terminal_panel = self._panel_with_close(
+            "Terminal Drawer", self._build_log_content()
+        )
         right.pack_start(self.backends_panel, False, False, 0)
         right.pack_start(self.metadata_panel, False, False, 0)
-        right.pack_start(self._build_log_panel(), True, True, 0)
+        right.pack_start(self.terminal_panel, True, True, 0)
         paned.pack2(right, False, True)
         root.pack_start(paned, True, True, 0)
 
@@ -272,17 +293,15 @@ class MainWindow(Gtk.ApplicationWindow):
             self.metadata_buffers[key] = buffer
         return notebook
 
-    def _build_log_panel(self) -> Gtk.Widget:
-        frame = Gtk.Frame(label="Terminal Drawer")
+    def _build_log_content(self) -> Gtk.Widget:
         self.log_buffer = Gtk.TextBuffer()
-        view = Gtk.TextView(buffer=self.log_buffer)
-        view.set_editable(False)
-        view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        view.override_font(Pango.FontDescription("monospace 10"))
+        self.log_view = Gtk.TextView(buffer=self.log_buffer)
+        self.log_view.set_editable(False)
+        self.log_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self.log_view.override_font(Pango.FontDescription("monospace 10"))
         scroll = Gtk.ScrolledWindow()
-        scroll.add(view)
-        frame.add(scroll)
-        return frame
+        scroll.add(self.log_view)
+        return scroll
 
     def _activate(self, action: str) -> None:
         gio_action = self.app.lookup_action(action)
@@ -299,6 +318,36 @@ class MainWindow(Gtk.ApplicationWindow):
         timestamp = datetime.now().strftime("%H:%M:%S")
         end = self.log_buffer.get_end_iter()
         self.log_buffer.insert(end, "[%s] %s\n" % (timestamp, line))
+        self.log_view.scroll_to_iter(self.log_buffer.get_end_iter(), 0.0, False, 0.0, 0.0)
+
+    def _capture_view_state(self) -> dict:
+        return {
+            "zoom": self.preview.zoom,
+            "fit": self.preview.fit,
+            "x": self.preview_scroll.get_hadjustment().get_value(),
+            "y": self.preview_scroll.get_vadjustment().get_value(),
+        }
+
+    def _restore_view_state(self, state: dict) -> None:
+        if state is None:
+            return
+        if state["fit"]:
+            self.preview.zoom_fit()
+        else:
+            self.preview.set_zoom_scale(state["zoom"])
+        self.preview_scroll.get_hadjustment().set_value(state["x"])
+        self.preview_scroll.get_vadjustment().set_value(state["y"])
+
+    def _show_error(self, message: str) -> None:
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            modal=True,
+            message_type=Gtk.MessageType.ERROR,
+            buttons=Gtk.ButtonsType.OK,
+            text=message,
+        )
+        dialog.run()
+        dialog.destroy()
 
     def _on_canvas_click(self, widget, event) -> bool:
         button = event.button
@@ -382,22 +431,21 @@ class MainWindow(Gtk.ApplicationWindow):
     def _on_workspace_error(self, message: str) -> None:
         self._status("Workspace error")
         self._log(message)
+        self._show_error(message)
 
     def action_export(self) -> None:
         if not self.current_images:
             self._log("Open an image before exporting")
             self._status("Open an image before exporting")
             return
-        if not self.registry.available("ImageMagick"):
-            self._log("Backend unavailable: ImageMagick is required for export")
-            self._status("Backend unavailable")
-            return
-
         selected_format = self._choose_export_format()
         if selected_format is None:
             self._log("Export cancelled: no format selected")
             return
         self.export_format = selected_format
+        if selected_format.key != "png8" and not self.registry.available("ImageMagick"):
+            self._show_error("ImageMagick is not installed; only PNG export is available.")
+            return
 
         image = self.current_images[-1]
         dialog = Gtk.FileChooserDialog(
@@ -455,20 +503,22 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("Backend unavailable: ImageMagick is required for transformations")
             return
         image = self.current_images[-1]
+        view_state = self._capture_view_state()
         self._status("%s via external CLI..." % description)
         self.workspace.transform(
             image,
             params,
-            on_ready=self._on_transform_done,
+            on_ready=lambda final: self._on_transform_done(final, view_state),
             on_error=self._on_workspace_error,
             on_log=self._log,
         )
         self.app.update_action_sensitivity()
 
-    def _on_transform_done(self, image: WorkingImage) -> None:
+    def _on_transform_done(self, image: WorkingImage, view_state: dict = None) -> None:
         self.preview.load(image.png_path)
+        self._restore_view_state(view_state)
         self._log("TIFF transformed; preview PNG regenerated: %s" % image.png_path)
-        self._status("Transform applied")
+        self._status("Transform applied (view unchanged)")
         self.app.update_action_sensitivity()
 
     def _ask_percentage(self) -> Optional[str]:
@@ -609,7 +659,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.engine.run(
             job_id,
             argv,
-            on_log=self._log,
             on_done=lambda result: self._on_metadata_done(result, buffer_key, label),
         )
         self.app.update_action_sensitivity()
@@ -635,6 +684,13 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self.backends_panel.show()
 
+    def action_toggle_terminal(self) -> None:
+        if self.terminal_panel.get_visible():
+            self.terminal_panel.hide()
+        else:
+            self.terminal_panel.show()
+            self.log_view.scroll_to_iter(self.log_buffer.get_end_iter(), 0.0, False, 0.0, 0.0)
+
     def action_close(self) -> None:
         if self.current_paths:
             self.current_paths.pop()
@@ -649,6 +705,182 @@ class MainWindow(Gtk.ApplicationWindow):
         self.preview.clear()
         self._status("All views closed")
 
+    def _show_info(self, title: str, text: str) -> None:
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            modal=True,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text=title,
+        )
+        dialog.format_secondary_text(text[:4000])
+        dialog.run()
+        dialog.destroy()
+
+    def _show_image(self, title: str, path: str) -> None:
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+        except Exception:
+            self._show_info(title, path)
+            return
+        dialog = Gtk.Dialog(title=title, parent=self, modal=True)
+        dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+        image = Gtk.Image.new_from_pixbuf(pixbuf)
+        dialog.get_content_area().pack_start(image, True, True, 6)
+        dialog.show_all()
+        dialog.run()
+        dialog.destroy()
+
+    def _ask_plate_center(self) -> Optional[str]:
+        dialog = Gtk.Dialog(
+            title="Plate solving seed (optional)",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        ra_entry = Gtk.Entry()
+        dec_entry = Gtk.Entry()
+        ra_entry.set_placeholder_text("RA degrees (e.g. 83.82)")
+        dec_entry.set_placeholder_text("Dec degrees (e.g. -5.39)")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.pack_start(Gtk.Label(label="Leave blank for FITS header seed / blind search"), False, False, 0)
+        box.pack_start(ra_entry, True, True, 0)
+        box.pack_start(dec_entry, True, True, 0)
+        dialog.get_content_area().pack_start(box, True, True, 6)
+        dialog.show_all()
+        center = None
+        if dialog.run() == Gtk.ResponseType.OK:
+            ra_text = ra_entry.get_text().strip()
+            dec_text = dec_entry.get_text().strip()
+            if ra_text or dec_text:
+                try:
+                    float(ra_text)
+                    float(dec_text)
+                    center = "%s,%s" % (ra_text, dec_text)
+                except ValueError:
+                    self._show_error("RA and Dec must be decimal degrees")
+        dialog.destroy()
+        return center
+
+    def _run_astrometry(self, job_name: str, argv: List[str], output_dir: str, on_done) -> None:
+        self.job_counter += 1
+        job_id = "%s-%d" % (job_name, self.job_counter)
+        self._log("CLI %s: %s" % (job_id, " ".join(argv)))
+        self._status("Running %s via SkyStacker..." % job_name)
+        self.engine.run(job_id, argv, on_log=self._log, on_done=on_done)
+        self.app.update_action_sensitivity()
+
+    def _astrometry_job_dir(self, name: str):
+        self.job_counter += 1
+        return self.scratch.job_dir("%s-%d" % (name, self.job_counter))
+
+    def action_plate_solve(self) -> None:
+        if not self.current_paths:
+            self._log("Open an image before plate solving")
+            return
+        if not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is not installed; plate solving is unavailable.")
+            return
+        center = self._ask_plate_center()
+        output_dir = self._astrometry_job_dir("plate-solve")
+        adapter = self.adapters["SkyStacker"]
+        argv = adapter.build_plate_solve_argv(self.current_paths[-1], output_dir, center)
+        self._run_astrometry(
+            "plate-solve",
+            argv,
+            output_dir,
+            lambda result: self._on_plate_solve_done(result, output_dir),
+        )
+
+    def _on_plate_solve_done(self, result, output_dir: str) -> None:
+        if not result.ok:
+            self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
+            self._show_error("Plate solving failed: %s" % (result.error or result.stderr))
+        else:
+            solution = find_output(output_dir, [".json"])
+            text = summarize_solution(solution) if solution else "No plate_solution.json was written."
+            if not any(word in text.lower() for word in ("fov", "ra", "dec", "scale")):
+                text = "No field-of-view solution in the report (the field may lack stars):\n" + text
+            self._log("CLI %s exit %d; solution: %s" % (result.job_id, result.exit_code, text.splitlines()[0]))
+            self._show_info("Plate solution / field of view", text)
+        self.app.update_action_sensitivity()
+
+    def action_sky_map(self) -> None:
+        if not self.current_paths:
+            self._log("Open an image before generating a sky map")
+            return
+        if not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is not installed; Gaia sky maps are unavailable.")
+            return
+        output_dir = self._astrometry_job_dir("sky-map")
+        argv = self.adapters["SkyStacker"].build_sky_map_argv(
+            self.current_paths[-1], output_dir
+        )
+        self._run_astrometry(
+            "sky-map",
+            argv,
+            output_dir,
+            lambda result: self._on_sky_map_done(result, output_dir),
+        )
+
+    def _on_sky_map_done(self, result, output_dir: str) -> None:
+        if not result.ok:
+            self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
+            self._show_error("Gaia sky map failed: %s" % (result.error or result.stderr))
+            return
+        svg = find_output(output_dir, [".svg"])
+        if not svg:
+            self._show_info("Gaia sky map", "No SVG sky map was written by SkyStacker.")
+            return
+        png = os.path.join(output_dir, "sky_map.png")
+        argv = [self._magick_adapter.binary, svg, png]
+        self._log("CLI sky-map-preview: %s" % " ".join(argv))
+        self.engine.run(
+            "sky-map-preview",
+            argv,
+            on_log=self._log,
+            on_done=lambda preview: self._on_sky_map_preview(preview, png, svg),
+        )
+
+    def _on_sky_map_preview(self, result, png: str, svg: str) -> None:
+        if result.ok:
+            self._show_image("Gaia sky map", png)
+        else:
+            self._show_info("Gaia sky map", "SVG written at %s (PNG preview failed)" % svg)
+
+    def action_survey_cutout(self) -> None:
+        if not self.current_paths:
+            self._log("Open an image before requesting a survey cutout")
+            return
+        if not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is not installed; survey cutouts are unavailable.")
+            return
+        output_dir = self._astrometry_job_dir("survey-cutout")
+        argv = self.adapters["SkyStacker"].build_survey_cutout_argv(
+            self.current_paths[-1], output_dir
+        )
+        self._run_astrometry(
+            "survey-cutout",
+            argv,
+            output_dir,
+            lambda result: self._on_survey_cutout_done(result, output_dir),
+        )
+
+    def _on_survey_cutout_done(self, result, output_dir: str) -> None:
+        if not result.ok:
+            self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
+            self._show_error("Survey cutout failed: %s" % (result.error or result.stderr))
+            return
+        fits_file = find_output(output_dir, [".fits", ".fit"])
+        text = "Survey cutout written to %s" % (fits_file or output_dir)
+        self._log("CLI %s exit %d: %s" % (result.job_id, result.exit_code, text))
+        self._show_info("Observatory survey cutout", text)
+
     def action_settings(self) -> None:
         self._log("Backend availability: %s" % "; ".join(self.registry.summary()))
 
@@ -656,9 +888,10 @@ class MainWindow(Gtk.ApplicationWindow):
         if not self.current_images:
             self._log("Open an image before using Undo")
             return
+        view_state = self._capture_view_state()
         self.workspace.undo(
             self.current_images[-1],
-            on_ready=self._on_history_done,
+            on_ready=lambda final: self._on_history_done(final, view_state),
             on_error=self._on_workspace_error,
             on_log=self._log,
         )
@@ -667,17 +900,19 @@ class MainWindow(Gtk.ApplicationWindow):
         if not self.current_images:
             self._log("Open an image before using Redo")
             return
+        view_state = self._capture_view_state()
         self.workspace.redo(
             self.current_images[-1],
-            on_ready=self._on_history_done,
+            on_ready=lambda final: self._on_history_done(final, view_state),
             on_error=self._on_workspace_error,
             on_log=self._log,
         )
 
-    def _on_history_done(self, image: WorkingImage) -> None:
+    def _on_history_done(self, image: WorkingImage, view_state: dict = None) -> None:
         self.preview.load(image.png_path)
+        self._restore_view_state(view_state)
         self._log("History applied to %s; preview refreshed" % image.key)
-        self._status("History applied")
+        self._status("History applied (view unchanged)")
         self.app.update_action_sensitivity()
 
     def action_zoom_in(self) -> None:

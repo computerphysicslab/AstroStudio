@@ -11,7 +11,8 @@
 - Startup backend discovery (`BackendRegistry.probe`) checks installation and version of every CLI asynchronously and drives menu sensitivity. Keep `ACTION_BACKENDS` and `IMPLEMENTED_ACTIONS` in sync when adding adapters or actions.
 - Desktop integration: the `.desktop` entry must declare image `MimeType`s and `%F`; the app uses `HANDLES_OPEN` to load files passed by the file manager. Export asks for the format (FITS/TIFF/PNG/JPG/BMP catalog in `core/export_formats.py`) before the destination.
 - No Parameter Inspector: menus/option dialogs ask for intent and the GUI generates adapter flags internally. Precise Scale is view-only; double-click on the canvas performs Fit to Window.
-- Terminal log records timestamped CLI argv and responses, not backend install status; Backends panel is closable and restorable via View. Undo/Redo restores TIFF+PNG snapshots. No user-facing Cancel button.
+- Terminal log records timestamped CLI argv and responses, not backend install status or metadata tags; it auto-scrolls and is closable/restorable via View. Backends panel is also closable/restorable. Undo/Redo restores TIFF+PNG snapshots. No user-facing Cancel button. Transformations must preserve the preview zoom/scroll state.
+- Astrometry bridge uses SkyStacker CLI (`--plate-solve`, `--image-op sky-map`, `--image-op survey-cutout`); artifacts stay in scratch and failures are reported, never fabricated.
 - Version control is active (`main` branch, English commit messages). Commit logical changes when asked; never push, tag, merge or rewrite history without explicit user request.
 - `roadmap.md` tracks milestones v0.1.0-v1.0.0; update it and `Context/AstroStudio_ai_project_context.md` in the same change whenever status changes.
 - Code, comments, identifiers, and documentation in English.

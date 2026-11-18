@@ -68,14 +68,34 @@ Every opened image is prepared in scratch as two files:
 
 When you apply a transform (resize, unsharp, crop, rotate), an external CLI tool
 operates on the TIFF and writes a new TIFF. The new TIFF replaces the previous one
-and a fresh PNG is generated from it; the GUI then reloads that PNG. Original inputs
-are never modified.
+and a fresh PNG is generated from it; the GUI then reloads that PNG while preserving
+the current zoom and scroll position. Original inputs are never modified.
 
 The **Metadata** panel on the right is hidden until you press the (i) Metadata button;
 it then shows two tabs (PNG preview and TIFF working) filled by ExifTool, and can be
 closed with its X button. The **Terminal Drawer** logs each CLI invocation with date,
 time, full `argv` and the backend's response/exit code; it no longer repeats backend
-installation status. Scroll the mouse wheel over the preview to zoom.
+installation status or metadata output, and scrolls to the newest line automatically.
+It has its own X button and can be restored from *View > Toggle Terminal Drawer*.
+Scroll the mouse wheel over the preview to zoom; transforms and Undo/Redo keep the same
+view.
+
+## Astrometry (SkyStacker bridge)
+
+The **Astrometry** menu delegates to the installed SkyStacker CLI and writes all
+results to scratch:
+
+- **Plate Solve...** optionally asks for an RA/Dec seed (decimal degrees), runs
+  `--plate-solve --json-report`, and shows the reported field of view / centre from
+  `plate_solution.json`.
+- **Gaia Sky Map...** runs `--image-op sky-map` to produce a Gaia catalog map (SVG),
+  converts it to PNG with the external CLI and displays it.
+- **Survey Cutout...** runs `--image-op survey-cutout` to fetch a HiPS FITS cutout of
+  the same sky area and reports the file written.
+
+These need a real star field and, for catalog/survey data, Gaia/HiPS access (offline
+caching is supported by the backend). A synthetic or starless image is reported as
+"no field-of-view solution" instead of producing a fake result.
 
 ## Export formats
 
@@ -123,8 +143,12 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
    action is disabled, the terminal drawer explains why instead of failing silently.
 7. **Open With:** right-click a PNG/FITS file, choose Astro Studio, and confirm the
    image is loaded with its TIFF+PNG workspace.
-8. **Quit:** `Ctrl+Q` cleans up the scratch directory.
-9. **Backend settings:** Options > Backend Settings writes the detected version list
+8. **Panels:** close the Terminal Drawer with its X and restore it from View > Toggle
+   Terminal Drawer; the log always scrolls to the newest CLI response.
+9. **Astrometry:** with a real star-field image, run Astrometry > Plate Solve, Gaia Sky
+   Map and Survey Cutout; inspect the reported FOV and generated artifacts.
+10. **Quit:** `Ctrl+Q` cleans up the scratch directory.
+11. **Backend settings:** Options > Backend Settings writes the detected version list
    to the terminal drawer.
 
 ## Layout

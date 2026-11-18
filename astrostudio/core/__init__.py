@@ -1,5 +1,6 @@
 """Core orchestration components."""
 
+from .astrometry import find_output, summarize_solution
 from .backends import BackendRegistry, BackendSpec, BackendStatus
 from .command_builder import CommandBuilder
 from .export_formats import EXPORT_FORMATS, ExportFormat, find_format
@@ -12,6 +13,8 @@ __all__ = [
     "BackendSpec",
     "BackendStatus",
     "CommandBuilder",
+    "find_output",
+    "summarize_solution",
     "EXPORT_FORMATS",
     "ExportFormat",
     "find_format",

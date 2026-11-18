@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (31 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (35 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -162,3 +162,13 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * `ImageWorkspace` keeps per-image TIFF/PNG snapshots before each transform. `Edit > Undo / Redo` restores those snapshots and refreshes the canvas; menu sensitivity follows `can_undo()` / `can_redo()`. No external backend is invoked for history.
 * The Cancel job toolbar button and action were removed; internal cancellation still runs on shutdown. Disabled actions now explain themselves in the terminal log instead of silently ignoring clicks (important for Save As).
 * Verified with a GUI smoke: panels hide/restore, metadata tabs fill for PNG+TIFF, log contains CLI lines and no installation lines, undo/redo enable after a transform, and 31 tests pass.
+
+---
+
+## 12. Stable View, Dock Controls and Astrometry Bridge
+
+* Transformations and Undo/Redo capture and restore `PreviewPane` zoom/fit plus scroll offsets, so applying a filter never changes the user's view state.
+* The Metadata panel output is no longer echoed into the Terminal Drawer; the terminal auto-scrolls to the newest response. Both the Backends panel and the Terminal Drawer have close buttons and View-menu toggles (`toggle-backends`, `toggle-terminal`).
+* Export/Actions report failures visibly (message dialog) and PNG export works without ImageMagick by copying the regenerated preview. The GTK application id was versioned to `org.astrostudio.gui.v2` so launches no longer get forwarded to stale single instances running older code.
+* The new `Astrometry` menu bridges to the installed SkyStacker CLI: `--plate-solve --json-report` (with optional `--plate-center` seed) for field-of-view/plate solution, `--image-op sky-map` for a Gaia catalog SVG (converted to PNG by an external CLI), and `--image-op survey-cutout` for a HiPS FITS cutout. `astrostudio/core/astrometry.py` reads `plate_solution.json` and locates artifacts; all outputs go to scratch and failures are reported instead of fabricated. Real star fields and Gaia/HiPS access are required for meaningful results.
+* Verified with GUI smokes: zoom 200% preserved across transform, metadata absent from terminal log, terminal toggle works, Save As writes TIFF, plate-solve argv is dispatched and its report is summarized; 35 tests pass.

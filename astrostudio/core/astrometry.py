@@ -1,0 +1,42 @@
+"""Helpers for reading astrometry artifacts written by external backends."""
+
+import json
+import os
+from typing import List, Optional
+
+PREFERRED_KEYS = ("fov", "field", "ra", "dec", "scale", "center", "width", "height")
+
+
+def find_output(directory: str, suffixes: List[str]) -> Optional[str]:
+    for root, _dirs, files in os.walk(directory):
+        for name in sorted(files):
+            if name.lower().endswith(tuple(suffixes)):
+                return os.path.join(root, name)
+    return None
+
+
+def summarize_solution(path: str) -> str:
+    """Return a readable summary of a plate-solution JSON report."""
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError) as exc:
+        return "Cannot read plate solution %s: %s" % (path, exc)
+
+    scalar = {
+        key: value
+        for key, value in data.items()
+        if isinstance(value, (str, int, float, bool))
+    }
+    if not scalar:
+        return "Plate solution %s contains no scalar values" % path
+
+    ordered = []
+    for keyword in PREFERRED_KEYS:
+        for key, value in scalar.items():
+            if keyword in key.lower() and key not in ordered:
+                ordered.append(key)
+    for key in scalar:
+        if key not in ordered:
+            ordered.append(key)
+    return "\n".join("%s: %s" % (key, scalar[key]) for key in ordered[:16])

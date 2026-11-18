@@ -3,5 +3,6 @@
 from .base import CliAdapter
 from .exiftool import ExifToolAdapter
 from .magick import ImageMagickAdapter
+from .skystacker import SkyStackerAdapter
 
-__all__ = ["CliAdapter", "ExifToolAdapter", "ImageMagickAdapter"]
+__all__ = ["CliAdapter", "ExifToolAdapter", "ImageMagickAdapter", "SkyStackerAdapter"]

@@ -42,6 +42,10 @@ read-only, and tests for every adapter.
 - [x] Terminal Drawer logs timestamped CLI `argv` plus responses/exit codes instead of
       repeating backend installation status.
 - [x] Real Undo/Redo of TIFF+PNG snapshots after a transform; Cancel job button removed.
+- [x] Transformations preserve zoom/scroll view state; Terminal Drawer has close button,
+      View-menu toggle and auto-scroll; metadata output no longer duplicated there.
+- [x] SkyStacker astrometry bridge: plate solving with optional RA/Dec seed (FOV report),
+      Gaia sky map and HiPS survey cutout, all writing to scratch.
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
 - [x] Git version control initialized on `main` with an initial commit.

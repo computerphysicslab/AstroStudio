@@ -81,3 +81,8 @@ def test_menu_actions_are_gated_by_backend_availability(monkeypatch):
 
     assert not registry.is_action_enabled("calibration")
     assert not registry.is_action_enabled("stacking")
+    assert not registry.is_action_enabled("plate-solve")
+
+    registry.status["SkyStacker"].available = True
+    assert registry.is_action_enabled("plate-solve")
+    assert registry.is_action_enabled("sky-map")

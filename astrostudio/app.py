@@ -57,7 +57,7 @@ def paths_from_command_line(command_line) -> List[str]:
 class AstroStudioApplication(Gtk.Application):
     def __init__(self) -> None:
         super().__init__(
-            application_id="org.astrostudio.gui",
+            application_id="org.astrostudio.gui.v2",
             flags=Gio.ApplicationFlags.HANDLES_OPEN,
         )
         self.registry = BackendRegistry()

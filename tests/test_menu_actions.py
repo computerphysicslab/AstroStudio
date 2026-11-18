@@ -24,7 +24,14 @@ def test_precise_scale_actions_are_registered():
 def test_dock_toggle_is_available_and_cancel_is_gone():
     actions = set(iter_menu_actions())
     assert "toggle-backends" in actions
+    assert "toggle-terminal" in actions
     assert "cancel" not in actions
+
+
+def test_astrometry_menu_is_registered():
+    actions = set(iter_menu_actions())
+    assert {"plate-solve", "sky-map", "survey-cutout"} <= actions
+    assert "Astrometry" in dict(MENU_LAYOUT)
 
 
 def test_processing_contains_precise_scale_submenu_and_cli_actions():

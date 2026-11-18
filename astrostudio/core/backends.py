@@ -82,6 +82,9 @@ ACTION_BACKENDS: Dict[str, Tuple[str, ...]] = {
     "histogram": ("ImageMagick",),
     "line-profile": ("ImageMagick",),
     "clone-stamp": ("GIMP", "PhotoFlow"),
+    "plate-solve": ("SkyStacker",),
+    "sky-map": ("SkyStacker",),
+    "survey-cutout": ("SkyStacker",),
     "settings": (),
     "language": (),
 }
@@ -101,6 +104,9 @@ IMPLEMENTED_ACTIONS = frozenset(
         "resize",
         "unsharp",
         "metadata",
+        "plate-solve",
+        "sky-map",
+        "survey-cutout",
         "settings",
     }
 )
