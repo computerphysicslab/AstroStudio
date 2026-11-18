@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (36 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (37 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -183,3 +183,13 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Save As bug fixed:** `Gtk.ScrolledWindow` has no `set_min_content_size()` in GTK 3.24; the format dialog now uses `set_min_content_width/height`. Verified with a real-dialog smoke that selects TIFF, chooses a destination and writes the export.
 * Astrometry: SkyStacker only invokes its WCS solver from `--image-op sky-map` or `survey-cutout`. `measure-quality` produced `image_measurements.json` (not a plate solution), which caused the false "OK". Plate Solve now uses the WCS-capable op, writes `<base>_plate_solution.json`, normalises/caches it as `plate_solution.json`, and Sky Map / Survey Cutout copy that cached solution into their scratch output before running. Failures are surfaced as errors.
 * Verified with GUI smokes: pan (60,30) preserved across transform, Save As via real dialogs writes TIFF, plate-solve dispatches the corrected argv and reports the backend error; 36 tests pass.
+
+---
+
+## 14. UX Feedback, FITS Preview and Plate-Solve Diagnosis
+
+* A busy `watch` cursor is set from job dispatch until the final `on_done`/error callback for image import, transforms, export, metadata and astrometry; `MainWindow._busy_begin()`/`_busy_end()` use a counter so concurrent jobs do not clear it early.
+* `toggle-backends` and `toggle-terminal` are now in `IMPLEMENTED_ACTIONS`, so the View menu entries stay enabled after their panels are closed with the X button.
+* FITS import uses the CLI selector `file.fits[0]` to take the first HDU; FITS/RAW sources set `WorkingImage.display_stretch`, so `build_preview_argv()` adds ImageMagick `-evaluate Pow 0.45` when regenerating the display PNG. Scientific exports stay linear. Verified on `assets/IMG_4062_processed.fits`: preview mean went from ~7 to ~49 (visible).
+* Plate-solving diagnosis: the exact same SkyStacker command run directly outside AstroStudio reproduces `plate solve: no consistent transform (0 matched pairs)`, so the failure is in the backend's star matching / catalog data, not in AstroStudio's argv or UI. The JPG has no RA/DEC EXIF tags (only camera/date/focal length), so no reliable header seed is available; blind solving and an M42 seed with higher Gaia magnitude limit both failed. AstroStudio now reports the real error; alternative solvers (ASTAP, `solve-field`) are on the roadmap.
+* `roadmap.md` was reorganised: completed v0.1.0 baseline first, then the pending backlog ordered by difficulty (low → medium → high) with milestone tags and the audited feature ideas (pipeline-as-code, job queue, thumbnails, before/after, derivation tree, hot-folder, plugins, remote compute, GTK 4).

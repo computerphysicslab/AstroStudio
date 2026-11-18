@@ -104,6 +104,8 @@ IMPLEMENTED_ACTIONS = frozenset(
         "resize",
         "unsharp",
         "metadata",
+        "toggle-backends",
+        "toggle-terminal",
         "plate-solve",
         "sky-map",
         "survey-cutout",

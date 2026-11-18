@@ -80,6 +80,20 @@ def test_transform_replaces_tiff_and_regenerates_png(tmp_path, monkeypatch):
     assert not os.path.exists(os.path.join(image.directory, "working_next.tiff"))
 
 
+def test_fits_source_gets_first_hdu_and_display_stretch(tmp_path, monkeypatch):
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    source = tmp_path / "light.fits"
+    source.write_bytes(b"fits")
+
+    image = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+
+    assert image.display_stretch
+    assert engine.calls[0][1][1] == str(source) + "[0]"
+    assert "-evaluate" in engine.calls[1][1]
+    assert "0.45" in engine.calls[1][1]
+
+
 def test_undo_and_redo_restore_both_artifacts(tmp_path, monkeypatch):
     engine = FakeEngine()
     workspace = _workspace(tmp_path, monkeypatch, engine)

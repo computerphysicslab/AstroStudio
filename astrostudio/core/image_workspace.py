@@ -36,6 +36,7 @@ class WorkingImage:
     directory: str
     tiff_path: str
     png_path: str
+    display_stretch: bool = False
 
 
 class ImageWorkspace:
@@ -68,12 +69,16 @@ class ImageWorkspace:
         self._counter += 1
         key = "image-%04d" % self._counter
         directory = self.scratch.job_dir(key)
+        display_stretch = source.lower().endswith(
+            (".fits", ".fit", ".fts", ".cr2", ".cr3", ".nef", ".arw", ".dng")
+        )
         image = WorkingImage(
             key=key,
             source=source,
             directory=directory,
             tiff_path=os.path.join(directory, "working.tiff"),
             png_path=os.path.join(directory, "preview.png"),
+            display_stretch=display_stretch,
         )
         self.images[key] = image
         argv = self.adapter.build_import_argv(source, image.tiff_path)
@@ -111,7 +116,9 @@ class ImageWorkspace:
         on_error: ErrorCallback,
         on_log: Optional[LogCallback],
     ) -> None:
-        argv = self.adapter.build_preview_argv(image.tiff_path, image.png_path)
+        argv = self.adapter.build_preview_argv(
+            image.tiff_path, image.png_path, image.display_stretch
+        )
         if on_log:
             on_log("Preview PNG from TIFF: %s" % " ".join(argv))
         self.engine.run(

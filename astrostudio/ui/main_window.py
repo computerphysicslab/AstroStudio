@@ -183,6 +183,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.job_counter = 0
         self.plate_solutions: dict = {}
         self.plate_centers: dict = {}
+        self._busy_count = 0
         self.set_default_size(1100, 720)
 
         self.preview = PreviewPane()
@@ -338,6 +339,25 @@ class MainWindow(Gtk.ApplicationWindow):
     def _status(self, text: str) -> None:
         self.status_bar.push(self.status_context, text)
 
+    def _busy_begin(self) -> None:
+        self._busy_count += 1
+        if self._busy_count == 1:
+            window = self.get_window()
+            if window is not None:
+                display = Gdk.Display.get_default()
+                cursor = (
+                    Gdk.Cursor.new_from_name(display, "watch") if display else None
+                )
+                if cursor is not None:
+                    window.set_cursor(cursor)
+
+    def _busy_end(self) -> None:
+        self._busy_count = max(0, self._busy_count - 1)
+        if self._busy_count == 0:
+            window = self.get_window()
+            if window is not None:
+                window.set_cursor(None)
+
     def _log(self, line: str) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
         end = self.log_buffer.get_end_iter()
@@ -459,6 +479,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("Backend unavailable: ImageMagick is required for the TIFF workspace")
             return
         self.current_paths.append(path)
+        self._busy_begin()
         image = self.workspace.prepare(
             path,
             on_ready=self._on_image_ready,
@@ -469,6 +490,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._status("Preparing 16-bit TIFF + PNG preview for %s" % path)
 
     def _on_image_ready(self, image: WorkingImage) -> None:
+        self._busy_end()
         self.preview.load(image.png_path)
         self._status("TIFF + PNG ready: %s" % os.path.basename(image.source))
         self._log(
@@ -477,6 +499,7 @@ class MainWindow(Gtk.ApplicationWindow):
         )
 
     def _on_workspace_error(self, message: str) -> None:
+        self._busy_end()
         self._status("Workspace error")
         self._log(message)
         self._show_error(message)
@@ -526,6 +549,7 @@ class MainWindow(Gtk.ApplicationWindow):
             destination = root + "." + selected_format.extension
             self._log("Extension adjusted to %s" % selected_format.extension)
 
+        self._busy_begin()
         self._status("Exporting as %s..." % selected_format.label)
         self.workspace.export(
             image,
@@ -538,6 +562,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.app.update_action_sensitivity()
 
     def _on_export_ready(self, destination: str) -> None:
+        self._busy_end()
         self._log("Exported copy to %s" % destination)
         self._status("Export complete: %s" % destination)
         self.app.update_action_sensitivity()
@@ -552,6 +577,7 @@ class MainWindow(Gtk.ApplicationWindow):
             return
         image = self.current_images[-1]
         view_state = self._capture_view_state()
+        self._busy_begin()
         self._status("%s via external CLI..." % description)
         self.workspace.transform(
             image,
@@ -563,6 +589,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.app.update_action_sensitivity()
 
     def _on_transform_done(self, image: WorkingImage, view_state: dict = None) -> None:
+        self._busy_end()
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
         self._log("TIFF transformed; preview PNG regenerated: %s" % image.png_path)
@@ -705,6 +732,7 @@ class MainWindow(Gtk.ApplicationWindow):
         job_id = "metadata-%d" % self.job_counter
         argv = adapter.build_argv([path])
         self._log("CLI %s (%s): %s" % (job_id, label, " ".join(argv)))
+        self._busy_begin()
         self.engine.run(
             job_id,
             argv,
@@ -713,6 +741,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.app.update_action_sensitivity()
 
     def _on_metadata_done(self, result, buffer_key: str, label: str) -> None:
+        self._busy_end()
         if result.ok:
             text = result.stdout.strip() or "(no metadata tags found)"
             self.metadata_buffers[buffer_key].set_text(text)
@@ -820,6 +849,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.job_counter += 1
         job_id = "%s-%d" % (job_name, self.job_counter)
         self._log("CLI %s: %s" % (job_id, " ".join(argv)))
+        self._busy_begin()
         self._status("Running %s via SkyStacker..." % job_name)
         self.engine.run(job_id, argv, on_log=self._log, on_done=on_done)
         self.app.update_action_sensitivity()
@@ -862,6 +892,7 @@ class MainWindow(Gtk.ApplicationWindow):
         )
 
     def _on_plate_solve_done(self, result, output_dir: str) -> None:
+        self._busy_end()
         if not result.ok:
             self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
             self._show_error("Plate solving failed: %s" % (result.error or result.stderr))
@@ -902,11 +933,13 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_sky_map_done(self, result, output_dir: str) -> None:
         if not result.ok:
+            self._busy_end()
             self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
             self._show_error("Gaia sky map failed: %s" % (result.error or result.stderr))
             return
         svg = find_output(output_dir, [".svg"])
         if not svg:
+            self._busy_end()
             self._show_info("Gaia sky map", "No SVG sky map was written by SkyStacker.")
             return
         png = os.path.join(output_dir, "sky_map.png")
@@ -920,6 +953,7 @@ class MainWindow(Gtk.ApplicationWindow):
         )
 
     def _on_sky_map_preview(self, result, png: str, svg: str) -> None:
+        self._busy_end()
         if result.ok:
             self._show_image("Gaia sky map", png)
         else:
@@ -946,6 +980,7 @@ class MainWindow(Gtk.ApplicationWindow):
         )
 
     def _on_survey_cutout_done(self, result, output_dir: str) -> None:
+        self._busy_end()
         if not result.ok:
             self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
             self._show_error("Survey cutout failed: %s" % (result.error or result.stderr))

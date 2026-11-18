@@ -79,8 +79,10 @@ installation status or metadata output, and scrolls to the newest line automatic
 It has its own X button and can be restored from *View > Toggle Terminal Drawer*.
 Scroll the mouse wheel over the preview to zoom; drag with the left mouse button to pan
 when the image is larger than the window. Transforms and Undo/Redo keep the same zoom
-and pan position. The Backends panel lists installed connectors first (alphabetically),
-then the missing ones.
+and pan position. A watch cursor is shown for the whole job lifecycle. The Backends
+panel lists installed connectors first (alphabetically), then the missing ones, and its
+View toggle stays enabled after closing the panel with X. FITS/RAW sources take the
+first HDU and get a CLI display stretch for the PNG preview; exports stay linear.
 
 ## Astrometry (SkyStacker bridge)
 
@@ -100,6 +102,9 @@ results to scratch:
 These need a real star field and, for catalog/survey data, Gaia/HiPS access (offline
 caching is supported by the backend). If star matching fails, the CLI error is shown
 instead of a false "OK" report; `measure-quality` alone never produced a plate solution.
+A reproduced failure with uncalibrated wide-field JPGs (`0 matched pairs`) occurs in
+SkyStacker itself when its CLI is run outside AstroStudio, so alternative solvers are
+planned in the roadmap.
 
 ## Export formats
 

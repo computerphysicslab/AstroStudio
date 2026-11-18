@@ -5,102 +5,106 @@ This roadmap tracks delivery of the zero-processing GTK orchestrator described i
 `Context/GUI-specifications.md`: **[P1]** implemented, **[P2]** adapter/UI pending,
 **[P3]** planned.
 
-Non-negotiable rules for every milestone: no pixel math in the GUI, `argv` arrays
-only, asynchronous subprocesses, scratch-only intermediate files, original inputs
-read-only, and tests for every adapter.
+Non-negotiable rules for every item: no pixel math in the GUI, `argv` arrays only,
+asynchronous subprocesses, scratch-only intermediate files, original inputs read-only,
+and tests for every adapter. The pending backlog is ordered by difficulty, easiest
+first; the milestone tags are a reference for release planning only.
 
-## v0.1.0 — Foundation (current, in progress)
+## Completed — v0.1.0 baseline
 
-- [x] Coherent specifications: GUI actions are CLI delegations through scratch files.
-- [x] GTK 3.24 / PyGObject application skeleton with menu bar, toolbar, status bar,
-      read-only preview canvas, metadata panel and terminal drawer.
-- [x] Sanitized `CommandBuilder` (ordered flags, booleans, formatters, NUL rejection).
-- [x] Async `ProcessEngine` with line-streamed stdout/stderr, exit codes and `SIGTERM`
-      cancellation.
-- [x] Scratch manager under `XDG_RUNTIME_DIR` / `/tmp`, with job cleanup.
-- [x] First adapters: ImageMagick (export/resize/unsharp/crop/rotate) and ExifTool
-      (metadata inspector).
-- [x] Startup backend discovery: installed/version status for every connector, shown
-      in the Backends panel, driving `Gio.SimpleAction` menu sensitivity from the
-      first frame (installed state resolved before version queries).
-- [x] Dual-format workspace: each opened image gets a 16-bit working TIFF and a PNG
-      preview in scratch; every transform runs on the TIFF via external CLI, replaces
-      it, and regenerates the PNG that the GUI renders.
-- [x] Metadata panel populated automatically by ExifTool on open and refreshed by the
-      (i) button/toolbar action, with canonical EXIF/FITS tags.
-- [x] Desktop/MIME registration for image types and command-line file opening from
-      the file manager ("Open With Other Application").
-- [x] Export format picker shown before Save As: FITS, TIFF 16-bit (uncompressed,
-      LZW, Zip), PNG, JPEG (90/95%), BMP.
-- [x] Double-click on the canvas (and the fit button) performs Fit to Window;
-      Processing > Precise Scale provides 10/25/50/75/100/150/200/400/1000%, 1:1 and
-      Fit to Window as view-only zoom levels.
-- [x] Parameter Inspector removed: the GUI generates CLI flags from menu/dialog
-      choices (resize percentage, sharpening preset, export format).
-- [x] Backends panel with close button and *View > Toggle Backends Viewer*; on-demand
-      Metadata panel on the right with PNG/TIFF tabs and its own close button.
-- [x] Terminal Drawer logs timestamped CLI `argv` plus responses/exit codes instead of
-      repeating backend installation status.
-- [x] Real Undo/Redo of TIFF+PNG snapshots after a transform; Cancel job button removed.
-- [x] Transformations preserve zoom/scroll view state; Terminal Drawer has close button,
-      View-menu toggle and auto-scroll; metadata output no longer duplicated there.
-- [x] SkyStacker astrometry bridge: plate solving with optional RA/Dec seed (FOV report),
-      Gaia sky map and HiPS survey cutout, all writing to scratch.
-- [x] Backends sorted installed-first alphabetically; drag-to-pan on the canvas; Open
-      dialog covers uppercase/lowercase astronomical extensions.
-- [x] Fixed Save As format dialog for GTK 3.24 and corrected astrometry to use the
-      WCS-capable image op, cache/reuse `plate_solution.json`, and report real failures.
-- [x] Test baseline: argv serialization, adapters, scratch isolation, process
-      lifecycle (ENOENT/exit code), discovery gating.
-- [x] Git version control initialized on `main` with an initial commit.
-- [x] Desktop integration: SVG icon, user-level installer, `.desktop` entry and launcher script.
+- [x] Coherent specifications: GUI actions delegate to CLI tools through scratch files.
+- [x] GTK 3.24 / PyGObject skeleton: menu bar, toolbar, status bar, preview canvas,
+      metadata panel, terminal drawer and user-level desktop installation.
+- [x] Sanitized `CommandBuilder`, async `ProcessEngine`, scratch manager and startup
+      `BackendRegistry` with version detection and menu gating.
+- [x] Dual-format workspace: 16-bit `working.tiff` + 8-bit `preview.png`; every
+      transform runs on the TIFF via CLI, replaces it and regenerates the PNG.
+- [x] Undo/Redo via TIFF+PNG snapshots; zoom, pan and scroll state preserved across
+      transforms and history operations.
+- [x] ExifTool metadata on demand (PNG/TIFF tabs), chronological CLI log with
+      timestamps/`argv`/responses, closable Backends/Terminal panels with View toggles.
+- [x] Save As format picker (FITS, TIFF 16-bit uncompressed/LZW/Zip, PNG, JPEG 90/95%,
+      BMP), desktop MIME associations, Open With support and astronomical file filters.
+- [x] SkyStacker bridge: WCS-capable plate solve, Gaia sky map and survey cutout with
+      `plate_solution.json` caching and real failure reporting.
+- [x] Backends sorted installed-first alphabetically; busy (watch) cursor during jobs;
+      FITS first-HDU import and CLI display stretch for dark scientific previews.
+- [x] Test baseline and Git history on `main` (English commit messages).
 
-## v0.2.0 — Conversion and inspection completeness
+## Pending backlog — ordered by difficulty (easiest first)
 
-- [x] Mouse-wheel zoom control on the preview canvas.
-- [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and batch dialog.
-- [ ] Crop/rotate/flip/mirror options exposed as dialogs with internally generated flags.
-- [ ] CLI-generated histogram view and pixel line profile (text output parsed by GUI).
-- [ ] Frame table with metadata columns and quality diagnostics (SNR, FWHM/HFR,
-      eccentricity, background sigma, footprint) for culling.
-- [ ] Backend settings dialog: binary overrides, scratch/cache directories, thread
-      limits, offline mode.
-- [ ] Localization of interface strings (EN/ES/DE/JA).
+### Low difficulty
 
-## v0.3.0 — Calibration and stacking
+1. [ ] Real Settings dialog with persistence: binary overrides, scratch/cache dirs,
+       thread limits, offline mode and theme preference (v0.2.0).
+2. [ ] Complete keyboard shortcut set and shortcut customization (v0.2.0).
+3. [ ] Drag-and-drop of files and folders onto the preview canvas (v0.2.0).
+4. [ ] Dark theme CSS and configurable accent colours (v0.2.0).
+5. [ ] Export pipeline as a reproducible shell script / Makefile using the exact
+       serialized `argv` (v0.2.0).
+6. [ ] Content-hash cache (input + parameters) to reuse prior artifacts (v0.2.0).
+7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
+8. [ ] Crop / rotate / flip / mirror option dialogs with internally generated flags
+       (v0.2.0).
+9. [ ] CLI-generated histogram view and pixel line profile (v0.2.0).
+10. [ ] Localization of interface strings (EN/ES/DE/JA) (v0.2.0).
 
-- [ ] Siril / SkyStacker adapters for master dark, flat and bias generation from real
-      frames only; synthetic masters never exposed.
-- [ ] Case-insensitive calibration folder auto-detection and light-frame exclusion.
-- [ ] Registration and stacking pipelines with seeded alignment, affine shear <= 0.10
-      and anisotropy <= 1.10 guards.
-- [ ] Bad-pixel-map automation with sanity caps (reject maps flagging > 0.1% pixels).
-- [ ] Scientific linear artifacts (`.fits`, `.xisf`, 16/32-bit TIFF) kept distinct from
-      display-stretched previews.
+### Medium difficulty
 
-## v0.4.0 — Astrometry and scientific export
+1. [ ] Visual job manager: queue states, progress lines, retry, per-job timeouts and
+       resource limits (v0.2.0).
+2. [ ] Frame table with metadata and quality diagnostics (SNR, FWHM/HFR, eccentricity,
+       background sigma, footprint) for culling (v0.3.0).
+3. [ ] Case-insensitive calibration folder auto-detection and light-frame exclusion
+       (v0.3.0).
+4. [ ] Siril adapter: master dark/flat/bias from real frames and basic stacking with
+       seeded alignment and affine guards (v0.3.0).
+5. [ ] Bad-pixel-map automation with the 0.1% sanity cap (v0.3.0).
+6. [ ] FITS/XISF header and WCS preservation on export where the backend supports it
+       (v0.4.0).
+7. [ ] Alternative plate solvers (ASTAP, `solve-field`) with explicit pointing seeds and
+       blind-scan warnings; addresses the SkyStacker `0 matched pairs` failure (v0.4.0).
+8. [ ] Gaia DR3 cache management at `nside=64` with offline/air-gapped mode (v0.4.0).
+9. [ ] Session save/resume reusing scratch artifacts (v0.4.0).
+10. [ ] Multi-document tabs, thumbnail strip and before/after slider or difference map
+       via a delegated backend job (v0.2–v0.4).
+11. [ ] WCS/catalog overlay on the canvas once a plate solution exists (v0.4.0).
+12. [ ] RAW developers (RawTherapee/darktable/LibRaw), Hugin/enfuse and GIMP headless
+       actions (v0.5.0).
+13. [ ] Parameter suggestions/presets derived from image metadata and backend
+       diagnostics (v0.5.0).
+14. [ ] Non-destructive markup annotations (arrows, circles, labels) burned in only at
+       export by GIMP/ImageMagick (v0.5.0).
+15. [ ] Linear-space guard enforcement before non-linear stretching (v0.5.0).
+16. [ ] Derivation tree view showing which original and operation chain produced the
+       current image (v0.5.0).
 
-- [ ] Plate solving through `solve-field` / ASTAP with explicit pointing seeds
-      (user coordinates first, FITS RA/DEC second) and blind-scan warnings.
-- [ ] Gaia DR3 tile cache at `nside=64`, with offline/air-gapped support.
-- [ ] FITS/XISF header and WCS preservation in exported files where supported.
-- [ ] Optional `--resume` session recovery preserving scratch artifacts.
+### High difficulty
 
-## v0.5.0 — Extended backends and pipelines
+1. [ ] Undo via operation replay / hardlinks with history depth policy instead of full
+       TIFF+PNG copies (v0.3.0 target, research required).
+2. [ ] Scalable previews: resolution pyramids, tiling and `GtkGLArea` rendering for
+       very large FITS/stacks (v0.5.0).
+3. [ ] Non-destructive visual pipeline graph: reorder, disable and duplicate nodes,
+       exported as a reproducible script (v0.5.0).
+4. [ ] Hot-folder watcher that triggers calibration + stacking when new lights appear
+       (v1.0.0).
+5. [ ] Smart catalog/HiPS prefetch for fully offline plate solving (v0.4.0).
+6. [ ] Quality-validation dashboard after stacking/calibration using backend metrics
+       (v1.0.0).
+7. [ ] Plugin system with dynamic adapter registration via entry points (v1.0.0).
+8. [ ] Remote compute adapters (SSH/API) for heavy stacking (v1.0.0).
+9. [ ] Reproducible offline packaging (Flatpak/AppImage) with optional dependencies
+       declared (v1.0.0).
+10. [ ] Gradual GTK 4 migration once the runtime is available (post-v1.0.0).
 
-- [ ] RAW developers (RawTherapee `.pp3`, darktable XMP), LibRaw and PhotoFlow `.pfp`
-      pipeline execution.
-- [ ] Hugin tools (`pto_gen`, `cpfind`, `nona`, `enblend`) and `enfuse` fusion.
-- [ ] GIMP headless Script-Fu/Python-Fu actions (clone stamp, custom macros).
-- [ ] Magnetic/linear guard enforcement: background extraction, deconvolution and star
-      removal chained only before non-linear stretch unless explicitly overridden.
+## Milestone mapping (reference only)
 
-## v1.0.0 — Release
-
-- [ ] Full menu/toolbar coverage according to `Context/GUI-specifications.md`.
-- [ ] Integration runs against the local Orion, CR2 and FITS datasets referenced in the
-      context file, with artifacts written only to `/tmp/astro_studio_*`.
-- [ ] Documentation, packaging and a stable Python/GTK dependency declaration.
+- **v0.2.0** — conversion/inspection completeness, settings persistence, job manager.
+- **v0.3.0** — calibration, stacking and quality diagnostics.
+- **v0.4.0** — astrometry alternatives, WCS export and session resume.
+- **v0.5.0** — extended backends and scalable previews.
+- **v1.0.0** — full menu coverage, packaging and release.
 
 ## Version-control practice
 
