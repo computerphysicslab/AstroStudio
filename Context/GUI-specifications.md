@@ -14,7 +14,8 @@ This document specifies the graphical interface of Astro Studio. Astro Studio is
 
 * **Main Frame (`Gtk.ApplicationWindow`):** Hosts the global menu bar, toolbars, status bar, dockable workspace container, and the collapsible terminal drawer. Follows GNOME HIG.
 * **Child Image Canvas Panes:** Multi-document/single-document view supporting multiple loaded files, zoom from fit-to-window to custom magnification, and read-only pixel inspection. The canvas never modifies the buffer it displays; a transformed image is a *new file* produced by a backend and reloaded into view.
-* **Parameter Inspector:** Dynamic panels whose controls map one-to-one to flags of the selected CLI adapter. Widget defaults and tooltips must equal the defaults serialized by the Command Builder.
+* **Metadata Panel:** Read-only ExifTool/FITS table docked under the preview, filled automatically on open and refreshed by the (i) action.
+* **No Parameter Inspector:** CLI flags are never typed by the user. Menus and small option dialogs ask for intent (scale percentage, sharpening preset, export format) and the GUI generates the exact adapter flags internally.
 * **Terminal Drawer:** Line-buffered `stdout`/`stderr` view of active child processes, with cancel (`SIGTERM`, then `SIGKILL`) and exit-code display.
 * **Status Bar:** Cursor coordinates (X, Y), intensity value read from the rendered preview (display only), zoom percentage, active backend, and job status.
 
@@ -58,9 +59,12 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 
 ### 3.3 Processing (`Processing`)
 
+* **Precise Scale (view only):** submenu with 10%, 25%, 50%, 75%, 100%, 150%, 200%, 400%, 1000%, **1:1** (one screen pixel per image pixel) and **Fit to Window**. Double-clicking the preview also triggers Fit to Window. No file or CLI job is involved. [P1]
+* **Resize Image...:** asks for a percentage in a dialog; the GUI generates `-resize N%`, transforms the working TIFF via the external CLI, replaces it and regenerates the PNG preview. [P1]
+* **Sharpen...:** asks for a light/medium/strong preset; the GUI generates the corresponding `-unsharp` flags. [P1]
 * **Calibration (Master Dark / Master Flat / Darks / Flats / Biases):** The GUI discovers calibration folders case-insensitively (`Light(s)`, `Dark(s)`, `Flat(s)`, `Bias(es)`) and exposes real-frame selectors; `siril-cli` / `skystacker` build masters via CLI flags. Synthetic bias/dark/flat generation is never exposed. Output masters are written under scratch and registered as new inputs for stacking. [P2]
 * **Stacking (Add Images / Multi-point Alignment):** File list and quality metrics (SNR, FWHM/HFR, eccentricity, background sigma, footprint) are collected in the frame table; registration and stacking flags are serialized to `siril-cli` / `skystacker` / `astap_cli`. Affine shear <= 0.10 and anisotropy <= 1.10 guards are enforced by the adapter before spawning. [P2]
-* **Image Geometry:** Resize/scale, rotate, flip, and mirror are serialized as backend flags (`magick -resize`, `-rotate`, `-flip`, `-flop`). [P1 for resize/export; P2 for the rest]
+* **Image Geometry:** Resize, rotate, flip, and mirror are serialized as backend flags (`magick -resize`, `-rotate`, `-flip`, `-flop`) from menu/dialog choices, never from a parameter inspector. [P1 for resize; P2 for the rest]
 * **Field Derotator / Planet Alignment:** Delegated to an external alignment backend; unavailable until an adapter exists. [P3]
 
 ### 3.4 Arithmetic (`Arithmetic`)
@@ -85,7 +89,7 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 
 ### 3.7 View (`View`)
 
-* **Zoom Controls (In / Out / Fit / 1:1, mouse wheel):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down over the canvas zooms in/out. [P1]
+* **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window. Processing > Precise Scale provides the full percentage list. [P1]
 * **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It does not compute pixel statistics internally. [P2]
 * **Pixel Line Profile (`Pixellinie als Diagramm`):** A drawn line becomes a crop/coordinate request to the backend (e.g. `magick ... txt:`); the returned values are plotted by the GUI. [P3]
 * **FITS Header Inspector:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` populates the docked Metadata panel automatically on open and on demand via the (i) button; no pixel decoding. [P1]

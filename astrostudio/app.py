@@ -14,10 +14,20 @@ from .core import BackendRegistry, ProcessEngine, ScratchManager  # noqa: E402
 from .ui import MainWindow  # noqa: E402
 from .ui.main_window import MENU_LAYOUT  # noqa: E402
 
-ACTION_NAMES = frozenset(
-    {action for _label, entries in MENU_LAYOUT for _item, action in entries if action}
-    | {"cancel"}
-)
+def iter_menu_actions():
+    for _label, entries in MENU_LAYOUT:
+        for item in entries:
+            if item[0] is None:
+                continue
+            if len(item) == 3:
+                for sub_item in item[2]:
+                    if sub_item[0] is not None:
+                        yield sub_item[1]
+            else:
+                yield item[1]
+
+
+ACTION_NAMES = frozenset(set(iter_menu_actions()) | {"cancel"})
 
 
 def paths_from_command_line(command_line) -> List[str]:

@@ -20,7 +20,7 @@ Astro Studio operates on an **Asynchronous Orchestration Pattern** layered over 
    * `GtkApplicationWindow` following GNOME Human Interface Guidelines (HIG).
    * **File Browser & Multi-Format Exporter:** Native `GtkFileDialog` and `GtkColumnView` to browse local captures, inspect metadata, and select target export formats.
    * **Preview Canvas (`GtkDrawingArea` / OpenGL / Vulkan):** High-performance display surface dedicated solely to rendering loaded input files and intermediate/final images written to disk by external CLI backends.
-   * **Parameter Inspector & Terminal Drawer:** Dynamic UI controls mapped to backend CLI flags, alongside a real-time log drawer streaming `stdout`/`stderr` from active child processes.
+   * **Metadata & Terminal Drawers:** A read-only ExifTool metadata panel and a real-time log drawer streaming `stdout`/`stderr` from active child processes. There is no Parameter Inspector: menus/option dialogs ask for intent and the GUI generates adapter flags internally.
 
 2. **Command Builder & Adapter Pattern:**
    * Each external CLI binary is encapsulated inside an independent **Tool Adapter** defining supported input/output formats, default flag values, and argument serialization rules.
@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (27 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (29 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -143,3 +143,12 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * `AstroStudioApplication` uses `Gio.ApplicationFlags.HANDLES_OPEN`; `do_open()` collects files passed by the file manager and `do_activate()` prepares each one through `ImageWorkspace`. `paths_from_command_line()` also handles raw argv paths.
 * Export asks for the format **before** the destination. `astrostudio/core/export_formats.py` catalogs FITS 16-bit, TIFF 16-bit (uncompressed, LZW, Zip), PNG 8-bit, JPEG 8-bit (90%/95%) and BMP 8-bit with their CLI flags. The chosen extension is enforced; PNG copies the regenerated preview, all other formats are written from the TIFF by the external backend.
 * Verified with `gio mime image/png` / `image/fits`, `desktop-file-validate`, a file-argument launch, and a real CLI export producing JPEG 60x60 from a resized TIFF.
+
+---
+
+## 10. View-Only Scale and Dialog-Driven Parameters
+
+* The Parameter Inspector was removed. Users never type CLI flags: Processing > Resize Image asks for a percentage, Processing > Sharpen offers light/medium/strong presets, and Save As asks for the export format. The GUI maps those choices to `-resize`, `-unsharp` and format flags before spawning the backend.
+* Processing > Precise Scale is a view-only submenu: 10%, 25%, 50%, 75%, 100%, 150%, 200%, 400%, 1000%, 1:1 (one screen pixel per image pixel) and Fit to Window. Double-clicking the preview (or the fit toolbar button) performs Fit to Window. These actions only change `PreviewPane` display state.
+* Save As / Export asks for format first, then destination, and writes from the current working TIFF; it no longer performs a hidden transform. A cancelled dialog is reported in the log/status instead of failing silently.
+* Verified with a GUI smoke: zoom levels apply, double-click restores fit, Save As writes a TIFF from the working TIFF, and 29 tests pass.

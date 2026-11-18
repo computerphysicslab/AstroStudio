@@ -13,7 +13,7 @@ read-only, and tests for every adapter.
 
 - [x] Coherent specifications: GUI actions are CLI delegations through scratch files.
 - [x] GTK 3.24 / PyGObject application skeleton with menu bar, toolbar, status bar,
-      read-only preview canvas, parameter inspector and terminal drawer.
+      read-only preview canvas, metadata panel and terminal drawer.
 - [x] Sanitized `CommandBuilder` (ordered flags, booleans, formatters, NUL rejection).
 - [x] Async `ProcessEngine` with line-streamed stdout/stderr, exit codes and `SIGTERM`
       cancellation.
@@ -32,6 +32,11 @@ read-only, and tests for every adapter.
       the file manager ("Open With Other Application").
 - [x] Export format picker shown before Save As: FITS, TIFF 16-bit (uncompressed,
       LZW, Zip), PNG, JPEG (90/95%), BMP.
+- [x] Double-click on the canvas (and the fit button) performs Fit to Window;
+      Processing > Precise Scale provides 10/25/50/75/100/150/200/400/1000%, 1:1 and
+      Fit to Window as view-only zoom levels.
+- [x] Parameter Inspector removed: the GUI generates CLI flags from menu/dialog
+      choices (resize percentage, sharpening preset, export format).
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
 - [x] Git version control initialized on `main` with an initial commit.
@@ -41,7 +46,7 @@ read-only, and tests for every adapter.
 
 - [x] Mouse-wheel zoom control on the preview canvas.
 - [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and batch dialog.
-- [ ] Crop/geometry flags wired to the inspector (resize, rotate, flip, mirror).
+- [ ] Crop/rotate/flip/mirror options exposed as dialogs with internally generated flags.
 - [ ] CLI-generated histogram view and pixel line profile (text output parsed by GUI).
 - [ ] Frame table with metadata columns and quality diagnostics (SNR, FWHM/HFR,
       eccentricity, background sigma, footprint) for culling.

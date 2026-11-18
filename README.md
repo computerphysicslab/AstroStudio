@@ -107,16 +107,20 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
    the PNG only. The Metadata panel fills automatically from ExifTool.
 3. **Metadata:** `Ctrl+I` or the (i) toolbar button re-reads ExifTool tags for the
    active image into the docked Metadata panel.
-4. **Export via CLI:** use File > Export / Save As, pick a format (for example FITS
-   16-bit or JPEG 90%) and the destination. Optionally fill resize, unsharp, crop or
-   rotate in the Parameter Inspector. The external tool transforms the working TIFF,
-   replaces it, regenerates the PNG shown on canvas, and writes the chosen
-   destination from that TIFF.
-5. **Open With:** right-click a PNG/FITS file, choose Astro Studio, and confirm the
+4. **Display zoom:** double-click the image (or press the fit button) to fit it to
+   the window. Processing > Precise Scale offers 10/25/50/75/100/150/200/400/1000%,
+   1:1 (one screen pixel per image pixel) and Fit to Window. These are view-only.
+5. **Transform via CLI:** Processing > Resize Image asks for the percentage and
+   Processing > Sharpen offers light/medium/strong presets. The GUI generates the CLI
+   flags, transforms the working TIFF, replaces it and regenerates the PNG preview.
+   No parameter inspector is involved.
+6. **Export via CLI:** File > Export / Save As asks for the format first, then the
+   destination and writes the chosen artifact from the current working TIFF.
+7. **Open With:** right-click a PNG/FITS file, choose Astro Studio, and confirm the
    image is loaded with its TIFF+PNG workspace and metadata.
-6. **Cancel a job:** start a long export and press the stop button in the toolbar.
-7. **Quit:** `Ctrl+Q` cancels active jobs and removes the scratch directory.
-8. **Backend settings:** Options > Backend Settings logs the full detected version
+8. **Cancel a job:** start a long export and press the stop button in the toolbar.
+9. **Quit:** `Ctrl+Q` cancels active jobs and removes the scratch directory.
+10. **Backend settings:** Options > Backend Settings logs the full detected version
    list.
 
 ## Layout
@@ -125,7 +129,8 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
 - `astrostudio/core/` — command builder, async process engine, scratch manager,
   backend registry, dual-format `image_workspace.py`.
 - `astrostudio/adapters/` — CLI connectors (ImageMagick, ExifTool).
-- `astrostudio/ui/` — GTK window, menus, inspector, log drawer and preview canvas.
+- `astrostudio/ui/` — GTK window, menus, metadata/log panels and preview canvas; CLI
+  parameters are generated internally from menu/dialog choices, not typed by users.
 - `tests/` — unit and lifecycle tests.
 - `packaging/` — SVG icon, `.desktop` template, launcher script and user-level installer.
 - `Context/` — authoritative specifications and living AI project context.

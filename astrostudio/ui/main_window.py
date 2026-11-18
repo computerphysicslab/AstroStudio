@@ -1,4 +1,4 @@
-"""Main GTK window: menus, toolbars, inspector, backend status and log drawer."""
+"""Main GTK window: menus, toolbars, metadata, backend status and log drawer."""
 
 import os
 from datetime import datetime
@@ -41,7 +41,26 @@ MENU_LAYOUT = (
     (
         "Processing",
         (
-            ("Resize / Scale", "resize"),
+            (
+                "Precise Scale",
+                None,
+                (
+                    ("10%", "zoom-10"),
+                    ("25%", "zoom-25"),
+                    ("50%", "zoom-50"),
+                    ("75%", "zoom-75"),
+                    ("100%", "zoom-100"),
+                    ("150%", "zoom-150"),
+                    ("200%", "zoom-200"),
+                    ("400%", "zoom-400"),
+                    ("1000%", "zoom-1000"),
+                    (None, None),
+                    ("1:1 (pixel per pixel)", "zoom-1-1"),
+                    ("Fit to Window", "zoom-fit"),
+                ),
+            ),
+            ("Resize Image...", "resize"),
+            ("Sharpen...", "unsharp"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
             ("Image Geometry", "geometry"),
@@ -158,7 +177,6 @@ class MainWindow(Gtk.ApplicationWindow):
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         right.set_border_width(6)
         right.pack_start(self._build_backend_panel(), False, False, 0)
-        right.pack_start(self._build_inspector_panel(), False, False, 0)
         right.pack_start(self._build_log_panel(), True, True, 0)
         paned.pack2(right, False, True)
         root.pack_start(paned, True, True, 0)
@@ -172,11 +190,19 @@ class MainWindow(Gtk.ApplicationWindow):
         menu = Gio.Menu.new()
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
-            for item_label, action in entries:
-                if item_label is None:
+            for item in entries:
+                if item[0] is None:
                     submenu.append_section(None, Gio.Menu.new())
+                elif len(item) == 3:
+                    child = Gio.Menu.new()
+                    for sub_label, sub_action in item[2]:
+                        if sub_label is None:
+                            child.append_section(None, Gio.Menu.new())
+                        else:
+                            child.append(sub_label, "app." + sub_action)
+                    submenu.append_submenu(item[0], child)
                 else:
-                    submenu.append(item_label, "app." + action)
+                    submenu.append(item[0], "app." + item[1])
             menu.append_submenu(label, submenu)
         return Gtk.MenuBar.new_from_model(menu)
 
@@ -219,47 +245,6 @@ class MainWindow(Gtk.ApplicationWindow):
         frame.add(scroll)
         return frame
 
-    def _build_inspector_panel(self) -> Gtk.Widget:
-        frame = Gtk.Frame(label="Parameter Inspector")
-        grid = Gtk.Grid()
-        grid.set_border_width(6)
-        grid.set_row_spacing(4)
-        grid.set_column_spacing(6)
-
-        format_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        self.format_label = Gtk.Label(label=self.export_format.label, xalign=0.0)
-        choose_button = Gtk.Button(label="Choose...")
-        choose_button.connect("clicked", self._on_choose_format)
-        format_box.pack_start(self.format_label, True, True, 0)
-        format_box.pack_start(choose_button, False, False, 0)
-
-        self.resize_entry = Gtk.Entry()
-        self.resize_entry.set_placeholder_text("e.g. 50%")
-        self.unsharp_entry = Gtk.Entry()
-        self.unsharp_entry.set_placeholder_text("e.g. 1.5x1+0.7+0.02")
-        self.crop_entry = Gtk.Entry()
-        self.crop_entry.set_placeholder_text("e.g. 800x600+0+0")
-        self.rotate_entry = Gtk.Entry()
-        self.rotate_entry.set_placeholder_text("e.g. 90")
-
-        fields = (
-            ("Backend", Gtk.Label(label="ImageMagick (CLI)")),
-            ("Format", format_box),
-            ("Resize", self.resize_entry),
-            ("Unsharp", self.unsharp_entry),
-            ("Crop", self.crop_entry),
-            ("Rotate", self.rotate_entry),
-        )
-        for row, (label, widget) in enumerate(fields):
-            grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
-            grid.attach(widget, 1, row, 1, 1)
-
-        apply_button = Gtk.Button(label="Export via CLI")
-        apply_button.connect("clicked", lambda *_: self._activate("export"))
-        grid.attach(apply_button, 0, len(fields), 2, 1)
-        frame.add(grid)
-        return frame
-
     def _build_log_panel(self) -> Gtk.Widget:
         frame = Gtk.Frame(label="Terminal Drawer")
         self.log_buffer = Gtk.TextBuffer()
@@ -284,6 +269,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.log_buffer.insert(end, "[%s] %s\n" % (timestamp, line))
 
     def _on_canvas_click(self, widget, event) -> bool:
+        button = event.button
+        if not isinstance(button, int):
+            button = button.button
+        if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
+            self.action_zoom_fit()
+            return True
         position = self.preview.image_coordinates(event.x, event.y)
         if position:
             self._status("X=%d  Y=%d (preview readout)" % position)
@@ -374,17 +365,19 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def action_export(self) -> None:
         if not self.current_images:
-            self._log("Open at least one image before applying a transformation")
+            self._log("Open an image before exporting")
+            self._status("Open an image before exporting")
             return
         if not self.registry.available("ImageMagick"):
-            self._log("Backend unavailable: ImageMagick is required for TIFF transforms")
+            self._log("Backend unavailable: ImageMagick is required for export")
+            self._status("Backend unavailable")
             return
 
         selected_format = self._choose_export_format()
         if selected_format is None:
+            self._log("Export cancelled: no format selected")
             return
         self.export_format = selected_format
-        self.format_label.set_text(selected_format.label)
 
         image = self.current_images[-1]
         dialog = Gtk.FileChooserDialog(
@@ -410,54 +403,127 @@ class MainWindow(Gtk.ApplicationWindow):
         destination = dialog.get_filename() if response == Gtk.ResponseType.OK else None
         dialog.destroy()
         if not destination:
+            self._log("Export cancelled")
             return
         root, extension = os.path.splitext(destination)
         if extension.lower() != "." + selected_format.extension:
             destination = root + "." + selected_format.extension
             self._log("Extension adjusted to %s" % selected_format.extension)
 
-        params = {
-            "crop": self.crop_entry.get_text() or None,
-            "resize": self.resize_entry.get_text() or None,
-            "rotate": self.rotate_entry.get_text() or None,
-            "unsharp": self.unsharp_entry.get_text() or None,
-        }
-        self._status("Transforming working TIFF via external CLI...")
-        self.workspace.transform(
-            image,
-            params,
-            on_ready=lambda final: self._on_transform_ready(
-                final, destination, selected_format
-            ),
-            on_error=self._on_workspace_error,
-            on_log=self._log,
-        )
-        self.app.update_action_sensitivity()
-
-    def _on_transform_ready(
-        self, image: WorkingImage, destination: str, export_format: ExportFormat
-    ) -> None:
-        self.preview.load(image.png_path)
-        self._log("Preview PNG regenerated from transformed TIFF: %s" % image.png_path)
+        self._status("Exporting as %s..." % selected_format.label)
         self.workspace.export(
             image,
             destination,
             on_ready=self._on_export_ready,
             on_error=self._on_workspace_error,
             on_log=self._log,
-            export_format=export_format,
+            export_format=selected_format,
         )
+        self.app.update_action_sensitivity()
 
     def _on_export_ready(self, destination: str) -> None:
         self._log("Exported copy to %s" % destination)
         self._status("Export complete: %s" % destination)
         self.app.update_action_sensitivity()
 
-    def _on_choose_format(self, _button) -> None:
-        selected = self._choose_export_format()
-        if selected is not None:
-            self.export_format = selected
-            self.format_label.set_text(selected.label)
+    def _run_transform(self, params: dict, description: str) -> None:
+        if not self.current_images:
+            self._log("Open an image before applying a transformation")
+            self._status("Open an image first")
+            return
+        if not self.registry.available("ImageMagick"):
+            self._log("Backend unavailable: ImageMagick is required for transformations")
+            return
+        image = self.current_images[-1]
+        self._status("%s via external CLI..." % description)
+        self.workspace.transform(
+            image,
+            params,
+            on_ready=self._on_transform_done,
+            on_error=self._on_workspace_error,
+            on_log=self._log,
+        )
+        self.app.update_action_sensitivity()
+
+    def _on_transform_done(self, image: WorkingImage) -> None:
+        self.preview.load(image.png_path)
+        self._log("TIFF transformed; preview PNG regenerated: %s" % image.png_path)
+        self._status("Transform applied")
+        self.app.update_action_sensitivity()
+
+    def _ask_percentage(self) -> Optional[str]:
+        dialog = Gtk.Dialog(
+            title="Resize image",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        entry = Gtk.Entry()
+        entry.set_text("50")
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.pack_start(Gtk.Label(label="Scale (%)"), False, False, 0)
+        box.pack_start(entry, True, True, 0)
+        dialog.get_content_area().pack_start(box, True, True, 6)
+        dialog.show_all()
+        value = None
+        if dialog.run() == Gtk.ResponseType.OK:
+            text = entry.get_text().strip().rstrip("%")
+            try:
+                number = float(text)
+            except ValueError:
+                number = 0.0
+            if 0 < number <= 10000:
+                value = "%g%%" % number
+            else:
+                self._log("Invalid scale; enter a percentage between 0 and 10000")
+        dialog.destroy()
+        return value
+
+    def action_resize(self) -> None:
+        scale = self._ask_percentage()
+        if scale:
+            self._run_transform({"resize": scale}, "Resize to " + scale)
+
+    def _ask_unsharp(self) -> Optional[str]:
+        presets = (
+            ("Light", "0.8x1+0.5+0.02"),
+            ("Medium", "1.5x1+0.7+0.02"),
+            ("Strong", "2.5x1+1.0+0.03"),
+        )
+        dialog = Gtk.Dialog(
+            title="Sharpen image",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        combo = Gtk.ComboBoxText()
+        for label, _value in presets:
+            combo.append_text(label)
+        combo.set_active(1)
+        dialog.get_content_area().pack_start(combo, True, True, 6)
+        dialog.show_all()
+        value = None
+        if dialog.run() == Gtk.ResponseType.OK:
+            index = combo.get_active()
+            if 0 <= index < len(presets):
+                value = presets[index][1]
+        dialog.destroy()
+        return value
+
+    def action_unsharp(self) -> None:
+        value = self._ask_unsharp()
+        if value:
+            self._run_transform({"unsharp": value}, "Sharpen")
 
     def _choose_export_format(self) -> Optional[ExportFormat]:
         dialog = Gtk.Dialog(
@@ -477,6 +543,7 @@ class MainWindow(Gtk.ApplicationWindow):
         view = Gtk.TreeView(model=store)
         view.append_column(Gtk.TreeViewColumn("Format", Gtk.CellRendererText(), text=1))
         view.append_column(Gtk.TreeViewColumn("Type", Gtk.CellRendererText(), text=2))
+        view.connect("row-activated", lambda *_: dialog.response(Gtk.ResponseType.OK))
         scroll = Gtk.ScrolledWindow()
         scroll.set_min_content_size(460, 260)
         scroll.add(view)
@@ -561,14 +628,6 @@ class MainWindow(Gtk.ApplicationWindow):
     def action_redo(self) -> None:
         self._log("Redo applies to pipeline parameters; no changes recorded")
 
-    def action_resize(self) -> None:
-        self.resize_entry.grab_focus()
-        self._log("Set a resize flag, then use Export via CLI")
-
-    def action_unsharp(self) -> None:
-        self.unsharp_entry.grab_focus()
-        self._log("Set an unsharp flag, then use Export via CLI")
-
     def action_zoom_in(self) -> None:
         self.preview.zoom_in()
         self._status("Zoom: %.0f%%" % (self.preview.zoom * 100))
@@ -580,6 +639,41 @@ class MainWindow(Gtk.ApplicationWindow):
     def action_zoom_fit(self) -> None:
         self.preview.zoom_fit()
         self._status("Zoom: fit to window")
+
+    def _set_zoom(self, scale: float, label: str) -> None:
+        self.preview.set_zoom_scale(scale)
+        self._status("Zoom: %s" % label)
+
+    def action_zoom_10(self) -> None:
+        self._set_zoom(0.10, "10%")
+
+    def action_zoom_25(self) -> None:
+        self._set_zoom(0.25, "25%")
+
+    def action_zoom_50(self) -> None:
+        self._set_zoom(0.50, "50%")
+
+    def action_zoom_75(self) -> None:
+        self._set_zoom(0.75, "75%")
+
+    def action_zoom_100(self) -> None:
+        self._set_zoom(1.0, "100%")
+
+    def action_zoom_150(self) -> None:
+        self._set_zoom(1.50, "150%")
+
+    def action_zoom_200(self) -> None:
+        self._set_zoom(2.0, "200%")
+
+    def action_zoom_400(self) -> None:
+        self._set_zoom(4.0, "400%")
+
+    def action_zoom_1000(self) -> None:
+        self._set_zoom(10.0, "1000%")
+
+    def action_zoom_1_1(self) -> None:
+        self.preview.set_zoom_scale(1.0)
+        self._status("Zoom: 1:1 (one screen pixel per image pixel)")
 
     def action_quit(self) -> None:
         self.engine.cancel_all()

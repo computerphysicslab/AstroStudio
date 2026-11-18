@@ -52,6 +52,11 @@ class PreviewPane(Gtk.DrawingArea):
         self.zoom = 1.0
         self.queue_draw()
 
+    def set_zoom_scale(self, scale: float) -> None:
+        self.fit = False
+        self.zoom = min(max(scale, 0.01), 32.0)
+        self.queue_draw()
+
     def _view_parameters(self):
         allocation = self.get_allocation()
         if self.pixbuf is None:

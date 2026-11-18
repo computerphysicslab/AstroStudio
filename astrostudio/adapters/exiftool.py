@@ -1,4 +1,4 @@
-"""ExifTool connector: read-only metadata extraction for the inspector."""
+"""ExifTool connector: read-only metadata extraction for the metadata panel."""
 
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -9,7 +9,7 @@ from .base import CliAdapter
 class ExifToolAdapter(CliAdapter):
     name = "ExifTool"
     binary = "exiftool"
-    description = "Read-only EXIF and FITS metadata for the inspector"
+    description = "Read-only EXIF and FITS metadata for the metadata panel"
     input_formats = (
         "jpg",
         "jpeg",
