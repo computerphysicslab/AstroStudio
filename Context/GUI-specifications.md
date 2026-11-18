@@ -30,6 +30,7 @@ Input paths + GUI parameters
 ```
 
 * **Scratch location:** `<XDG_RUNTIME_DIR>/astro-studio/<session>/<job>/`, falling back to `/tmp/astro_studio_<pid>/`. Raw inputs are never written to; all outputs go to scratch or an explicit user export path.
+* **Dual-format invariant:** every opened image is stored in scratch as a 16-bit `working.tiff` (the only input for external CLI transforms) and an 8-bit `preview.png` generated from that TIFF. A transform replaces the TIFF and regenerates the PNG; the canvas renders the PNG only. The GUI never derives or modifies pixels itself.
 * **Formats:** Scientific linear artifacts (`.fits`, `.xisf`, `.f32raw`, 16/32-bit `.tiff`) are kept distinct in the UI from display-stretched previews (8-bit `.jpg`, `.png`, `.bmp`). Metadata/WCS headers are preserved when the target backend supports it.
 * **Startup discovery:** On activation the app checks every connector binary for installation and queries its version asynchronously (`Gio.Subprocess`, e.g. `magick -version`, `exiftool -ver`). Results appear in the "Backends" panel and terminal drawer; menu actions are enabled only when their adapter is implemented and at least one required backend is installed. Missing version output keeps the backend available with version `unknown`.
 * **Missing backend:** If a binary is absent (`ENOENT`) or exits non-zero, the action stays disabled/marked unavailable and the error is reported in the terminal drawer; the GUI never falls back to an in-process implementation.
@@ -84,10 +85,10 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 
 ### 3.7 View (`View`)
 
-* **Zoom Controls (In / Out / Fit / 1:1):** Read-only manipulation of the preview widget; no image data is changed. [P1]
+* **Zoom Controls (In / Out / Fit / 1:1, mouse wheel):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down over the canvas zooms in/out. [P1]
 * **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It does not compute pixel statistics internally. [P2]
 * **Pixel Line Profile (`Pixellinie als Diagramm`):** A drawn line becomes a crop/coordinate request to the backend (e.g. `magick ... txt:`); the returned values are plotted by the GUI. [P3]
-* **FITS Header Inspector:** `exiftool -T -filename -exptime -iso ...` (and FITS header keywords) populates the metadata inspector; no pixel decoding. [P1]
+* **FITS Header Inspector:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` populates the docked Metadata panel automatically on open and on demand via the (i) button; no pixel decoding. [P1]
 
 ### 3.8 Options / Settings (`Options`)
 

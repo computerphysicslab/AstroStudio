@@ -18,6 +18,7 @@ class BackendSpec:
     binary: str
     category: str
     version_args: Tuple[str, ...] = ("--version",)
+    alternatives: Tuple[str, ...] = ()
 
 
 @dataclass
@@ -35,7 +36,7 @@ class BackendStatus:
 
 
 BACKENDS: Tuple[BackendSpec, ...] = (
-    BackendSpec("ImageMagick", "magick", "Conversion", ("-version",)),
+    BackendSpec("ImageMagick", "magick", "Conversion", ("-version",), ("convert",)),
     BackendSpec("GraphicsMagick", "gm", "Conversion", ("version",)),
     BackendSpec("ExifTool", "exiftool", "Metadata", ("-ver",)),
     BackendSpec("RawTherapee", "rawtherapee-cli", "RAW", ("--version",)),
@@ -114,6 +115,23 @@ class BackendRegistry:
             spec.name: BackendStatus(spec.name, spec.binary, spec.category)
             for spec in self.specs
         }
+        self._resolve_installed()
+
+    def _resolve_installed(self) -> None:
+        for spec in self.specs:
+            status = self.status[spec.name]
+            resolved = self._resolve_binary(spec)
+            status.available = resolved is not None
+            status.binary = resolved or spec.binary
+            status.error = "not installed" if resolved is None else None
+
+    @staticmethod
+    def _resolve_binary(spec: BackendSpec) -> Optional[str]:
+        for candidate in (spec.binary,) + spec.alternatives:
+            found = shutil.which(candidate)
+            if found:
+                return found
+        return None
 
     def probe(
         self,
@@ -122,16 +140,12 @@ class BackendRegistry:
     ) -> None:
         for spec in self.specs:
             status = self.status[spec.name]
-            if shutil.which(spec.binary) is None:
-                status.available = False
-                status.version = None
-                status.error = "not installed"
+            if not status.available:
                 self._notify(on_update)
                 continue
-            status.available = True
             status.error = None
             status.version = None
-            argv = [spec.binary] + list(spec.version_args)
+            argv = [status.binary] + list(spec.version_args)
             engine.run(
                 "probe-" + spec.name,
                 argv,

@@ -27,7 +27,7 @@ def test_probe_records_installed_binary_and_version(monkeypatch):
 
     registry.probe(engine, on_update=updates.append)
 
-    assert engine.calls == [("probe-Fake", ["fake-tool", "-v"])]
+    assert engine.calls == [("probe-Fake", ["/usr/bin/fake-tool", "-v"])]
     assert registry.available("Fake")
     assert registry.version("Fake") == "3.4.5"
     assert len(updates) == 1
@@ -52,7 +52,21 @@ def test_version_query_failure_keeps_available_status(monkeypatch):
     assert registry.version("Fake") == "unknown"
 
 
-def test_menu_actions_are_gated_by_backend_availability():
+def test_alternative_binary_is_detected(monkeypatch):
+    monkeypatch.setattr(
+        backends.shutil,
+        "which",
+        lambda binary: "/usr/bin/convert" if binary == "convert" else None,
+    )
+    registry = BackendRegistry(
+        (BackendSpec("ImageMagick", "magick", "Conversion", ("-version",), ("convert",)),)
+    )
+    assert registry.available("ImageMagick")
+    assert registry.status["ImageMagick"].binary == "/usr/bin/convert"
+
+
+def test_menu_actions_are_gated_by_backend_availability(monkeypatch):
+    monkeypatch.setattr(backends.shutil, "which", lambda binary: None)
     registry = BackendRegistry()
     assert not registry.is_action_enabled("export")
     assert not registry.is_action_enabled("metadata")

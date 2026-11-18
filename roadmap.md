@@ -21,7 +21,13 @@ read-only, and tests for every adapter.
 - [x] First adapters: ImageMagick (export/resize/unsharp/crop/rotate) and ExifTool
       (metadata inspector).
 - [x] Startup backend discovery: installed/version status for every connector, shown
-      in the Backends panel, driving `Gio.SimpleAction` menu sensitivity.
+      in the Backends panel, driving `Gio.SimpleAction` menu sensitivity from the
+      first frame (installed state resolved before version queries).
+- [x] Dual-format workspace: each opened image gets a 16-bit working TIFF and a PNG
+      preview in scratch; every transform runs on the TIFF via external CLI, replaces
+      it, and regenerates the PNG that the GUI renders.
+- [x] Metadata panel populated automatically by ExifTool on open and refreshed by the
+      (i) button/toolbar action, with canonical EXIF/FITS tags.
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
 - [x] Git version control initialized on `main` with an initial commit.
@@ -29,6 +35,7 @@ read-only, and tests for every adapter.
 
 ## v0.2.0 — Conversion and inspection completeness
 
+- [x] Mouse-wheel zoom control on the preview canvas.
 - [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and batch dialog.
 - [ ] Crop/geometry flags wired to the inspector (resize, rotate, flip, mirror).
 - [ ] CLI-generated histogram view and pixel line profile (text output parsed by GUI).

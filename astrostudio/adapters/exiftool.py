@@ -9,7 +9,7 @@ from .base import CliAdapter
 class ExifToolAdapter(CliAdapter):
     name = "ExifTool"
     binary = "exiftool"
-    description = "Read-only EXIF and FITS metadata tables"
+    description = "Read-only EXIF and FITS metadata for the inspector"
     input_formats = (
         "jpg",
         "jpeg",
@@ -25,12 +25,23 @@ class ExifToolAdapter(CliAdapter):
         "fit",
         "xisf",
     )
-    fields = ("filename", "exptime", "iso", "fnumber", "datetimeoriginal")
+    fields = (
+        "FileType",
+        "Make",
+        "Model",
+        "LensID",
+        "ExposureTime",
+        "ISO",
+        "FNumber",
+        "FocalLength",
+        "DateTimeOriginal",
+        "ImageWidth",
+        "ImageHeight",
+        "BitsPerSample",
+    )
 
     def __init__(self) -> None:
-        super().__init__(
-            CommandBuilder(self.binary, flag_specs=(("-T", "tabular", None),), defaults={"tabular": True})
-        )
+        super().__init__(CommandBuilder(self.binary))
 
     def build_argv(
         self,
@@ -38,6 +49,8 @@ class ExifToolAdapter(CliAdapter):
         output: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
-        argv = self.builder.build(inputs, output, params)
-        field_flags = ["-" + field for field in self.fields]
-        return argv[:1] + field_flags + argv[1:]
+        return (
+            [self.binary, "-s"]
+            + ["-" + field for field in self.fields]
+            + list(inputs)
+        )

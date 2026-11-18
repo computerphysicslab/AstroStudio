@@ -51,7 +51,26 @@ To verify the installation: `desktop-file-validate ~/.local/share/applications/a
 On startup the app probes every connector binary for installation and version. The
 **Backends** panel lists the result, and menu actions are enabled only when their
 backend is installed and an adapter exists. A missing binary leaves the action
-visible but disabled; no in-process fallback is ever attempted.
+visible but disabled; no in-process fallback is ever attempted. ImageMagick is
+detected as `magick` (v7) or `convert` (v6).
+
+## Dual-format image workflow
+
+Every opened image is prepared in scratch as two files:
+
+1. `working.tiff` — 16-bit, high-depth image used by **all** external CLI
+   transformations.
+2. `preview.png` — 8-bit display copy generated from that TIFF; this is the only file
+   the GUI renders on the canvas.
+
+When you apply a transform (resize, unsharp, crop, rotate), an external CLI tool
+operates on the TIFF and writes a new TIFF. The new TIFF replaces the previous one
+and a fresh PNG is generated from it; the GUI then reloads that PNG. Original inputs
+are never modified.
+
+The **Metadata** panel under the preview is filled automatically by ExifTool when an
+image is opened; the (i) button/action refreshes it for the active image. Scroll the
+mouse wheel over the preview to zoom.
 
 ## Automated tests
 
@@ -71,13 +90,14 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
    development environment `ExifTool` and `GIMP` are detected with their versions;
    `ImageMagick` is absent, so export actions stay disabled until it is installed.
 2. **Open a file:** `Ctrl+O` (or the Open toolbar button) and select a JPG/PNG/TIFF.
-   The preview renders it read-only; the status bar shows the file and dimensions.
-3. **Metadata:** `Ctrl+I` (or View > FITS Header Inspector) runs `exiftool` and shows
-   its output in a dialog. This works with the currently installed ExifTool.
+   The log shows the generated `working.tiff` and `preview.png`; the canvas renders
+   the PNG only. The Metadata panel fills automatically from ExifTool.
+3. **Metadata:** `Ctrl+I` or the (i) toolbar button re-reads ExifTool tags for the
+   active image into the docked Metadata panel.
 4. **Export via CLI:** install ImageMagick, restart the app, then use File > Export /
    Save As. Optionally fill resize, unsharp, crop or rotate in the Parameter
-   Inspector. The backend writes to `<scratch>/<job>/`; the app copies the result to
-   your chosen destination and reloads it into the preview.
+   Inspector. The external tool transforms the working TIFF, replaces it, regenerates
+   the PNG shown on canvas, and writes the chosen destination from that TIFF.
 5. **Cancel a job:** start a long export and press the stop button in the toolbar.
 6. **Quit:** `Ctrl+Q` cancels active jobs and removes the scratch directory.
 7. **Backend settings:** Options > Backend Settings logs the full detected version
@@ -87,7 +107,7 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
 
 - `astrostudio/app.py` — application, actions, accelerators, startup discovery.
 - `astrostudio/core/` — command builder, async process engine, scratch manager,
-  backend registry.
+  backend registry, dual-format `image_workspace.py`.
 - `astrostudio/adapters/` — CLI connectors (ImageMagick, ExifTool).
 - `astrostudio/ui/` — GTK window, menus, inspector, log drawer and preview canvas.
 - `tests/` — unit and lifecycle tests.

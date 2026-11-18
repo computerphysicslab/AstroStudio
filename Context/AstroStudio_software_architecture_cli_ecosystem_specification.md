@@ -89,6 +89,8 @@ Every GUI command and toolbar action in `GUI-specifications.md` is an adapter-dr
 
 A `BackendRegistry` runs at startup: it checks each connector binary with `shutil.which` and queries its version through the same asynchronous `ProcessEngine`. The resulting status feeds the GUI Backends panel and enables/disables `Gio.SimpleAction` menu entries, so unavailable tools never produce failed in-process fallbacks.
 
+Every working image obeys a dual-format invariant managed by `ImageWorkspace`: a 16-bit TIFF in scratch is the only artifact passed to external transformation tools, and an 8-bit PNG regenerated from that TIFF is the only artifact the GUI renders. A transform writes a new TIFF which atomically replaces the old one, then triggers a new TIFF-to-PNG CLI conversion before the canvas is refreshed.
+
 ---
 
 ## 5. Supported Open-Source Linux CLI Connectors
