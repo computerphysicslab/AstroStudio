@@ -24,7 +24,7 @@ read-only, and tests for every adapter.
       in the Backends panel, driving `Gio.SimpleAction` menu sensitivity.
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
-- [ ] Git version control initialized and maintained (this change).
+- [x] Git version control initialized on `main` with an initial commit.
 
 ## v0.2.0 — Conversion and inspection completeness
 
