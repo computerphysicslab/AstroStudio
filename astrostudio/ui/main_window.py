@@ -1,6 +1,7 @@
 """Main GTK window: menus, toolbars, metadata, backend status and log drawer."""
 
 import os
+import shutil
 from datetime import datetime
 from typing import List, Optional
 
@@ -19,6 +20,7 @@ from ..core import (  # noqa: E402
     ImageWorkspace,
     WorkingImage,
     find_output,
+    find_plate_solution,
     summarize_solution,
 )
 from .preview import PreviewPane  # noqa: E402
@@ -133,6 +135,24 @@ MENU_LAYOUT = (
     ),
 )
 
+IMAGE_EXTENSIONS = (
+    "png",
+    "jpg",
+    "jpeg",
+    "tif",
+    "tiff",
+    "bmp",
+    "fits",
+    "fit",
+    "fts",
+    "cr2",
+    "cr3",
+    "nef",
+    "arw",
+    "dng",
+    "xisf",
+)
+
 TOOL_ITEMS = (
     ("document-open", "Open", "open"),
     ("document-save-as", "Export", "export"),
@@ -161,12 +181,16 @@ class MainWindow(Gtk.ApplicationWindow):
         self.current_paths = []
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
         self.job_counter = 0
+        self.plate_solutions: dict = {}
+        self.plate_centers: dict = {}
         self.set_default_size(1100, 720)
 
         self.preview = PreviewPane()
         self.preview.set_size_request(640, 480)
         self.preview.add_events(Gdk.EventMask.SCROLL_MASK)
         self.preview.connect("button-press-event", self._on_canvas_click)
+        self.preview.connect("motion-notify-event", self._on_canvas_motion)
+        self.preview.connect("button-release-event", self._on_canvas_release)
         self.preview.connect("scroll-event", self._on_preview_scroll)
 
         self._build_layout()
@@ -324,6 +348,8 @@ class MainWindow(Gtk.ApplicationWindow):
         return {
             "zoom": self.preview.zoom,
             "fit": self.preview.fit,
+            "pan_x": self.preview.pan_x,
+            "pan_y": self.preview.pan_y,
             "x": self.preview_scroll.get_hadjustment().get_value(),
             "y": self.preview_scroll.get_vadjustment().get_value(),
         }
@@ -335,6 +361,9 @@ class MainWindow(Gtk.ApplicationWindow):
             self.preview.zoom_fit()
         else:
             self.preview.set_zoom_scale(state["zoom"])
+        self.preview.pan_x = state["pan_x"]
+        self.preview.pan_y = state["pan_y"]
+        self.preview.queue_draw()
         self.preview_scroll.get_hadjustment().set_value(state["x"])
         self.preview_scroll.get_vadjustment().set_value(state["y"])
 
@@ -358,7 +387,16 @@ class MainWindow(Gtk.ApplicationWindow):
             return True
         position = self.preview.image_coordinates(event.x, event.y)
         if position:
-            self._status("X=%d  Y=%d (preview readout)" % position)
+            self._status("X=%d  Y=%d (drag to pan)" % position)
+        if button == 1:
+            self.preview.start_pan(event.x, event.y)
+        return True
+
+    def _on_canvas_motion(self, widget, event) -> bool:
+        return self.preview.update_pan(event.x, event.y)
+
+    def _on_canvas_release(self, widget, event) -> bool:
+        self.preview.end_pan()
         return False
 
     def _on_preview_scroll(self, widget, event) -> bool:
@@ -374,8 +412,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def on_backends_updated(self, registry) -> None:
         self.backend_store.clear()
-        for spec in registry.specs:
-            self.backend_store.append(registry.status[spec.name].label())
+        statuses = sorted(
+            registry.status.values(),
+            key=lambda status: (not status.available, status.name.lower()),
+        )
+        for status in statuses:
+            self.backend_store.append(status.label())
         available = sum(1 for status in registry.status.values() if status.available)
         self._status(
             "%d/%d backends installed | %d image(s) open"
@@ -397,10 +439,16 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         dialog.set_select_multiple(True)
         image_filter = Gtk.FileFilter()
-        image_filter.set_name("Images")
-        for extension in ("jpg", "jpeg", "png", "tif", "tiff", "bmp", "fits", "fit", "cr2", "nef"):
+        image_filter.set_name("Images (PNG, JPEG, TIFF, FITS, BMP, RAW)")
+        for extension in IMAGE_EXTENSIONS:
             image_filter.add_pattern("*." + extension)
+            image_filter.add_pattern("*." + extension.upper())
+        all_filter = Gtk.FileFilter()
+        all_filter.set_name("All files")
+        all_filter.add_pattern("*")
         dialog.add_filter(image_filter)
+        dialog.add_filter(all_filter)
+        dialog.set_filter(image_filter)
         if dialog.run() == Gtk.ResponseType.OK:
             for path in dialog.get_filenames():
                 self._open_file(path)
@@ -615,7 +663,8 @@ class MainWindow(Gtk.ApplicationWindow):
         view.append_column(Gtk.TreeViewColumn("Type", Gtk.CellRendererText(), text=2))
         view.connect("row-activated", lambda *_: dialog.response(Gtk.ResponseType.OK))
         scroll = Gtk.ScrolledWindow()
-        scroll.set_min_content_size(460, 260)
+        scroll.set_min_content_width(460)
+        scroll.set_min_content_height(260)
         scroll.add(view)
         content = dialog.get_content_area()
         content.pack_start(scroll, True, True, 6)
@@ -779,6 +828,19 @@ class MainWindow(Gtk.ApplicationWindow):
         self.job_counter += 1
         return self.scratch.job_dir("%s-%d" % (name, self.job_counter))
 
+    def _reuse_plate_solution(self, source: str, output_dir: str) -> None:
+        solution = self.plate_solutions.get(source)
+        if not solution or not os.path.isfile(solution):
+            return
+        target = os.path.join(output_dir, "plate_solution.json")
+        if os.path.abspath(solution) == os.path.abspath(target):
+            return
+        try:
+            shutil.copyfile(solution, target)
+            self._log("Reused plate solution: %s -> %s" % (solution, target))
+        except OSError as exc:
+            self._log("Cannot reuse plate solution: %s" % exc)
+
     def action_plate_solve(self) -> None:
         if not self.current_paths:
             self._log("Open an image before plate solving")
@@ -787,9 +849,11 @@ class MainWindow(Gtk.ApplicationWindow):
             self._show_error("SkyStacker is not installed; plate solving is unavailable.")
             return
         center = self._ask_plate_center()
+        source = self.current_paths[-1]
+        self.plate_centers[source] = center
         output_dir = self._astrometry_job_dir("plate-solve")
         adapter = self.adapters["SkyStacker"]
-        argv = adapter.build_plate_solve_argv(self.current_paths[-1], output_dir, center)
+        argv = adapter.build_plate_solve_argv(source, output_dir, center)
         self._run_astrometry(
             "plate-solve",
             argv,
@@ -802,8 +866,14 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
             self._show_error("Plate solving failed: %s" % (result.error or result.stderr))
         else:
-            solution = find_output(output_dir, [".json"])
-            text = summarize_solution(solution) if solution else "No plate_solution.json was written."
+            solution = find_plate_solution(output_dir)
+            if solution:
+                canonical = os.path.join(output_dir, "plate_solution.json")
+                if os.path.abspath(solution) != os.path.abspath(canonical):
+                    shutil.copyfile(solution, canonical)
+                    solution = canonical
+                self.plate_solutions[self.current_paths[-1]] = solution
+            text = summarize_solution(solution) if solution else "No plate solution was written (check star field and seed)."
             if not any(word in text.lower() for word in ("fov", "ra", "dec", "scale")):
                 text = "No field-of-view solution in the report (the field may lack stars):\n" + text
             self._log("CLI %s exit %d; solution: %s" % (result.job_id, result.exit_code, text.splitlines()[0]))
@@ -817,9 +887,11 @@ class MainWindow(Gtk.ApplicationWindow):
         if not self.registry.available("SkyStacker"):
             self._show_error("SkyStacker is not installed; Gaia sky maps are unavailable.")
             return
+        source = self.current_paths[-1]
         output_dir = self._astrometry_job_dir("sky-map")
+        self._reuse_plate_solution(source, output_dir)
         argv = self.adapters["SkyStacker"].build_sky_map_argv(
-            self.current_paths[-1], output_dir
+            source, output_dir, self.plate_centers.get(source)
         )
         self._run_astrometry(
             "sky-map",
@@ -860,9 +932,11 @@ class MainWindow(Gtk.ApplicationWindow):
         if not self.registry.available("SkyStacker"):
             self._show_error("SkyStacker is not installed; survey cutouts are unavailable.")
             return
+        source = self.current_paths[-1]
         output_dir = self._astrometry_job_dir("survey-cutout")
+        self._reuse_plate_solution(source, output_dir)
         argv = self.adapters["SkyStacker"].build_survey_cutout_argv(
-            self.current_paths[-1], output_dir
+            source, output_dir, plate_center=self.plate_centers.get(source)
         )
         self._run_astrometry(
             "survey-cutout",

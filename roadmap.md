@@ -46,6 +46,10 @@ read-only, and tests for every adapter.
       View-menu toggle and auto-scroll; metadata output no longer duplicated there.
 - [x] SkyStacker astrometry bridge: plate solving with optional RA/Dec seed (FOV report),
       Gaia sky map and HiPS survey cutout, all writing to scratch.
+- [x] Backends sorted installed-first alphabetically; drag-to-pan on the canvas; Open
+      dialog covers uppercase/lowercase astronomical extensions.
+- [x] Fixed Save As format dialog for GTK 3.24 and corrected astrometry to use the
+      WCS-capable image op, cache/reuse `plate_solution.json`, and report real failures.
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
 - [x] Git version control initialized on `main` with an initial commit.

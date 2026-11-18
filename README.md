@@ -77,25 +77,29 @@ closed with its X button. The **Terminal Drawer** logs each CLI invocation with 
 time, full `argv` and the backend's response/exit code; it no longer repeats backend
 installation status or metadata output, and scrolls to the newest line automatically.
 It has its own X button and can be restored from *View > Toggle Terminal Drawer*.
-Scroll the mouse wheel over the preview to zoom; transforms and Undo/Redo keep the same
-view.
+Scroll the mouse wheel over the preview to zoom; drag with the left mouse button to pan
+when the image is larger than the window. Transforms and Undo/Redo keep the same zoom
+and pan position. The Backends panel lists installed connectors first (alphabetically),
+then the missing ones.
 
 ## Astrometry (SkyStacker bridge)
 
 The **Astrometry** menu delegates to the installed SkyStacker CLI and writes all
 results to scratch:
 
-- **Plate Solve...** optionally asks for an RA/Dec seed (decimal degrees), runs
-  `--plate-solve --json-report`, and shows the reported field of view / centre from
-  `plate_solution.json`.
-- **Gaia Sky Map...** runs `--image-op sky-map` to produce a Gaia catalog map (SVG),
-  converts it to PNG with the external CLI and displays it.
-- **Survey Cutout...** runs `--image-op survey-cutout` to fetch a HiPS FITS cutout of
-  the same sky area and reports the file written.
+- **Plate Solve...** optionally asks for an RA/Dec seed (decimal degrees) and runs the
+  WCS-capable `--image-op sky-map --plate-solve` path. On success SkyStacker writes
+  `<base>_plate_solution.json`; Astro Studio normalises it to `plate_solution.json`,
+  caches it for the image and shows the reported field of view / centre.
+- **Gaia Sky Map...** reuses that cached solution (or solves again) and runs
+  `--image-op sky-map` to produce a Gaia catalog SVG, converted to PNG by the external
+  CLI and displayed.
+- **Survey Cutout...** likewise reuses the solution and runs `--image-op survey-cutout`
+  to fetch a HiPS FITS cutout of the same sky area.
 
 These need a real star field and, for catalog/survey data, Gaia/HiPS access (offline
-caching is supported by the backend). A synthetic or starless image is reported as
-"no field-of-view solution" instead of producing a fake result.
+caching is supported by the backend). If star matching fails, the CLI error is shown
+instead of a false "OK" report; `measure-quality` alone never produced a plate solution.
 
 ## Export formats
 
@@ -125,14 +129,16 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
 1. **Startup discovery:** check the Backends panel; the terminal drawer only shows CLI
    calls and responses. `ExifTool`, `GIMP` and ImageMagick 6 (`convert`) are detected.
    Close the Backends panel with its X and restore it from View > Toggle Backends Viewer.
-2. **Open a file:** `Ctrl+O` (or the Open toolbar button) and select a JPG/PNG/TIFF.
-   The log shows the generated `working.tiff` and `preview.png`; the canvas renders
-   the PNG only.
+2. **Open a file:** `Ctrl+O` (or the Open toolbar button) and select PNG, JPG/JPEG,
+   TIFF, FITS, BMP, CR2/CR3, NEF, ARW or DNG (uppercase extensions included; an
+   "All files" filter is also available). The log shows the generated `working.tiff`
+   and `preview.png`; the canvas renders the PNG only.
 3. **Metadata:** `Ctrl+I` or the (i) toolbar button opens the Metadata panel with two
    tabs (PNG preview and TIFF working) filled by ExifTool; close it with its X.
 4. **Display zoom:** double-click the image (or press the fit button) to fit it to
    the window. Processing > Precise Scale offers 10/25/50/75/100/150/200/400/1000%,
-   1:1 (one screen pixel per image pixel) and Fit to Window. These are view-only.
+   1:1 (one screen pixel per image pixel) and Fit to Window. Left-drag pans the image
+   when zoomed. These are view-only.
 5. **Transform via CLI:** Processing > Resize Image asks for the percentage and
    Processing > Sharpen offers light/medium/strong presets. The GUI generates the CLI
    flags, transforms the working TIFF, replaces it and regenerates the PNG preview.

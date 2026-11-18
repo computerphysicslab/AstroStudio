@@ -33,7 +33,7 @@ Input paths + GUI parameters
 * **Scratch location:** `<XDG_RUNTIME_DIR>/astro-studio/<session>/<job>/`, falling back to `/tmp/astro_studio_<pid>/`. Raw inputs are never written to; all outputs go to scratch or an explicit user export path.
 * **Dual-format invariant:** every opened image is stored in scratch as a 16-bit `working.tiff` (the only input for external CLI transforms) and an 8-bit `preview.png` generated from that TIFF. A transform replaces the TIFF and regenerates the PNG; the canvas renders the PNG only, restoring the previous zoom and scroll position. The GUI never derives or modifies pixels itself.
 * **Formats:** Scientific linear artifacts (`.fits`, `.xisf`, `.f32raw`, 16/32-bit `.tiff`) are kept distinct in the UI from display-stretched previews (8-bit `.jpg`, `.png`, `.bmp`). Metadata/WCS headers are preserved when the target backend supports it.
-* **Startup discovery:** On activation the app checks every connector binary for installation and queries its version asynchronously (`Gio.Subprocess`, e.g. `magick -version`, `exiftool -ver`). Results appear only in the "Backends" panel; menu actions are enabled only when their adapter is implemented and at least one required backend is installed. The Backends panel has a close button and can be restored with *View > Toggle Backends Viewer*. Missing version output keeps the backend available with version `unknown`.
+* **Startup discovery:** On activation the app checks every connector binary for installation and queries its version asynchronously (`Gio.Subprocess`, e.g. `magick -version`, `exiftool -ver`). Results appear only in the "Backends" panel, sorted with installed connectors first (alphabetically) and missing ones last; menu actions are enabled only when their adapter is implemented and at least one required backend is installed. The Backends panel has a close button and can be restored with *View > Toggle Backends Viewer*. Missing version output keeps the backend available with version `unknown`.
 * **Missing backend:** If a binary is absent (`ENOENT`) or exits non-zero, the action stays disabled/marked unavailable and the error is reported in the terminal drawer; the GUI never falls back to an in-process implementation.
 
 ## 3. Menu Bar Structure and Options
@@ -44,7 +44,7 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 
 | Command | GUI responsibility | Backend / CLI action | I/O routing | Status |
 | --- | --- | --- | --- | --- |
-| Open (`Ctrl+O`) | Choose local files and render them | None (read-only decode for display, `GdkPixbuf`) | Source files stay read-only | [P1] |
+| Open (`Ctrl+O`) | Choose local files (PNG/JPEG/TIFF/FITS/BMP/RAW, upper- and lowercase, plus All files) and render them | None (read-only decode for display, `GdkPixbuf`) | Source files stay read-only | [P1] |
 | Save As / Export | First choose format (FITS, TIFF 16-bit uncompressed/LZW/Zip, PNG, JPEG 90/95%, BMP), then destination | `magick`/`convert` conversion from the working TIFF | Working TIFF -> CLI output -> user export path | [P1] |
 | Close / Close All | Clear open views and job state | None | Scratch kept until session end | [P1] |
 | Batch | Select directory, pattern, target format, flags | `gm mogrify` / `magick mogrify` batch argv built by adapter | Directory -> scratch -> export directory | [P2] |
@@ -69,7 +69,7 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 
 ### 3.4 Astrometry (`Astrometry`)
 
-* **Plate Solve...:** optional RA/Dec seed dialog; SkyStacker runs `--plate-solve --json-report` on the source image and the GUI presents the reported field of view/centre from `plate_solution.json`. [P1]
+* **Plate Solve...:** optional RA/Dec seed dialog; SkyStacker runs the WCS-capable `--image-op sky-map --plate-solve` path and writes `<base>_plate_solution.json`, which the GUI normalises, caches and presents as field of view/centre. A failed star match is reported as an error, never as success. [P1]
 * **Gaia Sky Map...:** SkyStacker `--image-op sky-map` writes a Gaia catalog SVG; an external CLI converts it to PNG for display. [P1]
 * **Survey Cutout...:** SkyStacker `--image-op survey-cutout` fetches a HiPS FITS cutout of the same area and the GUI reports the artifact path. [P1]
 
@@ -97,7 +97,7 @@ All three write only to scratch, require a real star field (and catalog/network 
 
 ### 3.8 View (`View`)
 
-* **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window. Processing > Precise Scale provides the full percentage list. [P1]
+* **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window; left-drag pans when the image exceeds the viewport. Processing > Precise Scale provides the full percentage list. [P1]
 * **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It does not compute pixel statistics internally. [P2]
 * **Pixel Line Profile (`Pixellinie als Diagramm`):** A drawn line becomes a crop/coordinate request to the backend (e.g. `magick ... txt:`); the returned values are plotted by the GUI. [P3]
 * **Metadata Viewer:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` is invoked by the (i) button for both the rendered PNG and the high-depth TIFF, filling the two tabs of the on-demand Metadata panel; no pixel decoding. [P1]

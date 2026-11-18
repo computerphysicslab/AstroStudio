@@ -1,7 +1,7 @@
 """Menu structure and precise-scale action tests."""
 
 from astrostudio.app import iter_menu_actions
-from astrostudio.ui.main_window import MENU_LAYOUT
+from astrostudio.ui.main_window import IMAGE_EXTENSIONS, MENU_LAYOUT
 
 
 def test_precise_scale_actions_are_registered():
@@ -26,6 +26,12 @@ def test_dock_toggle_is_available_and_cancel_is_gone():
     assert "toggle-backends" in actions
     assert "toggle-terminal" in actions
     assert "cancel" not in actions
+
+
+def test_open_filter_covers_astronomical_formats():
+    assert {"png", "jpg", "jpeg", "tif", "tiff", "fits", "bmp", "cr2"} <= set(
+        IMAGE_EXTENSIONS
+    )
 
 
 def test_astrometry_menu_is_registered():

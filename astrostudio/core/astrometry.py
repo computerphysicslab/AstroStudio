@@ -7,6 +7,14 @@ from typing import List, Optional
 PREFERRED_KEYS = ("fov", "field", "ra", "dec", "scale", "center", "width", "height")
 
 
+def find_plate_solution(directory: str) -> Optional[str]:
+    """Locate a plate solution JSON (canonical name preferred)."""
+    for root, _dirs, files in os.walk(directory):
+        if "plate_solution.json" in files:
+            return os.path.join(root, "plate_solution.json")
+    return find_output(directory, ["_plate_solution.json"])
+
+
 def find_output(directory: str, suffixes: List[str]) -> Optional[str]:
     for root, _dirs, files in os.walk(directory):
         for name in sorted(files):

@@ -18,8 +18,17 @@ class PreviewPane(Gtk.DrawingArea):
         self.path = None
         self.zoom = 1.0
         self.fit = True
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self._dragging = False
+        self._drag_x = 0.0
+        self._drag_y = 0.0
         self.set_app_paintable(True)
-        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK
+            | Gdk.EventMask.POINTER_MOTION_MASK
+            | Gdk.EventMask.BUTTON_RELEASE_MASK
+        )
         self.connect("draw", self._on_draw)
 
     def load(self, path: str) -> None:
@@ -30,12 +39,37 @@ class PreviewPane(Gtk.DrawingArea):
         self.path = path
         self.fit = True
         self.zoom = 1.0
+        self.reset_pan()
         self.queue_draw()
 
     def clear(self) -> None:
         self.pixbuf = None
         self.path = None
+        self.reset_pan()
         self.queue_draw()
+
+    def reset_pan(self) -> None:
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self._dragging = False
+
+    def start_pan(self, x: float, y: float) -> None:
+        self._dragging = True
+        self._drag_x = x
+        self._drag_y = y
+
+    def update_pan(self, x: float, y: float) -> bool:
+        if not self._dragging:
+            return False
+        self.pan_x += x - self._drag_x
+        self.pan_y += y - self._drag_y
+        self._drag_x = x
+        self._drag_y = y
+        self.queue_draw()
+        return True
+
+    def end_pan(self) -> None:
+        self._dragging = False
 
     def zoom_in(self) -> None:
         self.fit = False
@@ -50,6 +84,7 @@ class PreviewPane(Gtk.DrawingArea):
     def zoom_fit(self) -> None:
         self.fit = True
         self.zoom = 1.0
+        self.reset_pan()
         self.queue_draw()
 
     def set_zoom_scale(self, scale: float) -> None:
@@ -67,8 +102,8 @@ class PreviewPane(Gtk.DrawingArea):
             scale = min(allocation.width / width, allocation.height / height)
         else:
             scale = self.zoom
-        offset_x = (allocation.width - width * scale) / 2.0
-        offset_y = (allocation.height - height * scale) / 2.0
+        offset_x = (allocation.width - width * scale) / 2.0 + self.pan_x
+        offset_y = (allocation.height - height * scale) / 2.0 + self.pan_y
         return allocation, scale, offset_x, offset_y
 
     def image_coordinates(self, x: float, y: float):

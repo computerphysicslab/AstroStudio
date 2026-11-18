@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (35 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (36 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -172,3 +172,14 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * Export/Actions report failures visibly (message dialog) and PNG export works without ImageMagick by copying the regenerated preview. The GTK application id was versioned to `org.astrostudio.gui.v2` so launches no longer get forwarded to stale single instances running older code.
 * The new `Astrometry` menu bridges to the installed SkyStacker CLI: `--plate-solve --json-report` (with optional `--plate-center` seed) for field-of-view/plate solution, `--image-op sky-map` for a Gaia catalog SVG (converted to PNG by an external CLI), and `--image-op survey-cutout` for a HiPS FITS cutout. `astrostudio/core/astrometry.py` reads `plate_solution.json` and locates artifacts; all outputs go to scratch and failures are reported instead of fabricated. Real star fields and Gaia/HiPS access are required for meaningful results.
 * Verified with GUI smokes: zoom 200% preserved across transform, metadata absent from terminal log, terminal toggle works, Save As writes TIFF, plate-solve argv is dispatched and its report is summarized; 35 tests pass.
+
+---
+
+## 13. Dock Ordering, Pan, Open Filters and Working Astrometry
+
+* The Backends panel sorts installed connectors first (alphabetical by name), then missing ones.
+* `PreviewPane` supports left-drag panning (`start_pan`/`update_pan`/`end_pan`) in addition to wheel zoom and double-click fit. Pan offsets are captured with zoom/fit/scroll in `MainWindow._capture_view_state()` and restored after transforms, Undo and Redo.
+* The Open dialog registers upper- and lowercase patterns for PNG, JPEG, TIFF, FITS, BMP, CR2/CR3, NEF, ARW, DNG, XISF plus an "All files" filter, and explicitly sets the image filter (GTK filters are case-sensitive on Linux).
+* **Save As bug fixed:** `Gtk.ScrolledWindow` has no `set_min_content_size()` in GTK 3.24; the format dialog now uses `set_min_content_width/height`. Verified with a real-dialog smoke that selects TIFF, chooses a destination and writes the export.
+* Astrometry: SkyStacker only invokes its WCS solver from `--image-op sky-map` or `survey-cutout`. `measure-quality` produced `image_measurements.json` (not a plate solution), which caused the false "OK". Plate Solve now uses the WCS-capable op, writes `<base>_plate_solution.json`, normalises/caches it as `plate_solution.json`, and Sky Map / Survey Cutout copy that cached solution into their scratch output before running. Failures are surfaced as errors.
+* Verified with GUI smokes: pan (60,30) preserved across transform, Save As via real dialogs writes TIFF, plate-solve dispatches the corrected argv and reports the backend error; 36 tests pass.
