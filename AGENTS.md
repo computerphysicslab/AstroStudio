@@ -9,6 +9,7 @@
 - Dual-format invariant: every opened image has a 16-bit `working.tiff` (only input to external CLI transforms) and an 8-bit `preview.png` regenerated from it (only file the GUI renders). A transform replaces the TIFF, then regenerates the PNG; no pixel math in the GUI.
 - Never use shell strings for CLI calls; `argv` arrays only. No blocking calls on the GTK main thread.
 - Startup backend discovery (`BackendRegistry.probe`) checks installation and version of every CLI asynchronously and drives menu sensitivity. Keep `ACTION_BACKENDS` and `IMPLEMENTED_ACTIONS` in sync when adding adapters or actions.
+- Desktop integration: the `.desktop` entry must declare image `MimeType`s and `%F`; the app uses `HANDLES_OPEN` to load files passed by the file manager. Export asks for the format (FITS/TIFF/PNG/JPG/BMP catalog in `core/export_formats.py`) before the destination.
 - Version control is active (`main` branch, English commit messages). Commit logical changes when asked; never push, tag, merge or rewrite history without explicit user request.
 - `roadmap.md` tracks milestones v0.1.0-v1.0.0; update it and `Context/AstroStudio_ai_project_context.md` in the same change whenever status changes.
 - Code, comments, identifiers, and documentation in English.

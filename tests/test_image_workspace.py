@@ -7,6 +7,7 @@ import pytest
 
 from astrostudio.adapters import ImageMagickAdapter
 from astrostudio.core import ImageWorkspace, ScratchManager
+from astrostudio.core.export_formats import find_format
 from astrostudio.core.process_engine import JobResult
 
 
@@ -89,17 +90,27 @@ def test_export_uses_png_copy_or_tiff_cli(tmp_path, monkeypatch):
     png_destination = tmp_path / "copy.png"
     exported = []
     workspace.export(
-        image, str(png_destination), exported.append, lambda message: pytest.fail(message)
+        image,
+        str(png_destination),
+        exported.append,
+        lambda message: pytest.fail(message),
+        export_format=find_format("png8"),
     )
     assert exported == [str(png_destination)]
     assert png_destination.read_bytes() == Path(image.png_path).read_bytes()
 
     tif_destination = tmp_path / "copy.tif"
     workspace.export(
-        image, str(tif_destination), exported.append, lambda message: pytest.fail(message)
+        image,
+        str(tif_destination),
+        exported.append,
+        lambda message: pytest.fail(message),
+        export_format=find_format("tiff16-lzw"),
     )
     assert engine.calls[-1][0] == "image-0001-export"
     assert engine.calls[-1][1][1] == image.tiff_path
+    assert "-compress" in engine.calls[-1][1]
+    assert "LZW" in engine.calls[-1][1]
     assert exported[-1] == str(tif_destination)
 
 

@@ -3,4 +3,5 @@ __pycache__/
 .pytest_cache/
 .hypothesis/
 _work/
+assets/
 *.bak

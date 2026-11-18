@@ -1,7 +1,10 @@
 """ImageMagick connector: TIFF workspace and display-oriented operations."""
 
 import shutil
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
+
+if TYPE_CHECKING:
+    from ..core.export_formats import ExportFormat
 
 from ..core.command_builder import CommandBuilder
 from .base import CliAdapter
@@ -35,5 +38,14 @@ class ImageMagickAdapter(CliAdapter):
     def build_preview_argv(self, tiff_path: str, png_path: str) -> Sequence[str]:
         return [self.binary, tiff_path, "-depth", "8", png_path]
 
-    def build_export_argv(self, tiff_path: str, destination: str) -> Sequence[str]:
-        return self.build_argv([tiff_path], destination)
+    def build_export_argv(
+        self,
+        tiff_path: str,
+        destination: str,
+        export_format: "ExportFormat" = None,
+    ) -> Sequence[str]:
+        argv = [self.binary, tiff_path]
+        if export_format:
+            argv.extend(export_format.flags)
+        argv.append(destination)
+        return argv

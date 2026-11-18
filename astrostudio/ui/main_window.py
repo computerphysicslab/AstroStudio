@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 import gi
 
@@ -12,7 +12,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, Gtk, Pango  # noqa: E402
 
 from ..adapters import ExifToolAdapter, ImageMagickAdapter  # noqa: E402
-from ..core import ImageWorkspace, WorkingImage  # noqa: E402
+from ..core import EXPORT_FORMATS, ExportFormat, ImageWorkspace, WorkingImage  # noqa: E402
 from .preview import PreviewPane  # noqa: E402
 
 MENU_LAYOUT = (
@@ -122,6 +122,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.workspace = ImageWorkspace(scratch, engine, self._magick_adapter)
         self.current_images: List[WorkingImage] = []
         self.current_paths = []
+        self.export_format: ExportFormat = EXPORT_FORMATS[0]
         self.job_counter = 0
         self._reported_status = set()
         self.set_default_size(1100, 720)
@@ -225,10 +226,12 @@ class MainWindow(Gtk.ApplicationWindow):
         grid.set_row_spacing(4)
         grid.set_column_spacing(6)
 
-        self.format_combo = Gtk.ComboBoxText()
-        for extension in ("png", "jpg", "tif", "bmp"):
-            self.format_combo.append_text(extension)
-        self.format_combo.set_active(0)
+        format_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        self.format_label = Gtk.Label(label=self.export_format.label, xalign=0.0)
+        choose_button = Gtk.Button(label="Choose...")
+        choose_button.connect("clicked", self._on_choose_format)
+        format_box.pack_start(self.format_label, True, True, 0)
+        format_box.pack_start(choose_button, False, False, 0)
 
         self.resize_entry = Gtk.Entry()
         self.resize_entry.set_placeholder_text("e.g. 50%")
@@ -241,7 +244,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         fields = (
             ("Backend", Gtk.Label(label="ImageMagick (CLI)")),
-            ("Format", self.format_combo),
+            ("Format", format_box),
             ("Resize", self.resize_entry),
             ("Unsharp", self.unsharp_entry),
             ("Crop", self.crop_entry),
@@ -377,6 +380,12 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("Backend unavailable: ImageMagick is required for TIFF transforms")
             return
 
+        selected_format = self._choose_export_format()
+        if selected_format is None:
+            return
+        self.export_format = selected_format
+        self.format_label.set_text(selected_format.label)
+
         image = self.current_images[-1]
         dialog = Gtk.FileChooserDialog(
             title="Export result",
@@ -394,7 +403,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "%s_processed.%s"
             % (
                 os.path.splitext(os.path.basename(image.source))[0],
-                self._target_format(),
+                selected_format.extension,
             )
         )
         response = dialog.run()
@@ -402,6 +411,10 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.destroy()
         if not destination:
             return
+        root, extension = os.path.splitext(destination)
+        if extension.lower() != "." + selected_format.extension:
+            destination = root + "." + selected_format.extension
+            self._log("Extension adjusted to %s" % selected_format.extension)
 
         params = {
             "crop": self.crop_entry.get_text() or None,
@@ -413,13 +426,17 @@ class MainWindow(Gtk.ApplicationWindow):
         self.workspace.transform(
             image,
             params,
-            on_ready=lambda final: self._on_transform_ready(final, destination),
+            on_ready=lambda final: self._on_transform_ready(
+                final, destination, selected_format
+            ),
             on_error=self._on_workspace_error,
             on_log=self._log,
         )
         self.app.update_action_sensitivity()
 
-    def _on_transform_ready(self, image: WorkingImage, destination: str) -> None:
+    def _on_transform_ready(
+        self, image: WorkingImage, destination: str, export_format: ExportFormat
+    ) -> None:
         self.preview.load(image.png_path)
         self._log("Preview PNG regenerated from transformed TIFF: %s" % image.png_path)
         self.workspace.export(
@@ -428,6 +445,7 @@ class MainWindow(Gtk.ApplicationWindow):
             on_ready=self._on_export_ready,
             on_error=self._on_workspace_error,
             on_log=self._log,
+            export_format=export_format,
         )
 
     def _on_export_ready(self, destination: str) -> None:
@@ -435,8 +453,49 @@ class MainWindow(Gtk.ApplicationWindow):
         self._status("Export complete: %s" % destination)
         self.app.update_action_sensitivity()
 
-    def _target_format(self) -> str:
-        return self.format_combo.get_active_text() or "png"
+    def _on_choose_format(self, _button) -> None:
+        selected = self._choose_export_format()
+        if selected is not None:
+            self.export_format = selected
+            self.format_label.set_text(selected.label)
+
+    def _choose_export_format(self) -> Optional[ExportFormat]:
+        dialog = Gtk.Dialog(
+            title="Choose export format",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        store = Gtk.ListStore(str, str, str)
+        for export_format in EXPORT_FORMATS:
+            store.append((export_format.key, export_format.label, export_format.category))
+        view = Gtk.TreeView(model=store)
+        view.append_column(Gtk.TreeViewColumn("Format", Gtk.CellRendererText(), text=1))
+        view.append_column(Gtk.TreeViewColumn("Type", Gtk.CellRendererText(), text=2))
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_min_content_size(460, 260)
+        scroll.add(view)
+        content = dialog.get_content_area()
+        content.pack_start(scroll, True, True, 6)
+        dialog.show_all()
+        for row in store:
+            if row[0] == self.export_format.key:
+                view.get_selection().select_iter(row.iter)
+                break
+        selected = None
+        if dialog.run() == Gtk.ResponseType.OK:
+            selection = view.get_selection().get_selected()[1]
+            if selection is not None:
+                selected = next(
+                    item for item in EXPORT_FORMATS if item.key == store[selection][0]
+                )
+        dialog.destroy()
+        return selected
 
     def action_metadata(self) -> None:
         if not self.current_paths:

@@ -1,6 +1,7 @@
 """CLI adapter tests."""
 
 from astrostudio.adapters import ExifToolAdapter, ImageMagickAdapter
+from astrostudio.core.export_formats import find_format
 
 
 def test_imagemagick_argv_and_output_path():
@@ -48,6 +49,17 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "convert",
         "/tmp/job/working.tiff",
         "/tmp/out.tif",
+    ]
+    assert adapter.build_export_argv(
+        "/tmp/job/working.tiff", "/tmp/out.jpg", find_format("jpg90")
+    ) == [
+        "convert",
+        "/tmp/job/working.tiff",
+        "-depth",
+        "8",
+        "-quality",
+        "90",
+        "/tmp/out.jpg",
     ]
 
 

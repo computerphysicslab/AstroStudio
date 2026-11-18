@@ -28,6 +28,10 @@ read-only, and tests for every adapter.
       it, and regenerates the PNG that the GUI renders.
 - [x] Metadata panel populated automatically by ExifTool on open and refreshed by the
       (i) button/toolbar action, with canonical EXIF/FITS tags.
+- [x] Desktop/MIME registration for image types and command-line file opening from
+      the file manager ("Open With Other Application").
+- [x] Export format picker shown before Save As: FITS, TIFF 16-bit (uncompressed,
+      LZW, Zip), PNG, JPEG (90/95%), BMP.
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
 - [x] Git version control initialized on `main` with an initial commit.

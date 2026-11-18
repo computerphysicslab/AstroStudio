@@ -44,7 +44,7 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 | Command | GUI responsibility | Backend / CLI action | I/O routing | Status |
 | --- | --- | --- | --- | --- |
 | Open (`Ctrl+O`) | Choose local files and render them | None (read-only decode for display, `GdkPixbuf`) | Source files stay read-only | [P1] |
-| Save As / Export | Choose target format and destination | `magick`, `rawtherapee-cli`, or `darktable-cli` conversion | Input path -> scratch -> user export path | [P1] |
+| Save As / Export | First choose format (FITS, TIFF 16-bit uncompressed/LZW/Zip, PNG, JPEG 90/95%, BMP), then destination | `magick`/`convert` conversion from the working TIFF | Working TIFF -> CLI output -> user export path | [P1] |
 | Close / Close All | Clear open views and job state | None | Scratch kept until session end | [P1] |
 | Batch | Select directory, pattern, target format, flags | `gm mogrify` / `magick mogrify` batch argv built by adapter | Directory -> scratch -> export directory | [P2] |
 | Exit | Cancel active jobs, clean scratch, quit | None | Scratch removed unless resume requested | [P1] |

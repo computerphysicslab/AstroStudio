@@ -1,6 +1,8 @@
 """Gtk.Application bootstrap and action routing."""
 
+import os
 import sys
+from typing import List, Sequence
 
 import gi
 
@@ -18,16 +20,41 @@ ACTION_NAMES = frozenset(
 )
 
 
+def paths_from_command_line(command_line) -> List[str]:
+    """Extract image paths from a Gio command line (file manager "Open With")."""
+    paths: List[str] = []
+    try:
+        files = command_line.get_files()
+        for gfile in files:
+            path = gfile.get_path()
+            if path and os.path.isfile(path) and path not in paths:
+                paths.append(path)
+    except Exception:
+        pass
+    try:
+        arguments: Sequence[str] = command_line.get_arguments()
+        for argument in arguments[1:]:
+            if argument.startswith("-"):
+                continue
+            path = os.path.abspath(argument)
+            if os.path.isfile(path) and path not in paths:
+                paths.append(path)
+    except Exception:
+        pass
+    return paths
+
+
 class AstroStudioApplication(Gtk.Application):
     def __init__(self) -> None:
         super().__init__(
             application_id="org.astrostudio.gui",
-            flags=Gio.ApplicationFlags.FLAGS_NONE,
+            flags=Gio.ApplicationFlags.HANDLES_OPEN,
         )
         self.registry = BackendRegistry()
         self.scratch = ScratchManager()
         self.engine = ProcessEngine()
         self.window = None
+        self.pending_paths: List[str] = []
 
         for name in ACTION_NAMES:
             action = Gio.SimpleAction.new(name, None)
@@ -48,13 +75,28 @@ class AstroStudioApplication(Gtk.Application):
         else:
             self.window._log("Action pending CLI adapter: %s" % name)
 
+    def do_open(self, files, n_files: int, hint: str) -> None:
+        for gfile in files:
+            path = gfile.get_path()
+            if path and os.path.isfile(path) and path not in self.pending_paths:
+                self.pending_paths.append(path)
+        self.activate()
+
+    def do_command_line(self, command_line) -> int:
+        self.pending_paths.extend(paths_from_command_line(command_line))
+        self.activate()
+        return 0
+
     def do_activate(self) -> None:
         if self.window is None:
             self.window = MainWindow(self, self.registry, self.scratch, self.engine)
             self.window.show_all()
-            self.window.present()
             self.update_action_sensitivity()
             GLib.idle_add(self._discover_backends)
+        for path in self.pending_paths:
+            self.window._open_file(path)
+        self.pending_paths.clear()
+        self.window.present()
 
     def _discover_backends(self) -> bool:
         self.registry.probe(self.engine, on_update=self._backends_updated)

@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (22 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (27 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -134,3 +134,12 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * ImageMagick is accepted as `magick` (v7) or `convert` (v6); the adapter and the backend registry resolve either binary. The installed SkyStacker CLI cannot decode TIFF, so it is not used for the TIFF-to-PNG step in this baseline; the step is still performed by an external CLI, never in-process.
 * The Metadata panel is filled by ExifTool with canonical tags (`-ExposureTime`, `-ISO`, `-FNumber`, `-DateTimeOriginal`, etc.) automatically on open and when the (i) action is triggered. Startup discovery resolves installed state synchronously before version queries so actions are enabled from the first frame.
 * The preview canvas supports mouse-wheel zoom (read-only view transform).
+
+---
+
+## 9. Desktop Association and Export Catalog
+
+* The `.desktop` entry declares `MimeType` for PNG, JPEG, TIFF, BMP, WebP, FITS, CR2, NEF and ARW, and uses `Exec=... %F`. The installer refreshes the desktop and MIME databases, so Astro Studio appears in Ubuntu's *Open With Other Application* list for images.
+* `AstroStudioApplication` uses `Gio.ApplicationFlags.HANDLES_OPEN`; `do_open()` collects files passed by the file manager and `do_activate()` prepares each one through `ImageWorkspace`. `paths_from_command_line()` also handles raw argv paths.
+* Export asks for the format **before** the destination. `astrostudio/core/export_formats.py` catalogs FITS 16-bit, TIFF 16-bit (uncompressed, LZW, Zip), PNG 8-bit, JPEG 8-bit (90%/95%) and BMP 8-bit with their CLI flags. The chosen extension is enforced; PNG copies the regenerated preview, all other formats are written from the TIFF by the external backend.
+* Verified with `gio mime image/png` / `image/fits`, `desktop-file-validate`, a file-argument launch, and a real CLI export producing JPEG 60x60 from a resized TIFF.

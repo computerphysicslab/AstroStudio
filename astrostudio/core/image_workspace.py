@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 if TYPE_CHECKING:
     from ..adapters import ImageMagickAdapter
+    from .export_formats import ExportFormat
 
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
@@ -169,13 +170,15 @@ class ImageWorkspace:
         on_ready: Callable[[str], None],
         on_error: ErrorCallback,
         on_log: Optional[LogCallback] = None,
+        export_format: "ExportFormat" = None,
     ) -> None:
-        extension = os.path.splitext(destination)[1].lower()
-        if extension == ".png":
+        if export_format is not None and export_format.key == "png8":
             shutil.copyfile(image.png_path, destination)
             on_ready(destination)
             return
-        argv = self.adapter.build_export_argv(image.tiff_path, destination)
+        argv = self.adapter.build_export_argv(
+            image.tiff_path, destination, export_format
+        )
         if on_log:
             on_log("Export from TIFF: %s" % " ".join(argv))
         self.engine.run(
