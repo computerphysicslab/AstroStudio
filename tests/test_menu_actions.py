@@ -21,6 +21,12 @@ def test_precise_scale_actions_are_registered():
     } <= actions
 
 
+def test_dock_toggle_is_available_and_cancel_is_gone():
+    actions = set(iter_menu_actions())
+    assert "toggle-backends" in actions
+    assert "cancel" not in actions
+
+
 def test_processing_contains_precise_scale_submenu_and_cli_actions():
     processing = dict(MENU_LAYOUT)["Processing"]
     submenu = next(item for item in processing if item[0] == "Precise Scale")

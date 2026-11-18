@@ -20,7 +20,7 @@ Astro Studio operates on an **Asynchronous Orchestration Pattern** layered over 
    * `GtkApplicationWindow` following GNOME Human Interface Guidelines (HIG).
    * **File Browser & Multi-Format Exporter:** Native `GtkFileDialog` and `GtkColumnView` to browse local captures, inspect metadata, and select target export formats.
    * **Preview Canvas (`GtkDrawingArea` / OpenGL / Vulkan):** High-performance display surface dedicated solely to rendering loaded input files and intermediate/final images written to disk by external CLI backends.
-   * **Metadata & Terminal Drawers:** A read-only ExifTool metadata panel and a real-time log drawer streaming `stdout`/`stderr` from active child processes. There is no Parameter Inspector: menus/option dialogs ask for intent and the GUI generates adapter flags internally.
+   * **Metadata & Terminal Drawers:** An on-demand ExifTool metadata panel (PNG and TIFF tabs) and a chronological CLI log (`argv`, timestamp, response and exit code). There is no Parameter Inspector: menus/option dialogs ask for intent and the GUI generates adapter flags internally.
 
 2. **Command Builder & Adapter Pattern:**
    * Each external CLI binary is encapsulated inside an independent **Tool Adapter** defining supported input/output formats, default flag values, and argument serialization rules.
@@ -36,7 +36,7 @@ Astro Studio operates on an **Asynchronous Orchestration Pattern** layered over 
 
 5. **Startup Backend Discovery & Capability Gating:**
    * Immediately after activation, a `BackendRegistry` checks every connector binary with `shutil.which` and queries its version asynchronously through the same `ProcessEngine` (`magick -version`, `exiftool -ver`, `gm version`, etc.). No version query blocks the GTK thread.
-   * Results (installed / not installed / version / error) populate the GUI "Backends" panel and the log drawer, and drive `Gio.SimpleAction` sensitivity: a menu item is enabled only if its adapter is implemented and at least one required backend is installed. Actions whose backend is missing stay visible but disabled.
+   * Results (installed / not installed / version / error) populate only the GUI "Backends" panel, which has a close button and is restorable from *View > Toggle Backends Viewer*, and drive `Gio.SimpleAction` sensitivity: a menu item is enabled only if its adapter is implemented and at least one required backend is installed. Actions whose backend is missing stay visible but disabled and report the reason in the terminal log when clicked.
    * A binary that is installed but does not answer the version query remains "available" with version `unknown`; a missing binary disables its dependent actions.
 
 ---
@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (29 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (31 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -132,7 +132,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * Every image opened by Astro Studio is stored in scratch as **two artifacts**: `working.tiff` (16-bit, maximum depth/colour, the sole input to external CLI transforms) and `preview.png` (8-bit display copy generated from the TIFF, the only file rendered by the GTK canvas).
 * `ImageWorkspace.prepare()` creates both artifacts via external CLI; `transform()` runs the backend on the TIFF, atomically replaces it with the new TIFF (`os.replace`), then regenerates the PNG before the GUI reloads the preview. `export()` copies the PNG for `.png` targets or invokes the CLI from the TIFF for other formats. Original inputs are never modified.
 * ImageMagick is accepted as `magick` (v7) or `convert` (v6); the adapter and the backend registry resolve either binary. The installed SkyStacker CLI cannot decode TIFF, so it is not used for the TIFF-to-PNG step in this baseline; the step is still performed by an external CLI, never in-process.
-* The Metadata panel is filled by ExifTool with canonical tags (`-ExposureTime`, `-ISO`, `-FNumber`, `-DateTimeOriginal`, etc.) automatically on open and when the (i) action is triggered. Startup discovery resolves installed state synchronously before version queries so actions are enabled from the first frame.
+* The Metadata panel is filled by ExifTool with canonical tags (`-ExposureTime`, `-ISO`, `-FNumber`, `-DateTimeOriginal`, etc.) only when the (i) action is triggered, in two tabs (rendered PNG and working TIFF). Startup discovery resolves installed state synchronously before version queries so actions are enabled from the first frame.
 * The preview canvas supports mouse-wheel zoom (read-only view transform).
 
 ---
@@ -152,3 +152,13 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * Processing > Precise Scale is a view-only submenu: 10%, 25%, 50%, 75%, 100%, 150%, 200%, 400%, 1000%, 1:1 (one screen pixel per image pixel) and Fit to Window. Double-clicking the preview (or the fit toolbar button) performs Fit to Window. These actions only change `PreviewPane` display state.
 * Save As / Export asks for format first, then destination, and writes from the current working TIFF; it no longer performs a hidden transform. A cancelled dialog is reported in the log/status instead of failing silently.
 * Verified with a GUI smoke: zoom levels apply, double-click restores fit, Save As writes a TIFF from the working TIFF, and 29 tests pass.
+
+---
+
+## 11. Dock Panels, CLI Log and Undo History
+
+* The Backends panel has a close (X) button; *View > Toggle Backends Viewer* restores or hides it. The Metadata panel lives on the right with Backends and the Terminal Drawer, is hidden until the (i) metadata action is invoked, shows two ExifTool tabs (PNG preview and TIFF working), and also has a close button.
+* The Terminal Drawer no longer repeats connector installation status. It logs each CLI call as `CLI <job-id> (<label>): <argv with date/time prefix>` followed by response lines and `CLI <job-id> exit <code>` (or a failure message). Backend status remains exclusively in the Backends panel.
+* `ImageWorkspace` keeps per-image TIFF/PNG snapshots before each transform. `Edit > Undo / Redo` restores those snapshots and refreshes the canvas; menu sensitivity follows `can_undo()` / `can_redo()`. No external backend is invoked for history.
+* The Cancel job toolbar button and action were removed; internal cancellation still runs on shutdown. Disabled actions now explain themselves in the terminal log instead of silently ignoring clicks (important for Save As).
+* Verified with a GUI smoke: panels hide/restore, metadata tabs fill for PNG+TIFF, log contains CLI lines and no installation lines, undo/redo enable after a transform, and 31 tests pass.

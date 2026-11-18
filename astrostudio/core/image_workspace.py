@@ -9,7 +9,7 @@ TIFF, then regenerate the PNG. No pixel processing happens in this module.
 import os
 import shutil
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from ..adapters import ImageMagickAdapter
@@ -21,6 +21,12 @@ from .scratch import ScratchManager
 ReadyCallback = Callable[["WorkingImage"], None]
 ErrorCallback = Callable[[str], None]
 LogCallback = Callable[[str], None]
+
+
+@dataclass
+class Snapshot:
+    tiff_path: str
+    png_path: str
 
 
 @dataclass
@@ -47,6 +53,9 @@ class ImageWorkspace:
         self.engine = engine
         self.adapter = adapter
         self.images: Dict[str, WorkingImage] = {}
+        self._undo: Dict[str, List[Snapshot]] = {}
+        self._redo: Dict[str, List[Snapshot]] = {}
+        self._snapshot_counter: Dict[str, int] = {}
         self._counter = 0
 
     def prepare(
@@ -91,6 +100,8 @@ class ImageWorkspace:
         if not result.ok:
             self._fail("TIFF import failed for %s: %s" % (image.source, result.error or result.stderr), on_error, on_log)
             return
+        if on_log:
+            on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         self._make_preview(image, on_ready, on_error, on_log)
 
     def _make_preview(
@@ -123,6 +134,8 @@ class ImageWorkspace:
         if not result.ok:
             self._fail("PNG preview failed: %s" % (result.error or result.stderr), on_error, on_log)
             return
+        if on_log:
+            on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         on_ready(image)
 
     def transform(
@@ -133,6 +146,8 @@ class ImageWorkspace:
         on_error: ErrorCallback,
         on_log: Optional[LogCallback] = None,
     ) -> None:
+        self._snapshot(image, self._undo)
+        self._redo[image.key] = []
         next_tiff = os.path.join(image.directory, "working_next.tiff")
         argv = self.adapter.build_argv([image.tiff_path], next_tiff, params)
         if on_log:
@@ -158,6 +173,8 @@ class ImageWorkspace:
         if not result.ok:
             self._fail("TIFF transform failed: %s" % (result.error or result.stderr), on_error, on_log)
             return
+        if on_log:
+            on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         os.replace(next_tiff, image.tiff_path)
         if on_log:
             on_log("Replaced working TIFF: %s" % image.tiff_path)
@@ -199,7 +216,67 @@ class ImageWorkspace:
         if not result.ok:
             self._fail("Export failed: %s" % (result.error or result.stderr), on_error, on_log)
             return
+        if on_log:
+            on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         on_ready(destination)
+
+    def _snapshot(
+        self, image: WorkingImage, stack: Dict[str, List[Snapshot]]
+    ) -> Snapshot:
+        count = self._snapshot_counter.get(image.key, 0) + 1
+        self._snapshot_counter[image.key] = count
+        snapshot = Snapshot(
+            tiff_path=os.path.join(image.directory, "snapshot_%03d.tiff" % count),
+            png_path=os.path.join(image.directory, "snapshot_%03d.png" % count),
+        )
+        shutil.copyfile(image.tiff_path, snapshot.tiff_path)
+        shutil.copyfile(image.png_path, snapshot.png_path)
+        stack.setdefault(image.key, []).append(snapshot)
+        return snapshot
+
+    def can_undo(self, image: WorkingImage) -> bool:
+        return bool(self._undo.get(image.key))
+
+    def can_redo(self, image: WorkingImage) -> bool:
+        return bool(self._redo.get(image.key))
+
+    def undo(
+        self,
+        image: WorkingImage,
+        on_ready: ReadyCallback,
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback] = None,
+    ) -> None:
+        stack = self._undo.get(image.key, [])
+        if not stack:
+            on_error("Nothing to undo")
+            return
+        self._snapshot(image, self._redo)
+        snapshot = stack.pop()
+        shutil.copyfile(snapshot.tiff_path, image.tiff_path)
+        shutil.copyfile(snapshot.png_path, image.png_path)
+        if on_log:
+            on_log("Undo restored TIFF/PNG for %s" % image.key)
+        on_ready(image)
+
+    def redo(
+        self,
+        image: WorkingImage,
+        on_ready: ReadyCallback,
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback] = None,
+    ) -> None:
+        stack = self._redo.get(image.key, [])
+        if not stack:
+            on_error("Nothing to redo")
+            return
+        self._snapshot(image, self._undo)
+        snapshot = stack.pop()
+        shutil.copyfile(snapshot.tiff_path, image.tiff_path)
+        shutil.copyfile(snapshot.png_path, image.png_path)
+        if on_log:
+            on_log("Redo restored TIFF/PNG for %s" % image.key)
+        on_ready(image)
 
     @staticmethod
     def _fail(message: str, on_error: ErrorCallback, on_log: Optional[LogCallback]) -> None:

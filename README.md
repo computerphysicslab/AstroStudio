@@ -54,7 +54,8 @@ On startup the app probes every connector binary for installation and version. T
 **Backends** panel lists the result, and menu actions are enabled only when their
 backend is installed and an adapter exists. A missing binary leaves the action
 visible but disabled; no in-process fallback is ever attempted. ImageMagick is
-detected as `magick` (v7) or `convert` (v6).
+detected as `magick` (v7) or `convert` (v6). The Backends panel can be closed with its
+X button and restored from *View > Toggle Backends Viewer*.
 
 ## Dual-format image workflow
 
@@ -70,9 +71,11 @@ operates on the TIFF and writes a new TIFF. The new TIFF replaces the previous o
 and a fresh PNG is generated from it; the GUI then reloads that PNG. Original inputs
 are never modified.
 
-The **Metadata** panel under the preview is filled automatically by ExifTool when an
-image is opened; the (i) button/action refreshes it for the active image. Scroll the
-mouse wheel over the preview to zoom.
+The **Metadata** panel on the right is hidden until you press the (i) Metadata button;
+it then shows two tabs (PNG preview and TIFF working) filled by ExifTool, and can be
+closed with its X button. The **Terminal Drawer** logs each CLI invocation with date,
+time, full `argv` and the backend's response/exit code; it no longer repeats backend
+installation status. Scroll the mouse wheel over the preview to zoom.
 
 ## Export formats
 
@@ -99,29 +102,30 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
 
 ## Manual verification
 
-1. **Startup discovery:** check the Backends panel and the terminal drawer. In the
-   development environment `ExifTool` and `GIMP` are detected with their versions;
-   `ImageMagick` is absent, so export actions stay disabled until it is installed.
+1. **Startup discovery:** check the Backends panel; the terminal drawer only shows CLI
+   calls and responses. `ExifTool`, `GIMP` and ImageMagick 6 (`convert`) are detected.
+   Close the Backends panel with its X and restore it from View > Toggle Backends Viewer.
 2. **Open a file:** `Ctrl+O` (or the Open toolbar button) and select a JPG/PNG/TIFF.
    The log shows the generated `working.tiff` and `preview.png`; the canvas renders
-   the PNG only. The Metadata panel fills automatically from ExifTool.
-3. **Metadata:** `Ctrl+I` or the (i) toolbar button re-reads ExifTool tags for the
-   active image into the docked Metadata panel.
+   the PNG only.
+3. **Metadata:** `Ctrl+I` or the (i) toolbar button opens the Metadata panel with two
+   tabs (PNG preview and TIFF working) filled by ExifTool; close it with its X.
 4. **Display zoom:** double-click the image (or press the fit button) to fit it to
    the window. Processing > Precise Scale offers 10/25/50/75/100/150/200/400/1000%,
    1:1 (one screen pixel per image pixel) and Fit to Window. These are view-only.
 5. **Transform via CLI:** Processing > Resize Image asks for the percentage and
    Processing > Sharpen offers light/medium/strong presets. The GUI generates the CLI
    flags, transforms the working TIFF, replaces it and regenerates the PNG preview.
-   No parameter inspector is involved.
+   No parameter inspector is involved. *Edit > Undo / Redo* restores the previous
+   TIFF and PNG snapshots.
 6. **Export via CLI:** File > Export / Save As asks for the format first, then the
-   destination and writes the chosen artifact from the current working TIFF.
+   destination and writes the chosen artifact from the current working TIFF. If the
+   action is disabled, the terminal drawer explains why instead of failing silently.
 7. **Open With:** right-click a PNG/FITS file, choose Astro Studio, and confirm the
-   image is loaded with its TIFF+PNG workspace and metadata.
-8. **Cancel a job:** start a long export and press the stop button in the toolbar.
-9. **Quit:** `Ctrl+Q` cancels active jobs and removes the scratch directory.
-10. **Backend settings:** Options > Backend Settings logs the full detected version
-   list.
+   image is loaded with its TIFF+PNG workspace.
+8. **Quit:** `Ctrl+Q` cleans up the scratch directory.
+9. **Backend settings:** Options > Backend Settings writes the detected version list
+   to the terminal drawer.
 
 ## Layout
 

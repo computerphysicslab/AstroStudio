@@ -103,7 +103,8 @@ MENU_LAYOUT = (
             (None, None),
             ("Histogram", "histogram"),
             ("Pixel Line Profile", "line-profile"),
-            ("FITS Header Inspector", "metadata"),
+            ("Metadata Viewer", "metadata"),
+            ("Toggle Backends Viewer", "toggle-backends"),
         ),
     ),
     (
@@ -122,7 +123,6 @@ TOOL_ITEMS = (
     ("zoom-in", "Zoom in", "zoom-in"),
     ("zoom-out", "Zoom out", "zoom-out"),
     ("zoom-fit-best", "Fit to window", "zoom-fit"),
-    ("process-stop", "Cancel job", "cancel"),
 )
 
 
@@ -143,7 +143,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.current_paths = []
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
         self.job_counter = 0
-        self._reported_status = set()
         self.set_default_size(1100, 720)
 
         self.preview = PreviewPane()
@@ -171,12 +170,19 @@ class MainWindow(Gtk.ApplicationWindow):
         scroll.add(self.preview)
         frame.add(scroll)
         left.pack_start(frame, True, True, 0)
-        left.pack_start(self._build_metadata_panel(), False, False, 0)
         paned.pack1(left, True, False)
 
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         right.set_border_width(6)
-        right.pack_start(self._build_backend_panel(), False, False, 0)
+        self.backends_panel = self._panel_with_close(
+            "Backends (startup discovery)", self._build_backend_content()
+        )
+        self.metadata_panel = self._panel_with_close(
+            "Metadata (ExifTool, read-only)", self._build_metadata_content()
+        )
+        self.metadata_panel.set_no_show_all(True)
+        right.pack_start(self.backends_panel, False, False, 0)
+        right.pack_start(self.metadata_panel, False, False, 0)
         right.pack_start(self._build_log_panel(), True, True, 0)
         paned.pack2(right, False, True)
         root.pack_start(paned, True, True, 0)
@@ -217,33 +223,54 @@ class MainWindow(Gtk.ApplicationWindow):
             toolbar.insert(button, -1)
         return toolbar
 
-    def _build_backend_panel(self) -> Gtk.Widget:
-        frame = Gtk.Frame(label="Backends (startup discovery)")
+    def _panel_with_close(self, title: str, content: Gtk.Widget) -> Gtk.Widget:
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        label = Gtk.Label(label=title, xalign=0.0)
+        label.set_hexpand(True)
+        close_button = Gtk.Button.new_from_icon_name(
+            "window-close-symbolic", Gtk.IconSize.MENU
+        )
+        close_button.set_tooltip_text("Close panel")
+        close_button.connect("clicked", lambda *_: panel.hide())
+        header.pack_start(label, True, True, 0)
+        header.pack_start(close_button, False, False, 0)
+        panel.pack_start(header, False, False, 0)
+        panel.pack_start(content, True, True, 0)
+        return panel
+
+    def _build_backend_content(self) -> Gtk.Widget:
         self.backend_store = Gtk.ListStore(str, str, str)
         view = Gtk.TreeView(model=self.backend_store)
         for index, title in enumerate(("Name", "Status", "Version")):
-            renderer = Gtk.CellRendererText()
-            column = Gtk.TreeViewColumn(title, renderer, text=index)
-            view.append_column(column)
+            view.append_column(
+                Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=index)
+            )
         scroll = Gtk.ScrolledWindow()
         scroll.set_min_content_height(130)
         scroll.add(view)
-        frame.add(scroll)
-        return frame
+        return scroll
 
-    def _build_metadata_panel(self) -> Gtk.Widget:
-        frame = Gtk.Frame(label="Metadata (ExifTool, read-only)")
-        self.metadata_buffer = Gtk.TextBuffer()
-        self.metadata_buffer.set_text("No metadata loaded yet. Open an image or press the (i) button.")
-        view = Gtk.TextView(buffer=self.metadata_buffer)
-        view.set_editable(False)
-        view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        view.override_font(Pango.FontDescription("monospace 10"))
-        scroll = Gtk.ScrolledWindow()
-        scroll.set_min_content_height(120)
-        scroll.add(view)
-        frame.add(scroll)
-        return frame
+    def _build_metadata_content(self) -> Gtk.Widget:
+        notebook = Gtk.Notebook()
+        self.metadata_buffers = {}
+        for label, key in (
+            ("PNG preview", "png"),
+            ("TIFF working", "tiff"),
+        ):
+            buffer = Gtk.TextBuffer()
+            buffer.set_text("Press the (i) Metadata button to read ExifTool tags.")
+            view = Gtk.TextView(buffer=buffer)
+            view.set_editable(False)
+            view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+            view.override_font(Pango.FontDescription("monospace 10"))
+            scroll = Gtk.ScrolledWindow()
+            scroll.set_min_content_width(360)
+            scroll.set_min_content_height(140)
+            scroll.add(view)
+            notebook.append_page(scroll, Gtk.Label(label=label))
+            self.metadata_buffers[key] = buffer
+        return notebook
 
     def _build_log_panel(self) -> Gtk.Widget:
         frame = Gtk.Frame(label="Terminal Drawer")
@@ -258,6 +285,11 @@ class MainWindow(Gtk.ApplicationWindow):
         return frame
 
     def _activate(self, action: str) -> None:
+        gio_action = self.app.lookup_action(action)
+        if gio_action is not None and not gio_action.get_enabled():
+            self._log("Action unavailable: %s (check Backends panel)" % action)
+            self._status("Action unavailable: %s" % action)
+            return
         self.app.activate_action(action, None)
 
     def _status(self, text: str) -> None:
@@ -302,16 +334,6 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self.app.update_action_sensitivity()
 
-        for status in registry.status.values():
-            key = (status.name, status.available, status.version)
-            if key in self._reported_status:
-                continue
-            self._reported_status.add(key)
-            if status.available:
-                self._log("%s: available (version %s)" % (status.name, status.version or "unknown"))
-            else:
-                self._log("%s: not installed - related menu actions disabled" % status.name)
-
     def action_open(self) -> None:
         dialog = Gtk.FileChooserDialog(
             title="Open images",
@@ -348,8 +370,6 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self.current_images.append(image)
         self._status("Preparing 16-bit TIFF + PNG preview for %s" % path)
-        self._log("Input registered: %s (original remains read-only)" % path)
-        self._read_metadata(path)
 
     def _on_image_ready(self, image: WorkingImage) -> None:
         self.preview.load(image.png_path)
@@ -565,45 +585,55 @@ class MainWindow(Gtk.ApplicationWindow):
         return selected
 
     def action_metadata(self) -> None:
-        if not self.current_paths:
-            self._log("Open at least one image before reading metadata")
+        if not self.current_images or not self.current_paths:
+            self._log("Open an image before reading metadata")
+            self._status("Open an image first")
             return
-        self._read_metadata(self.current_paths[-1], explicit=True)
+        self.metadata_panel.show()
+        image = self.current_images[-1]
+        self._read_metadata(self.current_paths[-1], "png", "PNG preview")
+        self._read_metadata(image.tiff_path, "tiff", "TIFF working")
 
-    def _read_metadata(self, path: str, explicit: bool = False) -> None:
+    def _read_metadata(self, path: str, buffer_key: str, label: str) -> None:
         adapter = self.adapters["ExifTool"]
         if not self.registry.available(adapter.name):
-            self.metadata_buffer.set_text("ExifTool is not installed; metadata is unavailable.")
-            self._log("Backend unavailable: %s" % adapter.name)
+            self.metadata_buffers[buffer_key].set_text(
+                "ExifTool is not installed; metadata is unavailable."
+            )
+            self._log("CLI unavailable: %s" % adapter.name)
             return
         self.job_counter += 1
         job_id = "metadata-%d" % self.job_counter
         argv = adapter.build_argv([path])
-        if explicit:
-            self._log("Reading metadata: %s" % " ".join(argv))
-        self.engine.run(job_id, argv, on_log=self._log, on_done=self._on_metadata_done)
+        self._log("CLI %s (%s): %s" % (job_id, label, " ".join(argv)))
+        self.engine.run(
+            job_id,
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_metadata_done(result, buffer_key, label),
+        )
         self.app.update_action_sensitivity()
 
-    def _on_metadata_done(self, result) -> None:
+    def _on_metadata_done(self, result, buffer_key: str, label: str) -> None:
         if result.ok:
             text = result.stdout.strip() or "(no metadata tags found)"
-            self.metadata_buffer.set_text(text)
-            self._log("Metadata panel updated from ExifTool")
-            self._status("Metadata loaded (%d lines)" % len(text.splitlines()))
+            self.metadata_buffers[buffer_key].set_text(text)
+            self._log(
+                "CLI %s exit %d (%s): %d lines"
+                % (result.job_id, result.exit_code, label, len(text.splitlines()))
+            )
+            self._status("Metadata loaded: %s" % label)
         else:
             message = result.error or result.stderr or "unknown error"
-            self.metadata_buffer.set_text("Metadata error: %s" % message)
-            self._log("Metadata job failed: %s" % message)
+            self.metadata_buffers[buffer_key].set_text("Metadata error: %s" % message)
+            self._log("CLI %s failed: %s" % (result.job_id, message))
         self.app.update_action_sensitivity()
 
-    def action_cancel(self) -> None:
-        jobs = self.engine.active_jobs
-        for job_id in jobs:
-            self.engine.cancel(job_id)
-        if jobs:
-            self._log("Cancelled jobs: %s" % ", ".join(jobs))
-            self._status("Jobs cancelled")
-        self.app.update_action_sensitivity()
+    def action_toggle_backends(self) -> None:
+        if self.backends_panel.get_visible():
+            self.backends_panel.hide()
+        else:
+            self.backends_panel.show()
 
     def action_close(self) -> None:
         if self.current_paths:
@@ -623,10 +653,32 @@ class MainWindow(Gtk.ApplicationWindow):
         self._log("Backend availability: %s" % "; ".join(self.registry.summary()))
 
     def action_undo(self) -> None:
-        self._log("Undo applies to pipeline parameters; no changes recorded")
+        if not self.current_images:
+            self._log("Open an image before using Undo")
+            return
+        self.workspace.undo(
+            self.current_images[-1],
+            on_ready=self._on_history_done,
+            on_error=self._on_workspace_error,
+            on_log=self._log,
+        )
 
     def action_redo(self) -> None:
-        self._log("Redo applies to pipeline parameters; no changes recorded")
+        if not self.current_images:
+            self._log("Open an image before using Redo")
+            return
+        self.workspace.redo(
+            self.current_images[-1],
+            on_ready=self._on_history_done,
+            on_error=self._on_workspace_error,
+            on_log=self._log,
+        )
+
+    def _on_history_done(self, image: WorkingImage) -> None:
+        self.preview.load(image.png_path)
+        self._log("History applied to %s; preview refreshed" % image.key)
+        self._status("History applied")
+        self.app.update_action_sensitivity()
 
     def action_zoom_in(self) -> None:
         self.preview.zoom_in()

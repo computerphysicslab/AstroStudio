@@ -14,9 +14,9 @@ This document specifies the graphical interface of Astro Studio. Astro Studio is
 
 * **Main Frame (`Gtk.ApplicationWindow`):** Hosts the global menu bar, toolbars, status bar, dockable workspace container, and the collapsible terminal drawer. Follows GNOME HIG.
 * **Child Image Canvas Panes:** Multi-document/single-document view supporting multiple loaded files, zoom from fit-to-window to custom magnification, and read-only pixel inspection. The canvas never modifies the buffer it displays; a transformed image is a *new file* produced by a backend and reloaded into view.
-* **Metadata Panel:** Read-only ExifTool/FITS table docked under the preview, filled automatically on open and refreshed by the (i) action.
+* **Metadata Panel:** Read-only ExifTool/FITS panel docked on the right with the Backends and Terminal panels. It is hidden until the (i) Metadata action is invoked, then shows two tabs (PNG preview and 16-bit TIFF working) and can be closed with its X button.
 * **No Parameter Inspector:** CLI flags are never typed by the user. Menus and small option dialogs ask for intent (scale percentage, sharpening preset, export format) and the GUI generates the exact adapter flags internally.
-* **Terminal Drawer:** Line-buffered `stdout`/`stderr` view of active child processes, with cancel (`SIGTERM`, then `SIGKILL`) and exit-code display.
+* **Terminal Drawer:** Chronological log of every CLI invocation sent to a connector: date/time, job id, complete `argv` and the backend response (`stdout`/`stderr` lines and exit code, including errors). Backend installation/version status is reported only in the Backends panel, never repeated here. There is no user-facing cancel button; jobs are cancelled internally on shutdown.
 * **Status Bar:** Cursor coordinates (X, Y), intensity value read from the rendered preview (display only), zoom percentage, active backend, and job status.
 
 ## 2. Universal Action Flow (applies to every item below)
@@ -33,7 +33,7 @@ Input paths + GUI parameters
 * **Scratch location:** `<XDG_RUNTIME_DIR>/astro-studio/<session>/<job>/`, falling back to `/tmp/astro_studio_<pid>/`. Raw inputs are never written to; all outputs go to scratch or an explicit user export path.
 * **Dual-format invariant:** every opened image is stored in scratch as a 16-bit `working.tiff` (the only input for external CLI transforms) and an 8-bit `preview.png` generated from that TIFF. A transform replaces the TIFF and regenerates the PNG; the canvas renders the PNG only. The GUI never derives or modifies pixels itself.
 * **Formats:** Scientific linear artifacts (`.fits`, `.xisf`, `.f32raw`, 16/32-bit `.tiff`) are kept distinct in the UI from display-stretched previews (8-bit `.jpg`, `.png`, `.bmp`). Metadata/WCS headers are preserved when the target backend supports it.
-* **Startup discovery:** On activation the app checks every connector binary for installation and queries its version asynchronously (`Gio.Subprocess`, e.g. `magick -version`, `exiftool -ver`). Results appear in the "Backends" panel and terminal drawer; menu actions are enabled only when their adapter is implemented and at least one required backend is installed. Missing version output keeps the backend available with version `unknown`.
+* **Startup discovery:** On activation the app checks every connector binary for installation and queries its version asynchronously (`Gio.Subprocess`, e.g. `magick -version`, `exiftool -ver`). Results appear only in the "Backends" panel; menu actions are enabled only when their adapter is implemented and at least one required backend is installed. The Backends panel has a close button and can be restored with *View > Toggle Backends Viewer*. Missing version output keeps the backend available with version `unknown`.
 * **Missing backend:** If a binary is absent (`ENOENT`) or exits non-zero, the action stays disabled/marked unavailable and the error is reported in the terminal drawer; the GUI never falls back to an in-process implementation.
 
 ## 3. Menu Bar Structure and Options
@@ -52,7 +52,7 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 
 ### 3.2 Edit (`Edit`)
 
-* **Undo / Redo (`Ctrl+Z` / `Ctrl+Shift+Z`):** Reverts or restores *pipeline configuration and UI state only* (selected files, adapter flags, parameter history). It never reverts image pixels; to undo a transformation the user re-runs the backend from the original input or a preserved intermediate. [P1]
+* **Undo / Redo:** Restores the previous (or next) TIFF and PNG snapshots kept in scratch after a CLI transform, then refreshes the canvas. No backend is invoked; it is pure file restoration of artifacts the GUI owns. [P1]
 * **Cut / Copy / Paste:** Transfers *file references and job configurations* through the clipboard, not raster buffers. A pasted image is rendered from its file path. [P3]
 * **Select Area / Reset Selection:** Defines a crop rectangle that the Command Builder serializes as backend geometry flags (e.g. `magick -crop WxH+X+Y`). The GUI does not crop pixels itself. [P2]
 * **Clone Stamp:** No in-app brush. Delegated to headless `gimp -i -b` (Script-Fu/Python-Fu) or a PhotoFlow `.pfp` pipeline; the result is reloaded from scratch. [P3]
@@ -92,7 +92,8 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 * **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window. Processing > Precise Scale provides the full percentage list. [P1]
 * **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It does not compute pixel statistics internally. [P2]
 * **Pixel Line Profile (`Pixellinie als Diagramm`):** A drawn line becomes a crop/coordinate request to the backend (e.g. `magick ... txt:`); the returned values are plotted by the GUI. [P3]
-* **FITS Header Inspector:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` populates the docked Metadata panel automatically on open and on demand via the (i) button; no pixel decoding. [P1]
+* **Metadata Viewer:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` is invoked by the (i) button for both the rendered PNG and the high-depth TIFF, filling the two tabs of the on-demand Metadata panel; no pixel decoding. [P1]
+* **Toggle Backends Viewer:** Shows or hides the Backends panel. [P1]
 
 ### 3.8 Options / Settings (`Options`)
 
@@ -106,7 +107,7 @@ Toolbars are shortcuts to the exact same actions and adapters; they add no proce
 * **File Action Group:** Open File (`Ctrl+O`), Save/Export, Close Active View, Print (export via backend to a print-ready raster). [P1 except Print]
 * **Zoom & Navigation Group:** Zoom In/Out, Reset View, Pan/Hand — preview-only operations. [P1]
 * **Analysis & Inspection Group:** Histogram button (runs the backend histogram job), Crosshair/Profile tool (backend coordinate query), Information button (opens the `exiftool`/FITS header inspector). [P1 for Information; P2/P3 for the others]
-* **Dialog Parameter Controls:** When an action is invoked, the floating panel exposes the adapter's flags (sliders, spinboxes, checkboxes, format selector, backend selector, OK/Apply/Reset/Cancel). OK/Apply schedule a CLI job; Cancel terminates it. The preview checkbox requests a backend-written preview artifact, never an in-process filter. [P1]
+* **Dialog Parameter Controls:** Small option dialogs ask only for intent (scale percentage, sharpening preset, export format) with OK/Cancel; the GUI maps the answer to adapter flags and schedules a CLI job. No raw flag editor and no job-cancel control are exposed. [P1]
 
 ## 5. Backend Capability Map (authoritative for adapters)
 
@@ -114,7 +115,7 @@ Toolbars are shortcuts to the exact same actions and adapters; they add no proce
 | --- | --- | --- |
 | Format conversion / export / batch | `magick`, `gm` | JPG, PNG, TIFF, BMP |
 | RAW development / display stretch | `rawtherapee-cli`, `darktable-cli` | JPEG, PNG, 8/16-bit TIFF |
-| Metadata / FITS headers | `exiftool` | Text tables for the inspector |
+| Metadata / FITS headers | `exiftool` | Text tables for the on-demand Metadata panel (PNG + TIFF) |
 | Calibration / stacking / astrometry | `siril-cli`, `skystacker`, `astap_cli`, `solve-field` | FITS, XISF, 16/32-bit TIFF |
 | Alignment / stitching / fusion | Hugin tools, `enfuse` | TIFF panoramas, HDR/focus stacks |
 | Headless custom scripts / pipelines | `gimp -i -b`, `photoflow-cli`, `dcraw_emu` | TIFF/PNG outputs |

@@ -37,6 +37,11 @@ read-only, and tests for every adapter.
       Fit to Window as view-only zoom levels.
 - [x] Parameter Inspector removed: the GUI generates CLI flags from menu/dialog
       choices (resize percentage, sharpening preset, export format).
+- [x] Backends panel with close button and *View > Toggle Backends Viewer*; on-demand
+      Metadata panel on the right with PNG/TIFF tabs and its own close button.
+- [x] Terminal Drawer logs timestamped CLI `argv` plus responses/exit codes instead of
+      repeating backend installation status.
+- [x] Real Undo/Redo of TIFF+PNG snapshots after a transform; Cancel job button removed.
 - [x] Test baseline: argv serialization, adapters, scratch isolation, process
       lifecycle (ENOENT/exit code), discovery gating.
 - [x] Git version control initialized on `main` with an initial commit.

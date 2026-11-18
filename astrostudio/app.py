@@ -27,7 +27,7 @@ def iter_menu_actions():
                 yield item[1]
 
 
-ACTION_NAMES = frozenset(set(iter_menu_actions()) | {"cancel"})
+ACTION_NAMES = frozenset(iter_menu_actions())
 
 
 def paths_from_command_line(command_line) -> List[str]:
@@ -121,9 +121,18 @@ class AstroStudioApplication(Gtk.Application):
             action = self.lookup_action(name)
             if action is not None:
                 action.set_enabled(self.registry.is_action_enabled(name))
-        cancel_action = self.lookup_action("cancel")
-        if cancel_action is not None:
-            cancel_action.set_enabled(bool(self.engine.active_jobs))
+        if self.window is not None and self.window.current_images:
+            image = self.window.current_images[-1]
+            history = (
+                ("undo", self.window.workspace.can_undo(image)),
+                ("redo", self.window.workspace.can_redo(image)),
+            )
+        else:
+            history = (("undo", False), ("redo", False))
+        for name, enabled in history:
+            action = self.lookup_action(name)
+            if action is not None:
+                action.set_enabled(enabled)
 
     def do_shutdown(self) -> None:
         self.engine.cancel_all()

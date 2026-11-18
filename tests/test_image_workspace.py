@@ -80,6 +80,31 @@ def test_transform_replaces_tiff_and_regenerates_png(tmp_path, monkeypatch):
     assert not os.path.exists(os.path.join(image.directory, "working_next.tiff"))
 
 
+def test_undo_and_redo_restore_both_artifacts(tmp_path, monkeypatch):
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    image = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+    original_tiff = Path(image.tiff_path).read_bytes()
+    original_png = Path(image.png_path).read_bytes()
+
+    workspace.transform(image, {"resize": "50%"}, lambda *_: None, lambda message: pytest.fail(message))
+    transformed_tiff = Path(image.tiff_path).read_bytes()
+    assert transformed_tiff != original_tiff
+    assert workspace.can_undo(image)
+    assert not workspace.can_redo(image)
+
+    workspace.undo(image, lambda *_: None, lambda message: pytest.fail(message))
+    assert Path(image.tiff_path).read_bytes() == original_tiff
+    assert Path(image.png_path).read_bytes() == original_png
+    assert workspace.can_redo(image)
+
+    workspace.redo(image, lambda *_: None, lambda message: pytest.fail(message))
+    assert Path(image.tiff_path).read_bytes() == transformed_tiff
+    assert Path(image.png_path).read_bytes() == b"data:image-0001-preview"
+
+
 def test_export_uses_png_copy_or_tiff_cli(tmp_path, monkeypatch):
     engine = FakeEngine()
     workspace = _workspace(tmp_path, monkeypatch, engine)

@@ -65,7 +65,7 @@ To prevent tight coupling with specific external tools, Astro Studio implements 
 ### C. Process Execution & Concurrency Engine
 * **Non-Blocking Concurrency:** Built on top of GLib's event loop (`GMainContext`) using `Gio.Subprocess` from PyGObject (GTK 3.x / Python 3.8 baseline). No subprocess is ever launched synchronously on the GTK main thread.
 * **IPC & Stream Monitoring:** Listens asynchronously to the `stdout` and `stderr` pipes of child processes. Regex parsers extract real-time progress indicators to drive progress bars and terminal log drawers in the GTK interface.
-* **Process Lifecycle Management:** Provides users with explicit cancellation tokens (`SIGTERM` / `SIGKILL` handlers) to safely abort running CLI jobs.
+* **Process Lifecycle Management:** Cancellation tokens (`SIGTERM`) are used internally on shutdown; no user-facing cancel button is exposed in the toolbar.
 
 ### D. Temporary Scratch Space Manager
 * Manages ephemeral intermediate files under `<XDG_RUNTIME_DIR>/astro-studio/<session>/<job>/` (fallback `/tmp/astro_studio_<pid>/`), passing output paths seamlessly from one CLI command to the next and cleaning up temporary artifacts upon session closure. Original inputs are never modified.

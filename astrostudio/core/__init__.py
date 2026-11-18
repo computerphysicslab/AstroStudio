@@ -3,7 +3,7 @@
 from .backends import BackendRegistry, BackendSpec, BackendStatus
 from .command_builder import CommandBuilder
 from .export_formats import EXPORT_FORMATS, ExportFormat, find_format
-from .image_workspace import ImageWorkspace, WorkingImage
+from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
 
@@ -16,6 +16,7 @@ __all__ = [
     "ExportFormat",
     "find_format",
     "ImageWorkspace",
+    "Snapshot",
     "WorkingImage",
     "JobResult",
     "ProcessEngine",
