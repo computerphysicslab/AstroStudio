@@ -49,7 +49,9 @@ from ..core import (  # noqa: E402
     install_command,
     load_session,
     overlay_center,
+    raw_warnings,
     parse_metadata_text,
+    parse_ser_header,
     package_for_binary,
     parse_histogram_text,
     parse_measurements,
@@ -57,6 +59,7 @@ from ..core import (  # noqa: E402
     parse_policy,
     save_session,
     suggest_presets,
+    validate_avi_codec,
     solution_for_directory,
     write_makefile,
     write_shell,
@@ -79,6 +82,9 @@ MENU_LAYOUT = (
             ("Resume Session...", "resume-session"),
             ("Export Pipeline...", "export-pipeline"),
             ("Export Compressed FITS...", "export-fits-compressed"),
+            ("Inspect RAW/DNG...", "inspect-raw"),
+            ("Inspect SER...", "inspect-ser"),
+            ("Inspect AVI...", "inspect-avi"),
             ("Batch Convert...", "batch"),
             (None, None),
             ("Close", "close"),
@@ -1965,6 +1971,123 @@ progressbar text {
         else:
             self._log("Before/after failed: %s" % (result.error or result.stderr))
             self._show_error("Before/after comparison failed")
+
+    def action_inspect_raw(self) -> None:
+        image = self.active_image or (self.current_images[-1] if self.current_images else None)
+        if image is None:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        if not self.registry.available("ExifTool"):
+            self._show_error("ExifTool is required to inspect RAW metadata.")
+            return
+        argv = self.adapters["ExifTool"].build_argv([image.source])
+        self._log("CLI raw-inspect: %s" % " ".join(argv))
+        self._busy_begin()
+        self.engine.run(
+            "raw-inspect",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_raw_inspect_done(result),
+        )
+
+    def _on_raw_inspect_done(self, result) -> None:
+        self._busy_end()
+        if not result.ok:
+            self._show_error("RAW metadata read failed")
+            return
+        metadata = parse_metadata_text(result.stdout)
+        self._show_info("RAW / DNG", "\n".join(raw_warnings(metadata)))
+
+    def action_inspect_ser(self) -> None:
+        dialog = Gtk.FileChooserDialog(
+            title="Select SER sequence",
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN,
+            buttons=(
+                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+            ),
+        )
+        response = dialog.run()
+        path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not path:
+            return
+        try:
+            header = parse_ser_header(path)
+        except (OSError, ValueError) as exc:
+            self._show_error("Invalid SER header: %s" % exc)
+            return
+        lines = [
+            "Camera: %s" % header.camera,
+            "Size: %dx%d" % (header.width, header.height),
+            "Depth: %d bit" % header.pixel_depth,
+            "Frames: %d" % header.frame_count,
+            "Bayer: %s" % header.bayer_pattern,
+        ]
+        if self.registry.available("FFmpeg"):
+            from ..core.video import ffmpeg_extract_argv
+
+            output_dir = self.scratch.job_dir("ser-%d" % self.job_counter)
+            self.job_counter += 1
+            pattern = os.path.join(output_dir, "frame-%05d.png")
+            argv = ffmpeg_extract_argv(path, pattern)
+            lines.append("Extraction: " + " ".join(argv))
+            self._busy_begin()
+            self.engine.run(
+                "ser-extract",
+                argv,
+                on_log=self._log,
+                on_done=lambda result: self._on_ser_extract_done(result, output_dir),
+            )
+        self._show_info("SER sequence", "\n".join(lines))
+
+    def _on_ser_extract_done(self, result, output_dir: str) -> None:
+        self._busy_end()
+        if result.ok:
+            self._log("SER frames extracted to %s" % output_dir)
+        else:
+            self._log("SER extraction failed: %s" % (result.error or result.stderr))
+
+    def action_inspect_avi(self) -> None:
+        dialog = Gtk.FileChooserDialog(
+            title="Select AVI sequence",
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN,
+            buttons=(
+                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+            ),
+        )
+        response = dialog.run()
+        path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not path:
+            return
+        argv = [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name", "-of", "json", path,
+        ]
+        self._busy_begin()
+        self.engine.run(
+            "avi-probe",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_avi_probe_done(result),
+        )
+
+    def _on_avi_probe_done(self, result) -> None:
+        self._busy_end()
+        if not result.ok:
+            self._show_error("ffprobe failed")
+            return
+        try:
+            data = json.loads(result.stdout)
+            codec = data["streams"][0]["codec_name"]
+        except (ValueError, KeyError, IndexError):
+            codec = "UNKNOWN"
+        accepted, reason = validate_avi_codec(codec)
+        self._show_info("AVI codec", "Codec: %s\n%s" % (codec, reason))
 
     def action_derivation_tree(self) -> None:
         image = self.active_image or (self.current_images[-1] if self.current_images else None)

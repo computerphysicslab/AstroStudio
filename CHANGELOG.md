@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.26 — 2026-11-19
+
+- RAW/DNG inspection with lossy-compression and Bayer/linear-DNG warnings.
+- SER header parser and ffmpeg frame extraction for lucky-imaging sequences.
+- AVI codec validation via ffprobe, rejecting lossy codecs such as MJPEG.
+- Unit tests for the new format helpers.
+
 ## 0.2.25 — 2026-11-19
 
 - Derivation tree dialog showing original, CLI operation chain and preview.

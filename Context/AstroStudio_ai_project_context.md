@@ -649,3 +649,15 @@ to force a UI redraw.
   action when neither binary exists.
 * Roadmap medium-difficulty items 16–18 are complete (17 partially: click-to-anchor and
   staged GHS remain planned). Version bumped to `0.2.25`.
+
+---
+
+## 43. v0.2.26 — RAW, SER and AVI Support
+
+* `core/raw_formats.py` reads ExifTool metadata and warns about lossy RAW compression,
+  Bayer CFA patterns and linear DNGs, exposed via File > Inspect RAW/DNG.
+* `core/video.py` parses the SER header (dimensions, bit depth, frame count, Bayer
+  pattern) and builds ffmpeg argv to extract frames to scratch; exposed via File > Inspect SER.
+* AVI codecs are probed with `ffprobe` and validated against a lossless whitelist;
+  MJPEG/DIVX/XVID/H264 are rejected before stretching, with a clear info dialog.
+* Roadmap medium-difficulty items 19–21 are complete. Version bumped to `0.2.26`.

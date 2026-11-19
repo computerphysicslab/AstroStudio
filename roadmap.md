@@ -143,12 +143,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
          real stretch to avoid double-stretching; stage stack to commit/reorder stretches.
 18. [x] FITS compression adapters for fpack algorithms (RICE_1/GZIP_1/GZIP_2/
        HCOMPRESS_1/PLIO_1) and gzip whole-file `.gz`.
-19. [ ] RAW/DNG connectors (RawTherapee, darktable, LibRaw) with explicit lossless-vs-lossy
-       warnings and Bayer-vs-linear DNG handling (v0.3.0).
-20. [ ] SER support via Siril/ffmpeg CLI for 8/16-bit uncompressed lucky imaging, with
-       header Bayer pattern and per-frame timestamps preserved (v0.3.0).
-21. [ ] AVI legacy capture support via ffmpeg with uncompressed/lossless codecs only;
-       MJPEG rejected before stretching (v0.3.0).
+19. [x] RAW/DNG metadata inspection with lossy and Bayer/linear-DNG warnings.
+20. [x] SER header parser and ffmpeg frame extraction for lucky imaging.
+21. [x] AVI codec validation via ffprobe, rejecting lossy codecs such as MJPEG.
 22. [x] PSD/PSB read-back via ImageMagick `[0]` flattened composite with display stretch
        and an integration test (v0.2.4).
 23. [ ] First `MainWindow` refactor: extract `MenuBuilder`, `ActionRegistry`,

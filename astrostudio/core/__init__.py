@@ -4,6 +4,7 @@ from .astrometry import find_output, find_plate_solution, summarize_solution
 from .backends import BackendRegistry, BackendSpec, BackendStatus
 from .annotations import Annotation, build_annotate_argv, draw_command
 from .bpm import validate_bpm_count
+from .raw_formats import raw_warnings
 from .wcs import overlay_center, wcs_cards, write_wcs_sidecar
 from .calibration import discover_calibration
 from .command_builder import CommandBuilder
@@ -26,6 +27,12 @@ from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
 from .session import load_session, save_session
+from .video import (
+    SerHeader,
+    ffmpeg_extract_argv,
+    parse_ser_header,
+    validate_avi_codec,
+)
 from .settings import SettingsManager
 
 __all__ = [
@@ -33,6 +40,11 @@ __all__ = [
     "BackendSpec",
     "BackendStatus",
     "validate_bpm_count",
+    "raw_warnings",
+    "SerHeader",
+    "ffmpeg_extract_argv",
+    "parse_ser_header",
+    "validate_avi_codec",
     "Annotation",
     "build_annotate_argv",
     "draw_command",
