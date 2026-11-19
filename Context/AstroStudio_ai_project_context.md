@@ -635,3 +635,17 @@ to force a UI redraw.
 * `core/linear_guard.py` rejects background/deconvolution/starless operations after a
   non-linear stretch unless `settings.linear_override` is enabled.
 * Roadmap medium-difficulty items 13–15 are complete. Version bumped to `0.2.24`.
+
+---
+
+## 42. v0.2.25 — Provenance, Histogram Gamma and FITS Compression
+
+* `core/provenance.py` builds a derivation tree from the original path, recorded CLI
+  operations and the preview PNG; View > Derivation Tree displays it in a dialog.
+* Histogram panel gains a shadow loupe (0–0.05 intensities) and a gamma slider that is
+  serialized as ImageMagick `-evaluate Pow <gamma>` for the preview PNG only.
+* `adapters/fits_compression.py` provides fpack argv for RICE_1/GZIP_1/GZIP_2/
+  HCOMPRESS_1/PLIO_1 plus gzip `-kf` for whole-file `.gz`; backend gating disables the
+  action when neither binary exists.
+* Roadmap medium-difficulty items 16–18 are complete (17 partially: click-to-anchor and
+  staged GHS remain planned). Version bumped to `0.2.25`.

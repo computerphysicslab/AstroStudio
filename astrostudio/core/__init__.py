@@ -11,6 +11,7 @@ from .operation_log import OperationLog
 from .package_info import install_command, package_for_binary, parse_policy
 from .pipeline_export import cli_entries, write_makefile, write_shell
 from .presets import parse_metadata_text, suggest_presets
+from .provenance import DerivationNode, build_tree, flatten
 from .plate_solution import PlateSolution, load_solution, solution_for_directory
 from .estimator import Estimator, StageModel
 from .frame_quality import FrameDiagnostics, parse_measurements
@@ -67,6 +68,9 @@ __all__ = [
     "parse_policy",
     "parse_metadata_text",
     "suggest_presets",
+    "DerivationNode",
+    "build_tree",
+    "flatten",
     "cli_entries",
     "write_makefile",
     "write_shell",

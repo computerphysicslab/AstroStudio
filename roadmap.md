@@ -127,9 +127,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 13. [x] Parameter suggestions from metadata (ISO, exposure) and frame diagnostics.
 14. [x] Markup annotations stored as data and burned in via ImageMagick `-draw`.
 15. [x] Linear-space guard with optional override for post-stretch operations.
-16. [ ] Derivation tree view showing which original and operation chain produced the
-       current image (v0.5.0).
-17. [ ] Histogram phase 2: hybrid parametric + image-driven interface (v0.3.0):
+16. [x] Derivation tree dialog showing original, CLI operations and preview.
+17. [x] Histogram phase 2 partial: shadow loupe, gamma slider mapped to CLI `-evaluate Pow`,
+       while click-to-anchor and staged GHS remain planned:
        - Dual view: full 0–1 histogram with ghosted "before" and live "after", plus a
          shadow loupe magnifying the 0–0.05 region where linear astro data lives.
        - Parametric controls for GHS/Asinh (symmetry point, stretch factor, highlight
@@ -141,9 +141,8 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
          clipping counters; false-colour clipping overlay on the canvas.
        - Decouple display STF from data stretch and disable the preview stretch after a
          real stretch to avoid double-stretching; stage stack to commit/reorder stretches.
-18. [ ] FITS tile compression via external `fpack`/`funpack` adapters: RICE_1, GZIP_1/2,
-       HCOMPRESS_1, PLIO_1, plus whole-file `.fits.gz`; avoid lossy float dithering
-       unless explicitly requested (v0.3.0).
+18. [x] FITS compression adapters for fpack algorithms (RICE_1/GZIP_1/GZIP_2/
+       HCOMPRESS_1/PLIO_1) and gzip whole-file `.gz`.
 19. [ ] RAW/DNG connectors (RawTherapee, darktable, LibRaw) with explicit lossless-vs-lossy
        warnings and Bayer-vs-linear DNG handling (v0.3.0).
 20. [ ] SER support via Siril/ffmpeg CLI for 8/16-bit uncompressed lucky imaging, with

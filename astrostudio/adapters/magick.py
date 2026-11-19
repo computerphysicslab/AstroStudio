@@ -71,9 +71,12 @@ class ImageMagickAdapter(CliAdapter):
         png_path: str,
         display_stretch: bool = False,
         stretch_points: tuple = None,
+        gamma: float = None,
     ) -> Sequence[str]:
         argv = [self.binary, tiff_path]
-        if display_stretch:
+        if gamma is not None:
+            argv.extend(("-evaluate", "Pow", "%.3f" % float(gamma)))
+        elif display_stretch:
             argv.extend(("-evaluate", "Pow", "0.45"))
         if stretch_points:
             low, high = stretch_points

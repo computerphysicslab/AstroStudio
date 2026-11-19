@@ -3,6 +3,7 @@
 from .astrometry import AstrometryAdapter
 from .base import CliAdapter
 from .external_pipelines import ExternalToolAdapter
+from .fits_compression import ALGORITHMS, FitsCompressionAdapter
 from .exiftool import ExifToolAdapter
 from .magick import ImageMagickAdapter
 from .siril import SirilAdapter
@@ -12,6 +13,8 @@ __all__ = [
     "AstrometryAdapter",
     "CliAdapter",
     "ExternalToolAdapter",
+    "ALGORITHMS",
+    "FitsCompressionAdapter",
     "ExifToolAdapter",
     "ImageMagickAdapter",
     "SirilAdapter",

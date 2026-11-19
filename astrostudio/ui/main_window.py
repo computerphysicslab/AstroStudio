@@ -19,8 +19,10 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from ..adapters import (  # noqa: E402
     AstrometryAdapter,
+    ALGORITHMS,
     ExifToolAdapter,
     ExternalToolAdapter,
+    FitsCompressionAdapter,
     ImageMagickAdapter,
     SirilAdapter,
     SkyStackerAdapter,
@@ -30,6 +32,8 @@ from ..core import (  # noqa: E402
     Annotation,
     build_annotate_argv,
     check_linear_guard,
+    build_tree,
+    flatten,
     ExportFormat,
     ImageWorkspace,
     Translator,
@@ -74,6 +78,7 @@ MENU_LAYOUT = (
             ("Save Session...", "save-session"),
             ("Resume Session...", "resume-session"),
             ("Export Pipeline...", "export-pipeline"),
+            ("Export Compressed FITS...", "export-fits-compressed"),
             ("Batch Convert...", "batch"),
             (None, None),
             ("Close", "close"),
@@ -213,6 +218,7 @@ MENU_LAYOUT = (
             ("Frame Table...", "frame-table"),
             ("Before / After...", "before-after"),
             ("WCS Overlay", "wcs-overlay"),
+            ("Derivation Tree...", "derivation-tree"),
             ("Pixel Line Profile", "line-profile"),
             ("Metadata Viewer", "metadata"),
             ("Toggle Backends Viewer", "toggle-backends"),
@@ -476,8 +482,17 @@ class MainWindow(Gtk.ApplicationWindow):
         self.metadata_panel.set_no_show_all(True)
         self.histogram_widget = HistogramWidget()
         self.histogram_widget.on_change = self._on_stretch_change
+        self.gamma_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0.3, 2.5, 0.05
+        )
+        self.gamma_scale.set_value(1.0)
+        self.gamma_scale.set_tooltip_text("Parametric stretch (gamma)")
+        self.gamma_scale.connect("value-changed", self._on_gamma_changed)
+        hist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        hist_box.pack_start(self.histogram_widget, True, True, 0)
+        hist_box.pack_start(self.gamma_scale, False, False, 0)
         self.histogram_panel = self._panel_with_close(
-            "Histogram (CLI data, click handles to stretch)", self.histogram_widget
+            "Histogram (CLI data, click handles to stretch)", hist_box
         )
         self.terminal_panel = self._panel_with_close(
             "Terminal Drawer", self._build_log_content()
@@ -1297,6 +1312,56 @@ progressbar text {
             self._log("Batch failed: %s" % (result.error or result.stderr))
             self._show_error("Batch conversion failed: %s" % (result.error or result.stderr))
 
+    def action_export_fits_compressed(self) -> None:
+        image = self.active_image or (self.current_images[-1] if self.current_images else None)
+        if image is None:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        binary = "fpack" if self.registry.available("FPack") else "gzip"
+        adapter = FitsCompressionAdapter(binary)
+        dialog = Gtk.Dialog(
+            title="Export compressed FITS",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK, Gtk.ResponseType.OK,
+            ),
+        )
+        self._dialog_header(dialog, "Export compressed FITS")
+        combo = Gtk.ComboBoxText()
+        for algorithm in ALGORITHMS:
+            combo.append_text(algorithm)
+        combo.set_active(0)
+        dialog.get_content_area().pack_start(combo, True, True, 6)
+        dialog.show_all()
+        response = dialog.run()
+        algorithm = combo.get_active_text() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not algorithm:
+            return
+        if binary == "fpack":
+            output = os.path.splitext(image.source)[0] + ".fz"
+        else:
+            output = image.tiff_path + ".gz"
+        argv = adapter.pack_argv(image.tiff_path, output, algorithm)
+        self._log("CLI compressed FITS: %s" % " ".join(argv))
+        self._busy_begin()
+        self.engine.run(
+            "fits-compress",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_fits_compress_done(result, output),
+        )
+
+    def _on_fits_compress_done(self, result, output: str) -> None:
+        self._busy_end()
+        if result.ok:
+            self._log("Compressed FITS written (stdout redirected by caller): %s" % output)
+            self._status("Compressed FITS job complete")
+        else:
+            self._show_error("FITS compression failed")
+
     def action_save_session(self) -> None:
         dialog = Gtk.FileChooserDialog(
             title="Save session",
@@ -1901,6 +1966,31 @@ progressbar text {
             self._log("Before/after failed: %s" % (result.error or result.stderr))
             self._show_error("Before/after comparison failed")
 
+    def action_derivation_tree(self) -> None:
+        image = self.active_image or (self.current_images[-1] if self.current_images else None)
+        if image is None:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        root = build_tree(
+            image.source, self.transform_history, image.tiff_path, image.png_path
+        )
+        dialog = Gtk.Dialog(title="Derivation tree", parent=self, modal=True)
+        self._dialog_header(dialog, "Derivation tree")
+        store = Gtk.ListStore(str, str)
+        for label, detail in flatten(root):
+            store.append((label, detail))
+        view = Gtk.TreeView(model=store)
+        for index, title in enumerate(("Node", "Detail")):
+            view.append_column(Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=index))
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_min_content_size(520, 320)
+        scroll.add(view)
+        dialog.get_content_area().pack_start(scroll, True, True, 6)
+        dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+        dialog.show_all()
+        dialog.run()
+        dialog.destroy()
+
     def action_suggest_presets(self) -> None:
         buffer = getattr(self, "metadata_buffers", {}).get("png")
         text = ""
@@ -2295,6 +2385,7 @@ progressbar text {
             return
         image = self.current_images[-1]
         image.stretch_points = (low, high)
+        image.gamma = float(self.gamma_scale.get_value())
         view_state = self._capture_view_state()
         self.workspace.update_preview(
             image,
@@ -2302,6 +2393,10 @@ progressbar text {
             on_error=self._on_workspace_error,
             on_log=self._log,
         )
+
+    def _on_gamma_changed(self, _scale) -> None:
+        widget = self.histogram_widget
+        self._on_stretch_change(widget.low, widget.high)
 
     def _on_stretch_preview_ready(self, image: WorkingImage, view_state: dict, low: float, high: float) -> None:
         self.preview.load(image.png_path)

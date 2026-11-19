@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.25 — 2026-11-19
+
+- Derivation tree dialog showing original, CLI operation chain and preview.
+- Histogram phase 2 partial: shadow loupe and gamma slider mapped to ImageMagick `-evaluate Pow`.
+- FITS compression adapters for fpack algorithms and gzip whole-file `.gz`.
+- Unit tests for provenance, compression and gamma serialization.
+
 ## 0.2.24 — 2026-11-19
 
 - Parameter suggestions from ISO/exposure metadata and frame quality diagnostics.

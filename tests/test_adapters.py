@@ -173,3 +173,10 @@ def test_threads_limit_is_serialized():
         "-format",
         "png",
     ]
+
+
+def test_gamma_preview_flag():
+    adapter = ImageMagickAdapter(binary="convert")
+    argv = adapter.build_preview_argv("w.tiff", "p.png", gamma=1.4)
+    assert argv[2:4] == ["-evaluate", "Pow"]
+    assert argv[4] == "1.400"

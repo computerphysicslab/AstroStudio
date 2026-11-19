@@ -131,6 +131,22 @@ class HistogramWidget(Gtk.DrawingArea):
             cr.line_to(width, y)
             cr.stroke()
 
+        loupe_x = width * 0.58
+        loupe_w = width * 0.38
+        cr.set_source_rgba(1.0, 0.85, 0.2, 0.6)
+        cr.rectangle(loupe_x, 6, loupe_w, 48)
+        cr.stroke()
+        shadow = [(x, count) for _label, _colour, points in self.datasets for x, count in points if x <= 13]
+        if shadow:
+            peak = max(count for _x, count in shadow) or 1
+            cr.set_source_rgb(1.0, 0.85, 0.2)
+            for x, count in shadow:
+                px = loupe_x + (x / 13.0) * loupe_w
+                ph = (count / peak) * 48
+                cr.move_to(px, 54)
+                cr.line_to(px, 54 - ph)
+            cr.stroke()
+
         max_log = 1.0
         prepared = []
         for label, colour, points in self.datasets:

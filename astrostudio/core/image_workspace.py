@@ -40,6 +40,7 @@ class WorkingImage:
     png_path: str
     display_stretch: bool = False
     stretch_points: tuple = None
+    gamma: float = None
 
 
 class ImageWorkspace:
@@ -188,6 +189,7 @@ class ImageWorkspace:
             image.png_path,
             image.display_stretch,
             image.stretch_points,
+            image.gamma,
         )
         if on_log:
             on_log("Preview PNG from TIFF: %s" % " ".join(argv))
