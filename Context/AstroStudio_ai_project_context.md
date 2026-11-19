@@ -451,8 +451,8 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 
 ## 31. v0.2.14 — Japanese UI and Current Refresh State
 
-* Japanese (`ja`) was added to `TRANSLATIONS` and the language selector; it was
-  added with menu, dialog, panel and status translations. GUI smoke confirmed
+* Japanese (`ja`) was added to `TRANSLATIONS` and the language selector with menu, dialog,
+  panel and status translations. GUI smoke confirmed
   `ファイル / 編集 / 処理 / 天体測定` and Japanese status text.
 * Dock panel titles are translated in `_panel_with_close()`, dialog titles in
   `_dialog_header()`, and the main status strings now call `translator.tr()` before being
