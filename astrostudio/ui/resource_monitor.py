@@ -1,4 +1,6 @@
-"""Lightweight CPU and RAM level indicators for the right dock."""
+"""Compact circular CPU/RAM meters with history and per-core bars."""
+
+import math
 
 import gi
 
@@ -10,7 +12,7 @@ except ImportError:
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 
 def parse_meminfo(text: str) -> float:
@@ -38,39 +40,7 @@ def parse_proc_cpu(line: str):
     return idle, sum(numbers)
 
 
-_METER_CSS = b"""
-levelbar.astro-meter trough {
-    background-color: #1c1c1c;
-    border: 1px solid #3a3a3a;
-}
-levelbar.astro-meter block {
-    background-color: #2ecc71;
-}
-levelbar.astro-meter.high block {
-    background-color: #e74c3c;
-}
-label.astro-meter-high {
-    color: #e74c3c;
-    font-weight: bold;
-}
-label.astro-meter-ok {
-    color: #2ecc71;
-}
-"""
-
-
-def apply_meter_css() -> None:
-    provider = Gtk.CssProvider()
-    provider.load_from_data(_METER_CSS)
-    screen = Gdk.Screen.get_default()
-    if screen is not None:
-        Gtk.StyleContext.add_provider_for_screen(
-            screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-
-
 def cpu_reading(overall: float, per_core: list):
-    """Return the bar value and label, exposing per-core saturation."""
     peak = max(per_core) if per_core else overall
     value = max(float(overall), float(peak))
     return value, "CPU %.0f%% (core %.0f%%)" % (overall, peak)
@@ -84,30 +54,93 @@ def cpu_delta(previous, current) -> float:
     return max(0.0, min(100.0, (1.0 - idle / total) * 100.0))
 
 
+class MeterWidget(Gtk.DrawingArea):
+    """Circular gauge, 60-sample history sparkline and optional core bars."""
+
+    def __init__(self, title: str) -> None:
+        super().__init__()
+        self.title = title
+        self.value = 0.0
+        self.history = []
+        self.per_core = []
+        self.set_app_paintable(True)
+        self.set_size_request(300, 118)
+        self.connect("draw", self._on_draw)
+
+    def update(self, value: float, per_core: list = None) -> None:
+        self.value = max(0.0, min(100.0, value))
+        self.history.append(self.value)
+        self.history = self.history[-60:]
+        self.per_core = per_core or []
+        self.queue_draw()
+
+    @staticmethod
+    def _colour(value: float):
+        return (0.96, 0.30, 0.30) if value >= 75 else (0.16, 0.72, 0.36)
+
+    def _on_draw(self, _widget, cr) -> bool:
+        width = self.get_allocated_width()
+        height = self.get_allocated_height()
+        cr.set_source_rgb(0.08, 0.08, 0.10)
+        cr.paint()
+        cr.set_source_rgb(0.85, 0.85, 0.85)
+        cr.set_font_size(10)
+        cr.move_to(8, 14)
+        cr.show_text(self.title)
+        cr.set_font_size(18)
+        cr.move_to(30, 66)
+        cr.show_text("%.0f%%" % self.value)
+
+        cx, cy, radius = 56, 60, 34
+        cr.set_line_width(7)
+        cr.set_source_rgb(0.22, 0.22, 0.26)
+        cr.arc(cx, cy, radius, -math.pi / 2, 1.5 * math.pi)
+        cr.stroke()
+        end = -math.pi / 2 + 2 * math.pi * self.value / 100.0
+        cr.set_source_rgb(*self._colour(self.value))
+        cr.arc(cx, cy, radius, -math.pi / 2, end)
+        cr.stroke()
+
+        left, top = 108, 22
+        chart_w = max(10, width - left - 10)
+        chart_h = 48
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.12)
+        cr.rectangle(left, top, chart_w, chart_h)
+        cr.stroke()
+        if len(self.history) > 1:
+            cr.set_source_rgb(*self._colour(self.value))
+            for index, sample in enumerate(self.history):
+                x = left + index / 59.0 * chart_w
+                y = top + chart_h - sample / 100.0 * chart_h
+                if index == 0:
+                    cr.move_to(x, y)
+                else:
+                    cr.line_to(x, y)
+            cr.stroke()
+
+        if self.per_core:
+            bar_y = 90
+            bar_w = max(2, (width - 20) / len(self.per_core) - 2)
+            for index, core in enumerate(self.per_core):
+                x = 10 + index * (bar_w + 2)
+                cr.set_source_rgb(0.22, 0.22, 0.26)
+                cr.rectangle(x, bar_y, bar_w, 16)
+                cr.fill()
+                cr.set_source_rgb(*self._colour(core))
+                cr.rectangle(x, bar_y + 16 - core / 100.0 * 16, bar_w, core / 100.0 * 16)
+                cr.fill()
+        return False
+
+
 class ResourceMonitor(Gtk.Box):
-    """Update two GTK level bars once per second without touching image data."""
+    """Update both meters once per second without touching image data."""
 
     def __init__(self, interval_ms: int = 1000) -> None:
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        self.interval_ms = interval_ms
-        self.cpu_label = Gtk.Label(label="CPU 0%", xalign=0.0)
-        self.ram_label = Gtk.Label(label="RAM 0%", xalign=0.0)
-        for label in (self.cpu_label, self.ram_label):
-            label.override_font(Pango.FontDescription("monospace 9"))
-            label.get_style_context().add_class("astro-meter-ok")
-        self.cpu_bar = Gtk.LevelBar()
-        self.ram_bar = Gtk.LevelBar()
-        for bar in (self.cpu_bar, self.ram_bar):
-            bar.set_min_value(0.0)
-            bar.set_max_value(100.0)
-            bar.add_offset_value(Gtk.LEVEL_BAR_OFFSET_HIGH, 75.0)
-            bar.get_style_context().add_class("astro-meter")
-        apply_meter_css()
-        self.pack_start(self.cpu_label, False, False, 0)
-        self.pack_start(self.cpu_bar, False, False, 0)
-        self.pack_start(self.ram_label, False, False, 0)
-        self.pack_start(self.ram_bar, False, False, 0)
-
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.cpu_meter = MeterWidget("CPU")
+        self.ram_meter = MeterWidget("RAM")
+        self.pack_start(self.cpu_meter, False, False, 0)
+        self.pack_start(self.ram_meter, False, False, 0)
         self._previous_cpu = self._read_proc_cpu()
         if psutil is not None:
             psutil.cpu_percent(interval=None)
@@ -133,27 +166,17 @@ class ResourceMonitor(Gtk.Box):
     def _update(self) -> bool:
         if psutil is not None:
             overall = psutil.cpu_percent(interval=None)
-            cpu, cpu_text = cpu_reading(overall, psutil.cpu_percent(percpu=True))
+            per_core = psutil.cpu_percent(percpu=True)
+            value, _label = cpu_reading(overall, per_core)
             ram = psutil.virtual_memory().percent
         else:
             current = self._read_proc_cpu()
-            cpu, cpu_text = cpu_reading(cpu_delta(self._previous_cpu, current), [])
+            value, _label = cpu_reading(cpu_delta(self._previous_cpu, current), [])
             self._previous_cpu = current
+            per_core = []
             ram = self._read_proc_memory()
-        cpu = max(0.0, min(100.0, cpu))
-        ram = max(0.0, min(100.0, ram))
-        self.cpu_bar.set_value(cpu)
-        self.ram_bar.set_value(ram)
-        for label, value in ((self.cpu_label, cpu), (self.ram_label, ram)):
-            context = label.get_style_context()
-            if value >= 75.0:
-                context.remove_class("astro-meter-ok")
-                context.add_class("astro-meter-high")
-            else:
-                context.remove_class("astro-meter-high")
-                context.add_class("astro-meter-ok")
-        self.cpu_label.set_text(cpu_text)
-        self.ram_label.set_text("RAM %.0f%%" % ram)
+        self.cpu_meter.update(value, per_core)
+        self.ram_meter.update(ram)
         return True
 
     def stop(self) -> None:

@@ -5,10 +5,25 @@ project. Only ``--process-image`` single-image mode is used so originals are nev
 modified and all products stay in the requested output directory.
 """
 
+import os
 from typing import List
 
 from ..core.command_builder import CommandBuilder
 from .base import CliAdapter
+
+
+def discover_catalog_dir() -> str:
+    """Locate a SkyStacker blind-catalog directory with a manifest."""
+    home = os.path.expanduser("~")
+    candidates = [
+        os.path.join(home, "datos", "datos-juan", "proyectos", "astronomia", "SkyStacker", "catalogs"),
+        os.path.join(home, "proyectos", "astronomia", "SkyStacker", "catalogs"),
+        os.environ.get("SKYSTACKER_CATALOGS", ""),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isfile(os.path.join(candidate, "manifest.json")):
+            return candidate
+    return ""
 
 
 class SkyStackerAdapter(CliAdapter):
@@ -34,6 +49,7 @@ class SkyStackerAdapter(CliAdapter):
     def __init__(self) -> None:
         super().__init__(CommandBuilder(self.binary))
         self.cache_dir = None
+        self.catalog_dir = None
 
     @staticmethod
     def _base(source: str, image_op: str, output_dir: str) -> List[str]:
@@ -112,6 +128,38 @@ class SkyStackerAdapter(CliAdapter):
                 solver, plate_center, offline, timeout, focal_length, pixel_size
             )
         )
+        return argv
+
+    def build_blind_solve_argv(
+        self,
+        source: str,
+        output_dir: str,
+        catalog: str = "mag07",
+        blind_index: str = None,
+        focal_length: str = None,
+        pixel_size: str = None,
+    ) -> List[str]:
+        """Wide-field offline solve using SkyStacker's native Gaia quad index."""
+        argv = self._base(source, "plate-solve", output_dir)
+        argv.extend(("--plate-solver", "native"))
+        if blind_index:
+            argv.extend(("--blind-index", blind_index))
+        elif catalog:
+            argv.extend(("--blind-catalog", catalog))
+        if focal_length and pixel_size:
+            argv.extend(
+                (
+                    "--solver-focal-length",
+                    str(focal_length),
+                    "--solver-pixel-size",
+                    str(pixel_size),
+                )
+            )
+        if self.catalog_dir:
+            return [
+                "/usr/bin/env",
+                "SKYSTACKER_CATALOGS=" + self.catalog_dir,
+            ] + argv
         return argv
 
     @staticmethod

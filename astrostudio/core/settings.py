@@ -13,6 +13,9 @@ DEFAULTS: Dict[str, Any] = {
     "binary_overrides": {},
     "scratch_dir": "",
     "cache_dir": "",
+    "blind_catalog_dir": "",
+    "blind_catalog": "mag07",
+    "recent_images": [],
     "shortcuts": {},
     "enabled_backends": {},
 }

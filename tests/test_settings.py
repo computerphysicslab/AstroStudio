@@ -19,6 +19,15 @@ def test_settings_round_trip(tmp_path):
     assert reloaded.get("language") == "es"
 
 
+def test_recent_images_default_and_persistence(tmp_path):
+    path = str(tmp_path / "settings.json")
+    settings = SettingsManager(path)
+    assert settings.get("recent_images") == []
+    settings.set("recent_images", ["/tmp/a.fits"])
+    settings.save()
+    assert SettingsManager(path).get("recent_images") == ["/tmp/a.fits"]
+
+
 def test_binary_override_is_used_by_registry(monkeypatch):
     import astrostudio.core.backends as backend_module
 

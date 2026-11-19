@@ -293,7 +293,14 @@ class MainWindow(Gtk.ApplicationWindow):
             "ExifTool": ExifToolAdapter(),
             "SkyStacker": SkyStackerAdapter(),
         }
+        from ..adapters.skystacker import discover_catalog_dir
+
         self.adapters["SkyStacker"].cache_dir = self.settings.get("cache_dir") or None
+        self.adapters["SkyStacker"].catalog_dir = (
+            self.settings.get("blind_catalog_dir")
+            or discover_catalog_dir()
+            or None
+        )
         self.workspace = ImageWorkspace(scratch, engine, self._magick_adapter)
         self.current_images: List[WorkingImage] = []
         self.current_paths = []
@@ -337,6 +344,7 @@ class MainWindow(Gtk.ApplicationWindow):
             Gdk.DragAction.COPY,
         )
         self.preview.connect("drag-data-received", self._on_drag_data_received)
+        self.preview.connect("drag-motion", self._on_drag_motion)
 
         self._build_layout()
         self._apply_theme()
@@ -438,6 +446,17 @@ class MainWindow(Gtk.ApplicationWindow):
             append_menu_items(
                 submenu, self._dynamic_entries(entries), self._menu_items, self.translator.tr
             )
+            if label == "File":
+                recent_menu = Gio.Menu.new()
+                paths = self.settings.get("recent_images", [])
+                if paths:
+                    for index, path in enumerate(paths[:10]):
+                        recent_menu.append(
+                            os.path.basename(path), "app.open-recent-%d" % index
+                        )
+                else:
+                    recent_menu.append(self.translator.tr("No recent images"), "app.open")
+                submenu.append_submenu(self.translator.tr("Open Recent"), recent_menu)
             menu.append_submenu(self.translator.tr(label), submenu)
         return Gtk.MenuBar.new_from_model(menu)
 
@@ -688,8 +707,18 @@ progressbar text {
         gtk_settings.set_property("gtk-theme-name", name)
         gtk_settings.set_property("gtk-application-prefer-dark-theme", dark)
 
+    def _on_drag_motion(self, _widget, _context, _x, _y, _time) -> bool:
+        return True
+
     def _on_drag_data_received(self, _widget, _context, _x, _y, data, _info, _time) -> None:
-        uris = (data.get_text() or "").split()
+        uris = list(data.get_uris() or [])
+        if not uris:
+            uris = [
+                line.strip()
+                for line in (data.get_text() or "").splitlines()
+                if line.strip().startswith("file://")
+            ]
+        self._log("Dropped %d URI(s)" % len(uris))
         for uri in uris:
             path = Gio.File.new_for_uri(uri).get_path()
             if not path:
@@ -961,6 +990,23 @@ progressbar text {
                 self._open_file(path)
         dialog.destroy()
 
+    def _remember_recent(self, path: str) -> None:
+        recent = [item for item in self.settings.get("recent_images", []) if item != path]
+        recent.insert(0, path)
+        self.settings.set("recent_images", recent[:10])
+        self.settings.save()
+        self._rebuild_menu_bar()
+
+    def _open_recent(self, index: int) -> None:
+        recent = self.settings.get("recent_images", [])
+        if index >= len(recent):
+            return
+        path = recent[index]
+        if os.path.isfile(path):
+            self._open_file(path)
+        else:
+            self._log("Recent file no longer exists: %s" % path)
+
     def _open_file(self, path: str) -> None:
         if not self.registry.available("ImageMagick"):
             self._log("Backend unavailable: ImageMagick is required for the TIFF workspace")
@@ -969,6 +1015,7 @@ progressbar text {
             self._show_error("SkyStacker is required to decode Canon CR2 files.")
             return
         self.current_paths.append(path)
+        self._remember_recent(path)
         self.operation_log.record("open_requested", source=path)
         self._busy_begin()
         image = self.workspace.prepare(
@@ -1616,8 +1663,11 @@ progressbar text {
         dec_entry = Gtk.Entry()
         focal_entry = Gtk.Entry()
         pixel_entry = Gtk.Entry()
+        catalog_entry = Gtk.Entry()
+        catalog_entry.set_text(self.settings.get("blind_catalog", "mag07"))
+        catalog_entry.set_placeholder_text("Blind catalog (native solver)")
         solver_combo = Gtk.ComboBoxText()
-        for name in ("auto", "gaia", "astrometry-local", "astap", "astrometry-web"):
+        for name in ("auto", "gaia", "astrometry-local", "astap", "native", "astrometry-web"):
             solver_combo.append_text(name)
         solver_combo.set_active(0)
         ra_entry.set_placeholder_text("RA degrees (e.g. 83.822)")
@@ -1633,6 +1683,7 @@ progressbar text {
                 ("RA (deg)", ra_entry),
                 ("Dec", dec_entry),
                 ("Solver", solver_combo),
+                ("Blind catalog", catalog_entry),
                 ("Focal length (mm)", focal_entry),
                 ("Pixel size (um)", pixel_entry),
             )
@@ -1656,6 +1707,7 @@ progressbar text {
             options = {
                 "center": center,
                 "solver": solver_combo.get_active_text() or "auto",
+                "catalog": catalog_entry.get_text().strip() or "mag07",
                 "focal": focal_entry.get_text().strip(),
                 "pixel": pixel_entry.get_text().strip(),
             }
@@ -1703,15 +1755,24 @@ progressbar text {
         self.plate_centers[source] = options["center"]
         output_dir = self._astrometry_job_dir("plate-solve")
         adapter = self.adapters["SkyStacker"]
-        argv = adapter.build_plate_solve_argv(
-            source,
-            output_dir,
-            plate_center=options["center"],
-            solver=options["solver"],
-            offline=bool(self.settings.get("offline", False)),
-            focal_length=options["focal"],
-            pixel_size=options["pixel"],
-        )
+        if options["solver"] == "native":
+            argv = adapter.build_blind_solve_argv(
+                source,
+                output_dir,
+                catalog=options["catalog"],
+                focal_length=options["focal"],
+                pixel_size=options["pixel"],
+            )
+        else:
+            argv = adapter.build_plate_solve_argv(
+                source,
+                output_dir,
+                plate_center=options["center"],
+                solver=options["solver"],
+                offline=bool(self.settings.get("offline", False)),
+                focal_length=options["focal"],
+                pixel_size=options["pixel"],
+            )
         self._run_astrometry(
             "plate-solve",
             argv,
@@ -1866,7 +1927,7 @@ progressbar text {
         grid.set_column_spacing(8)
 
         language = Gtk.ComboBoxText()
-        languages = ("en", "es", "de", "ja")
+        languages = ("en", "es", "de", "ja", "ru", "zh")
         for code in languages:
             language.append_text(code)
         current_language = self.settings.get("language", "en")
@@ -1914,7 +1975,13 @@ progressbar text {
             )
             self.settings.save()
             self.app.apply_shortcuts()
-            self.translator = Translator(self.settings.get("language", "en"))
+        self.translator = Translator(self.settings.get("language", "en"))
+        for index in range(10):
+            setattr(
+                self,
+                "action_open_recent_%d" % index,
+                lambda checked=False, position=index: self._open_recent(position),
+            )
             self._apply_theme()
             self._apply_font()
             self._rebuild_menu_bar()

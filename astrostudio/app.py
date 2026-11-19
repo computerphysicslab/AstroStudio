@@ -38,7 +38,11 @@ def iter_menu_actions():
             yield action
 
 
-ACTION_NAMES = frozenset(set(iter_menu_actions()) | {"cancel"})
+ACTION_NAMES = frozenset(
+    set(iter_menu_actions())
+    | {"cancel"}
+    | {"open-recent-%d" % index for index in range(10)}
+)
 
 DEFAULT_SHORTCUTS = {
     "open": ["<Control>o"],

@@ -8,6 +8,16 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.15 — 2026-11-19
+
+- Native wide-field blind plate solving via `--plate-solver native --blind-catalog mag07`,
+  with automatic catalog discovery and `/usr/bin/env SKYSTACKER_CATALOGS=...` wrapper.
+- Added Russian and Chinese translations and completed missing submenu/panel keys for
+  all supported languages.
+- File > Open Recent lists the 10 most recently opened images, persisted in settings.
+- CPU/RAM indicators redesigned as circular gauges with 60-sample history sparklines
+  and per-core bars, following the supplied visual reference.
+
 ## 0.2.14 — 2026-11-19
 
 - Japanese (`ja`) added to the translator and the Frontend Settings language selector.

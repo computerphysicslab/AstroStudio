@@ -63,6 +63,20 @@ def test_plate_solve_argv_uses_documented_image_op():
     ]
 
 
+def test_blind_solve_argv_uses_native_catalog_and_env_wrapper():
+    adapter = SkyStackerAdapter()
+    adapter.catalog_dir = "/tmp/catalogs"
+    argv = adapter.build_blind_solve_argv(
+        "photo.jpg", "/tmp/out", catalog="mag07", focal_length="50", pixel_size="4.3"
+    )
+    assert argv[:2] == ["/usr/bin/env", "SKYSTACKER_CATALOGS=/tmp/catalogs"]
+    assert argv[2] == "skystacker"
+    assert argv[argv.index("--image-op") + 1] == "plate-solve"
+    assert argv[argv.index("--plate-solver") + 1] == "native"
+    assert argv[argv.index("--blind-catalog") + 1] == "mag07"
+    assert "--solver-focal-length" in argv
+
+
 def test_sky_map_argv_requests_solve_and_uses_layered_product():
     argv = SkyStackerAdapter().build_sky_map_argv("a.png", "/tmp/job")
     assert argv[argv.index("--image-op") + 1] == "sky-map"

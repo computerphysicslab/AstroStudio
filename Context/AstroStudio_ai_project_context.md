@@ -465,3 +465,22 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 *Note:* the opencode right column is driven by this context file. Updating it here is the
 only way I can "refresh" what it displays; there is no opencode CLI command in the docs
 to force a UI redraw.
+
+---
+
+## 32. v0.2.15 — Native Blind Solve, More Languages and Recent Files
+
+* SkyStacker docs were re-read (updated 2026-11-19). New section 4 documents
+  `--plate-solver native` with a Gaia quad index: `--blind-catalog mag07`, scale bands
+  wide/medium/narrow and offline all-sky coverage. `SkyStackerAdapter.build_blind_solve_argv()`
+  emits `--image-op plate-solve --plate-solver native --blind-catalog ...` wrapped with
+  `/usr/bin/env SKYSTACKER_CATALOGS=<dir>`; `discover_catalog_dir()` finds the manifest.
+  A direct solve of `IMG_4062.JPG` still failed matching on that processed JPEG, but the
+  CLI path and error reporting are correct.
+* Languages: Russian (`ru`) and Chinese (`zh`) added; all menu, submenu, panel, dialog and
+  status keys completed for ES/DE/JA/RU/ZH (verified by a key-completeness script).
+* File > Open Recent exposes the 10 most recently opened images from persisted settings.
+  Drag-and-drop now reads `SelectionData.get_uris()` and accepts drag-motion.
+* CPU/RAM meters follow the supplied reference: circular gauge, 60-sample sparkline and
+  per-core bars, red at >=75% and green below.
+* Version bumped to `0.2.15` with a `CHANGELOG.md` entry.

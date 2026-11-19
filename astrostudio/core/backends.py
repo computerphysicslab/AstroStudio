@@ -109,6 +109,7 @@ ACTION_BACKENDS: Dict[str, Tuple[str, ...]] = {
     "survey-cutout": ("SkyStacker",),
     "about": (),
     "cancel": (),
+    **{"open-recent-%d" % index: () for index in range(10)},
     "frontend-settings": (),
     "toggle-backends": (),
     "toggle-histogram": (),
@@ -162,6 +163,7 @@ IMPLEMENTED_ACTIONS = frozenset(
         "survey-cutout",
         "about",
         "cancel",
+        *["open-recent-%d" % index for index in range(10)],
         "frontend-settings",
         "settings",
     }

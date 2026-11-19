@@ -126,6 +126,8 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        (v0.4.0).
 7. [ ] Alternative plate solvers (ASTAP, `solve-field`) with explicit pointing seeds and
        blind-scan warnings; addresses the SkyStacker `0 matched pairs` failure (v0.4.0).
+7a. [x] Native wide-field blind solve with `--plate-solver native --blind-catalog mag07`
+       and automatic catalog discovery (v0.2.15).
 8. [ ] Gaia DR3 cache management at `nside=64` with offline/air-gapped mode (v0.4.0).
 9. [ ] Session save/resume reusing scratch artifacts (v0.4.0).
 10. [ ] Multi-document tabs, thumbnail strip and before/after slider or difference map
