@@ -33,6 +33,7 @@ class SkyStackerAdapter(CliAdapter):
 
     def __init__(self) -> None:
         super().__init__(CommandBuilder(self.binary))
+        self.cache_dir = None
 
     @staticmethod
     def _base(source: str, image_op: str, output_dir: str) -> List[str]:
@@ -47,8 +48,8 @@ class SkyStackerAdapter(CliAdapter):
             "--no-donation",
         ]
 
-    @staticmethod
     def _solver_flags(
+        self,
         solver: str,
         plate_center: str,
         offline: bool,
@@ -57,6 +58,8 @@ class SkyStackerAdapter(CliAdapter):
         pixel_size: str,
     ) -> List[str]:
         flags = ["--plate-solver", solver or "auto", "--astrometry-timeout", str(timeout)]
+        if self.cache_dir:
+            flags.extend(("--gaia-cache-dir", self.cache_dir))
         if plate_center:
             flags.extend(("--plate-center", plate_center))
         if offline:

@@ -40,6 +40,17 @@ def iter_menu_actions():
 
 ACTION_NAMES = frozenset(set(iter_menu_actions()) | {"cancel"})
 
+DEFAULT_SHORTCUTS = {
+    "open": ["<Control>o"],
+    "export": ["<Control><Shift>s"],
+    "metadata": ["<Control>i"],
+    "histogram": ["<Control>h"],
+    "undo": ["<Control>z"],
+    "redo": ["<Control><Shift>z"],
+    "quit": ["<Control>q"],
+    "zoom-fit": ["f"],
+}
+
 
 def paths_from_command_line(command_line) -> List[str]:
     """Extract image paths from a Gio command line (file manager "Open With")."""
@@ -73,7 +84,9 @@ class AstroStudioApplication(Gtk.Application):
         )
         self.settings = SettingsManager()
         self.registry = BackendRegistry(settings=self.settings)
-        self.scratch = ScratchManager()
+        self.scratch = ScratchManager(
+            root_override=self.settings.get("scratch_dir") or None
+        )
         self.operation_log = OperationLog()
         self.estimator = Estimator()
         self.operation_log.record("session_start", application="astro-studio")
@@ -86,10 +99,15 @@ class AstroStudioApplication(Gtk.Application):
             action.connect("activate", self._on_action, name)
             self.add_action(action)
 
-        self.set_accels_for_action("app.open", ["<Control>o"])
-        self.set_accels_for_action("app.export", ["<Control><Shift>s"])
-        self.set_accels_for_action("app.metadata", ["<Control>i"])
-        self.set_accels_for_action("app.quit", ["<Control>q"])
+        self.apply_shortcuts()
+
+    def apply_shortcuts(self) -> None:
+        custom = self.settings.get("shortcuts", {}) or {}
+        for action, default in DEFAULT_SHORTCUTS.items():
+            accelerators = custom.get(action, default)
+            if isinstance(accelerators, str):
+                accelerators = [accelerators]
+            self.set_accels_for_action("app." + action, list(accelerators))
 
     def _on_action(self, _action, _parameter, name: str) -> None:
         if self.window is None:

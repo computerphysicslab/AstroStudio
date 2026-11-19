@@ -188,8 +188,11 @@ class BackendRegistry:
             status.binary = resolved or spec.binary
             status.error = "not installed" if resolved is None else None
 
-    @staticmethod
-    def _resolve_binary(spec: BackendSpec) -> Optional[str]:
+    def _resolve_binary(self, spec: BackendSpec) -> Optional[str]:
+        overrides = self.settings.get("binary_overrides", {}) if self.settings else {}
+        override = overrides.get(spec.name)
+        if override and shutil.which(override):
+            return shutil.which(override)
         for candidate in (spec.binary,) + spec.alternatives:
             found = shutil.which(candidate)
             if found:

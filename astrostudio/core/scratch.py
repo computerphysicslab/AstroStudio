@@ -10,13 +10,16 @@ import tempfile
 
 
 class ScratchManager:
-    def __init__(self, session: str = None) -> None:
+    def __init__(self, session: str = None, root_override: str = None) -> None:
         session_id = session or str(os.getpid())
-        runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
-        if runtime_dir and os.path.isdir(runtime_dir):
-            self.root = os.path.join(runtime_dir, "astro-studio", session_id)
+        if root_override:
+            self.root = os.path.join(os.path.expanduser(root_override), session_id)
         else:
-            self.root = tempfile.mkdtemp(prefix="astro_studio_%s_" % session_id)
+            runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+            if runtime_dir and os.path.isdir(runtime_dir):
+                self.root = os.path.join(runtime_dir, "astro-studio", session_id)
+            else:
+                self.root = tempfile.mkdtemp(prefix="astro_studio_%s_" % session_id)
         os.makedirs(self.root, exist_ok=True)
 
     @staticmethod

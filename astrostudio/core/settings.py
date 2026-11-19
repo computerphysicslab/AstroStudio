@@ -10,6 +10,10 @@ DEFAULTS: Dict[str, Any] = {
     "offline": False,
     "threads": 0,
     "font_size": 9,
+    "binary_overrides": {},
+    "scratch_dir": "",
+    "cache_dir": "",
+    "shortcuts": {},
     "enabled_backends": {},
 }
 
@@ -34,8 +38,9 @@ class SettingsManager:
                 loaded = json.load(handle)
             if isinstance(loaded, dict):
                 self.data.update(loaded)
-                if not isinstance(self.data.get("enabled_backends"), dict):
-                    self.data["enabled_backends"] = {}
+                for key in ("enabled_backends", "binary_overrides", "shortcuts"):
+                    if not isinstance(self.data.get(key), dict):
+                        self.data[key] = {}
         except (OSError, ValueError):
             pass
 

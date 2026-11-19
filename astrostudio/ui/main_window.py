@@ -293,6 +293,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "ExifTool": ExifToolAdapter(),
             "SkyStacker": SkyStackerAdapter(),
         }
+        self.adapters["SkyStacker"].cache_dir = self.settings.get("cache_dir") or None
         self.workspace = ImageWorkspace(scratch, engine, self._magick_adapter)
         self.current_images: List[WorkingImage] = []
         self.current_paths = []
@@ -330,6 +331,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.preview.connect("motion-notify-event", self._on_canvas_motion)
         self.preview.connect("button-release-event", self._on_canvas_release)
         self.preview.connect("scroll-event", self._on_preview_scroll)
+        self.preview.drag_dest_set(
+            Gtk.DestDefaults.ALL,
+            [Gtk.TargetEntry.new("text/uri-list", 0, 0)],
+            Gdk.DragAction.COPY,
+        )
+        self.preview.connect("drag-data-received", self._on_drag_data_received)
 
         self._build_layout()
         self._apply_theme()
@@ -680,6 +687,20 @@ progressbar text {
                 name = "Adwaita"
         gtk_settings.set_property("gtk-theme-name", name)
         gtk_settings.set_property("gtk-application-prefer-dark-theme", dark)
+
+    def _on_drag_data_received(self, _widget, _context, _x, _y, data, _info, _time) -> None:
+        uris = (data.get_text() or "").split()
+        for uri in uris:
+            path = Gio.File.new_for_uri(uri).get_path()
+            if not path:
+                continue
+            if os.path.isdir(path):
+                for name in sorted(os.listdir(path)):
+                    child = os.path.join(path, name)
+                    if os.path.isfile(child) and name.rsplit(".", 1)[-1].lower() in IMAGE_EXTENSIONS:
+                        self._open_file(child)
+            elif os.path.isfile(path):
+                self._open_file(path)
 
     def _update_toggle_labels(self) -> None:
         self._rebuild_menu_bar()
@@ -1844,13 +1865,25 @@ progressbar text {
         theme.set_active(max(0, ("system", "dark", "light").index(self.settings.get("theme", "system"))))
         font_size = Gtk.SpinButton.new_with_range(7, 18, 1)
         font_size.set_value(int(self.settings.get("font_size", 9)))
-        for row, (label, widget) in enumerate(
-            (
-                ("Language", language),
-                ("Theme", theme),
-                ("Application font size", font_size),
-            )
-        ):
+
+        from ..app import DEFAULT_SHORTCUTS
+
+        shortcut_entries = {}
+        custom_shortcuts = self.settings.get("shortcuts", {})
+        items = [
+            ("Language", language),
+            ("Theme", theme),
+            ("Application font size", font_size),
+        ]
+        for action, default in DEFAULT_SHORTCUTS.items():
+            entry = Gtk.Entry()
+            current = custom_shortcuts.get(action, default)
+            entry.set_text(current[0] if isinstance(current, (list, tuple)) else str(current))
+            entry.set_placeholder_text(default[0])
+            shortcut_entries[action] = entry
+            items.append((action + " shortcut", entry))
+
+        for row, (label, widget) in enumerate(items):
             grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
             grid.attach(widget, 1, row, 1, 1)
         dialog.get_content_area().pack_start(grid, True, True, 0)
@@ -1859,7 +1892,16 @@ progressbar text {
             self.settings.set("language", language.get_active_text())
             self.settings.set("theme", theme.get_active_text())
             self.settings.set("font_size", int(font_size.get_value()))
+            self.settings.set(
+                "shortcuts",
+                {
+                    action: [entry.get_text().strip()]
+                    for action, entry in shortcut_entries.items()
+                    if entry.get_text().strip()
+                },
+            )
             self.settings.save()
+            self.app.apply_shortcuts()
             self.translator = Translator(self.settings.get("language", "en"))
             self._apply_theme()
             self._apply_font()
@@ -1894,19 +1936,33 @@ progressbar text {
         grid.attach(Gtk.Label(label="Installed connectors", xalign=0.0), 0, row, 2, 1)
         row += 1
         checkboxes = {}
+        overrides = {}
         for status in installed:
             checkbox = Gtk.CheckButton(label=status.name)
             checkbox.set_active(self.settings.is_backend_enabled(status.name))
-            grid.attach(checkbox, 0, row, 2, 1)
+            grid.attach(checkbox, 0, row, 1, 1)
+            override = Gtk.Entry()
+            override.set_text(self.settings.get("binary_overrides", {}).get(status.name, ""))
+            override.set_placeholder_text("binary path override")
+            grid.attach(override, 1, row, 1, 1)
             checkboxes[status.name] = checkbox
+            overrides[status.name] = override
             row += 1
 
+        scratch_entry = Gtk.Entry()
+        scratch_entry.set_text(self.settings.get("scratch_dir", ""))
+        scratch_entry.set_placeholder_text("scratch root (empty = XDG runtime)")
+        cache_entry = Gtk.Entry()
+        cache_entry.set_text(self.settings.get("cache_dir", ""))
+        cache_entry.set_placeholder_text("Gaia cache directory")
         offline = Gtk.CheckButton(label="Offline mode (no catalog downloads)")
         offline.set_active(bool(self.settings.get("offline", False)))
         threads = Gtk.SpinButton.new_with_range(0, 64, 1)
         threads.set_value(int(self.settings.get("threads", 0)))
 
         for label, widget in (
+            ("Scratch directory", scratch_entry),
+            ("Gaia cache directory", cache_entry),
             ("Offline", offline),
             ("Max threads (0 = backend default)", threads),
         ):
@@ -1919,9 +1975,18 @@ progressbar text {
         if dialog.run() == Gtk.ResponseType.OK:
             for name, checkbox in checkboxes.items():
                 self.settings.set_backend_enabled(name, checkbox.get_active())
+            self.settings.set(
+                "binary_overrides",
+                {name: entry.get_text().strip() for name, entry in overrides.items()},
+            )
+            self.settings.set("scratch_dir", scratch_entry.get_text().strip())
+            self.settings.set("cache_dir", cache_entry.get_text().strip())
             self.settings.set("offline", offline.get_active())
             self.settings.set("threads", int(threads.get_value()))
             self.settings.save()
+            self.adapters["SkyStacker"].cache_dir = (
+                self.settings.get("cache_dir") or None
+            )
             self.app.update_action_sensitivity()
             self._log("Preferences saved to %s" % self.settings.path)
             self._status(self.translator.tr("Preferences saved"))

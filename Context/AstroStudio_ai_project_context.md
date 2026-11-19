@@ -432,3 +432,17 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * CR2 remains a high-depth source, so `display_stretch=True` applies to its preview.
   Unit tests cover the argv shape and the full prepare path with a simulated raw engine.
 * Version bumped to `0.2.12` with a `CHANGELOG.md` entry; roadmap marks CR2 supported.
+
+---
+
+## 30. v0.2.13 — Settings Depth, Shortcuts and Drag-and-Drop
+
+* Settings gained `binary_overrides`, `scratch_dir`, `cache_dir` and `shortcuts`.
+  `BackendRegistry._resolve_binary()` honours a per-connector override, `ScratchManager`
+  accepts a root override, and SkyStacker receives `--gaia-cache-dir` from settings.
+* `app.DEFAULT_SHORTCUTS` defines accelerators for open/export/metadata/histogram/undo/
+  redo/quit/fit; Frontend Settings edits them and `app.apply_shortcuts()` applies them
+  immediately. Backend Settings edits binary paths, scratch root and Gaia cache.
+* The preview canvas is a `Gtk.Drag` destination for `text/uri-list`; dropped files and
+  folders are filtered by `IMAGE_EXTENSIONS` and opened through `_open_file()`.
+* Roadmap low-difficulty items 1–3 are complete. Version bumped to `0.2.13`.

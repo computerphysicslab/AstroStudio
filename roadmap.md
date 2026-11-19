@@ -73,10 +73,11 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 
 ### Low difficulty
 
-1. [ ] Extend Settings with binary overrides, scratch/cache directories and shortcut
-       customization on top of the persisted connector/language/theme preferences (v0.2.0).
-2. [ ] Complete keyboard shortcut set and shortcut customization (v0.2.0).
-3. [ ] Drag-and-drop of files and folders onto the preview canvas (v0.2.0).
+1. [x] Settings extended with binary overrides, scratch/cache directories and shortcut
+       customization (v0.2.13).
+2. [x] Default shortcuts for open/export/metadata/histogram/undo/redo/quit/fit plus
+       persisted customization applied via `app.apply_shortcuts()` (v0.2.13).
+3. [x] Drag-and-drop of files and folders onto the preview canvas (v0.2.13).
 4. [ ] Dark theme CSS and configurable accent colours (v0.2.0).
 5. [ ] Export pipeline as a reproducible shell script / Makefile using the exact
        serialized `argv` (v0.2.0).

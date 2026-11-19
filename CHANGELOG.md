@@ -8,6 +8,15 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.13 — 2026-11-19
+
+- Settings now persist per-backend binary overrides, scratch root, Gaia cache directory
+  and keyboard accelerators; BackendRegistry resolves overrides and SkyStacker receives
+  `--gaia-cache-dir`.
+- Default shortcuts extended and editable in Frontend Settings; changes apply immediately.
+- Preview canvas accepts drag-and-drop of image files or folders (filtered by known
+  astronomical extensions).
+
 ## 0.2.12 — 2026-11-19
 
 - Canon CR2 input supported through SkyStacker's native pure-Go decoder:
