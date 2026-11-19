@@ -1,7 +1,7 @@
 """Menu structure and precise-scale action tests."""
 
 from astrostudio.app import iter_menu_actions
-from astrostudio.ui.main_window import IMAGE_EXTENSIONS, MENU_LAYOUT
+from astrostudio.ui.main_window import IMAGE_EXTENSIONS, MENU_LAYOUT, toggle_label
 
 
 def test_precise_scale_actions_are_registered():
@@ -19,6 +19,11 @@ def test_precise_scale_actions_are_registered():
         "zoom-1-1",
         "zoom-fit",
     } <= actions
+
+
+def test_toggle_label_reflects_panel_state():
+    assert toggle_label("toggle-backends", "Backends Viewer", True) == "Backends Viewer: On"
+    assert toggle_label("toggle-backends", "Backends Viewer", False) == "Backends Viewer: Off"
 
 
 def test_dock_toggle_is_available_and_cancel_is_gone():

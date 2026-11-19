@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.1 — 2026-11-19
+
+- Rebuilt the GTK menu bar on dock state changes so View toggles visibly show
+  `Backends Viewer: On/Off` and `Terminal Drawer: On/Off`.
+- Metadata is now shown in a floating, closable window with the literal ExifTool output
+  for both the PNG preview and the high-depth TIFF.
+- Roadmap execution queue refined with immediate acceptance criteria and effort estimates.
+
 ## 0.2.0 — 2026-11-19
 
 - Persistent operation log (JSONL) across sessions with CLI argv, duration, exit code

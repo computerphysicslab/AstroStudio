@@ -10,6 +10,25 @@ asynchronous subprocesses, scratch-only intermediate files, original inputs read
 and tests for every adapter. The pending backlog is ordered by difficulty, easiest
 first; the milestone tags are a reference for release planning only.
 
+## Current execution queue (next 30 minutes)
+
+Immediate, small-scope items with explicit acceptance criteria. Keep this list
+difficulty-ordered and move completed items into the v0.2.1 changelog.
+
+1. [x] Rebuild the GTK menu bar whenever a dock is hidden/shown so the View items read
+       `Backends Viewer: On/Off` and `Terminal Drawer: On/Off`. Acceptance: GUI smoke
+       confirms the label flips after both the X button and the View action.
+2. [x] Open metadata in a floating window with literal ExifTool output for PNG and TIFF
+       and a close (X) button in its header. Acceptance: GUI smoke confirms the window,
+       both tabs and literal `FileType` text.
+3. [ ] Verify the persistent operation log after a real open → filter → export cycle:
+       entries must include `cli_start`, `cli_end`, duration and exit code, survive an
+       application restart, and contain no image pixels. Effort: S.
+4. [ ] Add `input_bytes`/`output_bytes` to `cli_end` records so the later time/memory
+       estimator has file-size features. Effort: S.
+5. [ ] Confirm CPU/RAM bars update within one second and the timeout is removed on
+       window destruction. Effort: S.
+
 ## Completed — v0.1.0 baseline
 
 - [x] Coherent specifications: GUI actions delegate to CLI tools through scratch files.

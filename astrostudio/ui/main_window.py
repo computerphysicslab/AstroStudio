@@ -211,6 +211,16 @@ TOOL_ITEMS = (
 )
 
 
+TOGGLE_PANELS = {
+    "toggle-backends": "Backends Viewer",
+    "toggle-terminal": "Terminal Drawer",
+}
+
+
+def toggle_label(action: str, label: str, visible: bool) -> str:
+    return "%s: %s" % (label, "On" if visible else "Off")
+
+
 def append_menu_items(menu: Gio.Menu, items, registry: dict = None) -> None:
     for item in items:
         if item[0] is None:
@@ -249,6 +259,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.plate_solutions: dict = {}
         self.plate_centers: dict = {}
         self._busy_count = 0
+        self.metadata_pending = 0
+        self.metadata_window = None
         self._menu_items: dict = {}
         self._view_menu = None
         gtk_settings = Gtk.Settings.get_default()
@@ -279,7 +291,8 @@ class MainWindow(Gtk.ApplicationWindow):
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(root)
 
-        root.pack_start(self._build_menu_bar(), False, False, 0)
+        self.menu_bar = self._build_menu_bar()
+        root.pack_start(self.menu_bar, False, False, 0)
         root.pack_start(self._build_toolbar(), False, False, 0)
 
         paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -317,16 +330,48 @@ class MainWindow(Gtk.ApplicationWindow):
         self.status_context = self.status_bar.get_context_id("astro-studio")
         self._status("Astro Studio ready")
         root.pack_start(self.status_bar, False, False, 0)
+        self._rebuild_menu_bar()
+
+    def _dynamic_entries(self, entries):
+        result = []
+        for item in entries:
+            if item[0] is None:
+                result.append(item)
+            elif len(item) == 3:
+                result.append((item[0], None, self._dynamic_entries(item[2])))
+            elif item[1] in TOGGLE_PANELS:
+                panel = getattr(
+                    self,
+                    "backends_panel"
+                    if item[1] == "toggle-backends"
+                    else "terminal_panel",
+                    None,
+                )
+                visible = panel.get_visible() if panel is not None else True
+                result.append(
+                    (toggle_label(item[1], TOGGLE_PANELS[item[1]], visible), item[1])
+                )
+            else:
+                result.append(item)
+        return result
 
     def _build_menu_bar(self) -> Gtk.Widget:
         menu = Gio.Menu.new()
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
-            append_menu_items(submenu, entries, self._menu_items)
-            if label == "View":
-                self._view_menu = submenu
+            append_menu_items(submenu, self._dynamic_entries(entries), self._menu_items)
             menu.append_submenu(label, submenu)
         return Gtk.MenuBar.new_from_model(menu)
+
+    def _rebuild_menu_bar(self) -> None:
+        root = self.get_child()
+        if root is None or self.menu_bar is None:
+            return
+        root.remove(self.menu_bar)
+        self.menu_bar = self._build_menu_bar()
+        root.pack_start(self.menu_bar, False, False, 0)
+        root.reorder_child(self.menu_bar, 0)
+        self.menu_bar.show_all()
 
     def _build_toolbar(self) -> Gtk.Widget:
         toolbar = Gtk.Toolbar()
@@ -417,18 +462,7 @@ class MainWindow(Gtk.ApplicationWindow):
         gtk_settings.set_property("gtk-application-prefer-dark-theme", dark)
 
     def _update_toggle_labels(self) -> None:
-        for action_name, panel, label in (
-            ("toggle-backends", self.backends_panel, "Backends Viewer"),
-            ("toggle-terminal", self.terminal_panel, "Terminal Drawer"),
-        ):
-            menu_item = self._menu_items.get(action_name)
-            if menu_item is None:
-                continue
-            state = "Off" if panel.get_visible() else "On"
-            menu_item.set_label("Toggle %s %s" % (label, state))
-        if self._view_menu is not None:
-            count = self._view_menu.get_n_items()
-            self._view_menu.items_changed(0, count, count)
+        self._rebuild_menu_bar()
 
     def _activate(self, action: str) -> None:
         gio_action = self.app.lookup_action(action)
@@ -893,8 +927,8 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("Open an image before reading metadata")
             self._status("Open an image first")
             return
-        self.metadata_panel.show()
         image = self.current_images[-1]
+        self.metadata_pending = 2
         self._read_metadata(self.current_paths[-1], "png", "PNG preview")
         self._read_metadata(image.tiff_path, "tiff", "TIFF working")
 
@@ -905,6 +939,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 "ExifTool is not installed; metadata is unavailable."
             )
             self._log("CLI unavailable: %s" % adapter.name)
+            self._metadata_job_finished()
             return
         self.job_counter += 1
         job_id = "metadata-%d" % self.job_counter
@@ -932,7 +967,49 @@ class MainWindow(Gtk.ApplicationWindow):
             message = result.error or result.stderr or "unknown error"
             self.metadata_buffers[buffer_key].set_text("Metadata error: %s" % message)
             self._log("CLI %s failed: %s" % (result.job_id, message))
+        self._metadata_job_finished()
+
+    def _metadata_job_finished(self) -> None:
+        self.metadata_pending = max(0, self.metadata_pending - 1)
         self.app.update_action_sensitivity()
+        if self.metadata_pending == 0:
+            self._show_metadata_window()
+
+    def _show_metadata_window(self) -> None:
+        if self.metadata_window is not None:
+            self.metadata_window.destroy()
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title("Metadata - Astro Studio")
+        window.set_transient_for(self)
+        window.set_modal(False)
+        window.set_default_size(760, 560)
+        header = Gtk.HeaderBar()
+        header.set_show_close_button(False)
+        header.set_title("Metadata (ExifTool, literal output)")
+        close_button = Gtk.Button.new_from_icon_name(
+            "window-close-symbolic", Gtk.IconSize.BUTTON
+        )
+        close_button.set_tooltip_text("Close metadata window")
+        close_button.connect("clicked", lambda *_: window.destroy())
+        header.pack_end(close_button)
+        window.set_titlebar(header)
+
+        notebook = Gtk.Notebook()
+        for label, title in (("png", "PNG preview"), ("tiff", "TIFF working")):
+            view = Gtk.TextView(buffer=self.metadata_buffers[label])
+            view.set_editable(False)
+            view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+            view.override_font(Pango.FontDescription("monospace 10"))
+            scroll = Gtk.ScrolledWindow()
+            scroll.add(view)
+            notebook.append_page(scroll, Gtk.Label(label=title))
+        window.add(notebook)
+        window.connect("destroy", self._on_metadata_window_destroyed)
+        self.metadata_window = window
+        window.show_all()
+
+    def _on_metadata_window_destroyed(self, _widget) -> None:
+        self.metadata_window = None
 
     def _on_panel_closed(self, panel) -> None:
         panel.hide()

@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (51 tests passing, including real-CLI FITS round-trip integration; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (52 tests passing, including real-CLI FITS round-trip integration; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -228,3 +228,11 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * Version is `0.2.0` (build 2026-11-19). Policy: `MAJOR.MINOR.PATCH`; every implementation commit bumps `PATCH` at minimum and adds a `CHANGELOG.md` entry. `MINOR` marks roadmap milestones. This supersedes the earlier 0.1.0 baseline label.
 * Roadmap now incorporates the format survey (FITS tile compression variants and `.fits.gz`, XISF LZ4/Zstd + byte shuffle, TIFF ZIP/LZW/BigTIFF/Astro-TIFF, RAW/DNG compression caveats, SER/AVI uncompressed-only rules, PSD/PSB, PNG/JPEG presets) with explicit CLI connectors and difficulty ordering.
 * Roadmap histogram design now follows the hybrid model: dual overview + shadow-loupe view, logarithmic Y / zoomable X axes, parametric GHS/Asinh handles, direct canvas click-to-anchor, STF-vs-data-stretch decoupling, clipping guardrails and a non-destructive stage stack. Bezier curves are deferred until after the image is non-linear.
+
+---
+
+## 18. v0.2.1 — Dock Labels and Metadata Window
+
+* GTK 3.24 does not repaint GMenu text after `Gio.MenuItem.set_label()`, so `MainWindow._rebuild_menu_bar()` now rebuilds the whole `Gtk.MenuBar` whenever a dock visibility changes. View entries read `Backends Viewer: On/Off` and `Terminal Drawer: On/Off`, verified in a GUI smoke after both the X button and the View action.
+* The (i) Metadata action now opens a floating `Gtk.Window` with a `Gtk.HeaderBar` close (X) button and a two-tab `Gtk.Notebook` showing the **literal** ExifTool output for the PNG preview and the working TIFF. The two CLI jobs are tracked with `metadata_pending`, and the window opens once both finish; the docked metadata panel remains as a secondary view.
+* Version bumped to `0.2.1` with a `CHANGELOG.md` entry, and `roadmap.md` gained a "Current execution queue (next 30 minutes)" section with acceptance criteria for the dock labels, metadata window, operation-log validation and resource-monitor checks.
