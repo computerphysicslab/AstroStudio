@@ -1,6 +1,7 @@
 """Asynchronous CLI process execution on the GLib main context."""
 
 import signal
+import time
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Sequence
 
@@ -44,13 +45,15 @@ class ProcessHandle:
         self.error: Optional[str] = None
         self.stdout_lines: List[str] = []
         self.stderr_lines: List[str] = []
+        self.started = time.monotonic()
 
 
 class ProcessEngine:
     """Spawn CLI backends without blocking the GTK main thread."""
 
-    def __init__(self) -> None:
+    def __init__(self, operation_log=None) -> None:
         self._active: Dict[str, ProcessHandle] = {}
+        self.operation_log = operation_log
 
     def run(
         self,
@@ -62,12 +65,16 @@ class ProcessEngine:
         argv_list = list(argv)
         handle = ProcessHandle(job_id, argv_list, on_done)
         self._active[job_id] = handle
+        if self._should_record(job_id):
+            self.operation_log.record("cli_start", job_id=job_id, argv=argv_list)
 
         flags = Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         try:
             process = Gio.Subprocess.new(argv_list, flags)
         except GLib.Error as exc:
             handle.error = str(exc)
+            if self._should_record(job_id):
+                self._record_end(handle)
             if on_done:
                 GLib.idle_add(on_done, self._result(handle))
             return handle
@@ -84,6 +91,24 @@ class ProcessEngine:
 
         process.wait_async(handle.cancellable, self._on_wait, handle)
         return handle
+
+    def _should_record(self, job_id: str) -> bool:
+        return self.operation_log is not None and not job_id.startswith("probe-")
+
+    def _record_end(self, handle: ProcessHandle) -> None:
+        if self.operation_log is None:
+            return
+        self.operation_log.record(
+            "cli_end",
+            job_id=handle.job_id,
+            argv=handle.argv,
+            duration_s=round(time.monotonic() - handle.started, 3),
+            exit_code=handle.exit_code,
+            stdout_lines=len(handle.stdout_lines),
+            stderr_lines=len(handle.stderr_lines),
+            error=handle.error,
+            stderr=handle.stderr_lines[0] if handle.stderr_lines else None,
+        )
 
     def _watch_stream(
         self,
@@ -129,6 +154,7 @@ class ProcessEngine:
         if handle.finished or handle.pending_streams or not handle.process_finished:
             return
         handle.finished = True
+        self._record_end(handle)
         self._active.pop(handle.job_id, None)
         on_done = getattr(handle, "on_done", None)
         if on_done:

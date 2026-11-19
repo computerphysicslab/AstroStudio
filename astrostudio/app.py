@@ -10,7 +10,13 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
-from .core import BackendRegistry, ProcessEngine, ScratchManager, SettingsManager  # noqa: E402
+from .core import (  # noqa: E402
+    BackendRegistry,
+    OperationLog,
+    ProcessEngine,
+    ScratchManager,
+    SettingsManager,
+)
 from .ui import MainWindow  # noqa: E402
 from .ui.main_window import MENU_LAYOUT  # noqa: E402
 
@@ -67,7 +73,9 @@ class AstroStudioApplication(Gtk.Application):
         self.settings = SettingsManager()
         self.registry = BackendRegistry(settings=self.settings)
         self.scratch = ScratchManager()
-        self.engine = ProcessEngine()
+        self.operation_log = OperationLog()
+        self.operation_log.record("session_start", application="astro-studio")
+        self.engine = ProcessEngine(operation_log=self.operation_log)
         self.window = None
         self.pending_paths: List[str] = []
 

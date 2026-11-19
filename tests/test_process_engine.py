@@ -2,6 +2,7 @@
 
 from gi.repository import GLib
 
+from astrostudio.core.operation_log import OperationLog
 from astrostudio.core.process_engine import ProcessEngine
 
 
@@ -20,6 +21,22 @@ def test_missing_binary_is_reported_without_crash():
     assert results[0].job_id == "missing"
     assert results[0].error is not None
     assert not results[0].ok
+
+
+def test_engine_records_job_timing_in_operation_log(tmp_path):
+    log = OperationLog(str(tmp_path / "operations.jsonl"), session="test")
+    engine = ProcessEngine(operation_log=log)
+    done = []
+    engine.run("echo-log", ["/bin/echo", "timed"], on_done=done.append)
+    _wait_for_callbacks()
+
+    assert len(done) == 1
+    events = [(entry["event"], entry.get("job_id")) for entry in log.entries()]
+    assert ("cli_start", "echo-log") in events
+    assert ("cli_end", "echo-log") in events
+    end = [entry for entry in log.entries() if entry["event"] == "cli_end"][0]
+    assert end["exit_code"] == 0
+    assert end["duration_s"] >= 0
 
 
 def test_successful_job_captures_stdout():

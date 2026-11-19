@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends. The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.2.0**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -87,6 +87,9 @@ preview; exports stay linear. *Options > Backend Settings* persists enabled conn
 language, theme, offline mode and thread limit under `$XDG_CONFIG_HOME`; the theme is
 actually applied to GTK (Yaru/Adwaita light or dark). View-menu toggles show On/Off,
 and the status bar always shows the active PNG/TIFF sizes plus transform/export time.
+CPU/RAM level bars in the right dock refresh once per second (`psutil`, `/proc` fallback).
+Every CLI job and GUI operation is appended to an incremental JSONL log under
+`$XDG_DATA_HOME/astro-studio/operations.jsonl` for later timing analysis.
 
 ## Astrometry (SkyStacker bridge)
 

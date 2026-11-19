@@ -28,6 +28,7 @@ from ..core import (  # noqa: E402
     summarize_solution,
 )
 from .preview import PreviewPane  # noqa: E402
+from .resource_monitor import ResourceMonitor  # noqa: E402
 
 MENU_LAYOUT = (
     (
@@ -230,6 +231,7 @@ class MainWindow(Gtk.ApplicationWindow):
         super().__init__(application=app, title="Astro Studio")
         self.app = app
         self.settings = app.settings
+        self.operation_log = app.operation_log
         self.registry = registry
         self.scratch = scratch
         self.engine = engine
@@ -248,6 +250,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.plate_centers: dict = {}
         self._busy_count = 0
         self._menu_items: dict = {}
+        self._view_menu = None
         gtk_settings = Gtk.Settings.get_default()
         self._system_theme = (
             gtk_settings.get_property("gtk-theme-name") if gtk_settings else "Adwaita",
@@ -269,6 +272,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self._build_layout()
         self._apply_theme()
+        self.connect("destroy", lambda *_widget: self.resource_monitor.stop())
         self.on_backends_updated(registry)
 
     def _build_layout(self) -> None:
@@ -291,6 +295,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         right.set_border_width(6)
+        self.resource_monitor = ResourceMonitor()
+        right.pack_start(self.resource_monitor, False, False, 0)
         self.backends_panel = self._panel_with_close(
             "Backends (startup discovery)", self._build_backend_content()
         )
@@ -317,6 +323,8 @@ class MainWindow(Gtk.ApplicationWindow):
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
             append_menu_items(submenu, entries, self._menu_items)
+            if label == "View":
+                self._view_menu = submenu
             menu.append_submenu(label, submenu)
         return Gtk.MenuBar.new_from_model(menu)
 
@@ -418,6 +426,9 @@ class MainWindow(Gtk.ApplicationWindow):
                 continue
             state = "Off" if panel.get_visible() else "On"
             menu_item.set_label("Toggle %s %s" % (label, state))
+        if self._view_menu is not None:
+            count = self._view_menu.get_n_items()
+            self._view_menu.items_changed(0, count, count)
 
     def _activate(self, action: str) -> None:
         gio_action = self.app.lookup_action(action)
@@ -581,6 +592,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("Backend unavailable: ImageMagick is required for the TIFF workspace")
             return
         self.current_paths.append(path)
+        self.operation_log.record("open_requested", source=path)
         self._busy_begin()
         image = self.workspace.prepare(
             path,
@@ -656,6 +668,12 @@ class MainWindow(Gtk.ApplicationWindow):
         if destination != os.path.join(directory, stem + "." + selected_format.extension):
             self._log("Destination existed; using %s" % os.path.basename(destination))
 
+        self.operation_log.record(
+            "export_requested",
+            source=image.source,
+            destination=destination,
+            format=selected_format.key,
+        )
         started = time.monotonic()
         self._busy_begin()
         self._status("Exporting as %s..." % selected_format.label)

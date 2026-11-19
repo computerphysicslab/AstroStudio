@@ -57,13 +57,15 @@ first; the milestone tags are a reference for release planning only.
 7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
 8. [ ] Crop / rotate / flip / mirror option dialogs with internally generated flags
        (v0.2.0).
-9. [ ] CLI-generated histogram view and pixel line profile (v0.2.0). Phased design is
-       documented in `Context/AstroStudio_ai_project_context.md`: CLI text histogram,
-       raw vs displayed stretch, clickable stretch presets converted to CLI flags.
+9. [ ] Histogram phase 1: CLI-generated histogram text into a dock, logarithmic Y axis,
+       raw vs displayed distributions and the active display stretch label; pixel line
+       profile via the same CLI text approach (v0.2.0).
 10. [ ] Localization of interface strings (EN/ES/DE/JA) (v0.2.0).
-11. [ ] Small CPU/RAM level indicators using `psutil` (installed) with a `/proc`
-       fallback, refreshed by `GLib.timeout_add()` in a dock or the status bar
-       (v0.2.0; analysis in `Context/AstroStudio_ai_project_context.md`).
+11. [x] Small CPU/RAM level indicators using `psutil` with a `/proc` fallback, refreshed
+       by `GLib.timeout_add()` in the right dock.
+12. [ ] Extended export compression presets for already-installed backends: PNG 8/16-bit,
+       JPEG quality + 4:4:4 subsampling, TIFF ZIP/LZW/PackBits/BigTIFF, FITS with the
+       floating-point compression caveat documented in Context (v0.2.0).
 
 ### Medium difficulty
 
@@ -94,6 +96,29 @@ first; the milestone tags are a reference for release planning only.
 15. [ ] Linear-space guard enforcement before non-linear stretching (v0.5.0).
 16. [ ] Derivation tree view showing which original and operation chain produced the
        current image (v0.5.0).
+17. [ ] Histogram phase 2: hybrid parametric + image-driven interface (v0.3.0):
+       - Dual view: full 0–1 histogram with ghosted "before" and live "after", plus a
+         shadow loupe magnifying the 0–0.05 region where linear astro data lives.
+       - Parametric controls for GHS/Asinh (symmetry point, stretch factor, highlight
+         protection) instead of only 3-point levels; Bezier curves deferred to the
+         non-linear stage where they are actually usable.
+       - Click-to-anchor: hovering the canvas draws a crosshair on the histogram at the
+         sampled tone; clicking sets the symmetry point and dragging adjusts strength.
+       - Semantic handles (black-point foot, target pivot, highlight knee) with snap and
+         clipping counters; false-colour clipping overlay on the canvas.
+       - Decouple display STF from data stretch and disable the preview stretch after a
+         real stretch to avoid double-stretching; stage stack to commit/reorder stretches.
+18. [ ] FITS tile compression via external `fpack`/`funpack` adapters: RICE_1, GZIP_1/2,
+       HCOMPRESS_1, PLIO_1, plus whole-file `.fits.gz`; avoid lossy float dithering
+       unless explicitly requested (v0.3.0).
+19. [ ] RAW/DNG connectors (RawTherapee, darktable, LibRaw) with explicit lossless-vs-lossy
+       warnings and Bayer-vs-linear DNG handling (v0.3.0).
+20. [ ] SER support via Siril/ffmpeg CLI for 8/16-bit uncompressed lucky imaging, with
+       header Bayer pattern and per-frame timestamps preserved (v0.3.0).
+21. [ ] AVI legacy capture support via ffmpeg with uncompressed/lossless codecs only;
+       MJPEG rejected before stretching (v0.3.0).
+22. [ ] PSD/PSB read-back via ImageMagick with explicit "flattened layers" warning
+       (v0.3.0).
 
 ### High difficulty
 
@@ -113,6 +138,12 @@ first; the milestone tags are a reference for release planning only.
 9. [ ] Reproducible offline packaging (Flatpak/AppImage) with optional dependencies
        declared (v1.0.0).
 10. [ ] Gradual GTK 4 migration once the runtime is available (post-v1.0.0).
+11. [ ] XISF native read/write through an external CLI/library with LZ4/LZ4HC/Zlib/Zstd
+       block compression, byte shuffling and checksum blocks (v0.5.0; no installed CLI
+       covers this yet, so research is required).
+12. [ ] BigTIFF (>4 GB) and Astro-TIFF keyword/WCS preservation end-to-end (v0.5.0).
+13. [ ] Scientific validation dashboard for compression artefacts (banding from lossy
+       RAW/JPEG/MJPEG before stretch, clipping counters, FWHM/SNR) (v1.0.0).
 
 ## Milestone mapping (reference only)
 
