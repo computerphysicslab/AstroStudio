@@ -38,7 +38,7 @@ def iter_menu_actions():
             yield action
 
 
-ACTION_NAMES = frozenset(iter_menu_actions())
+ACTION_NAMES = frozenset(set(iter_menu_actions()) | {"cancel"})
 
 
 def paths_from_command_line(command_line) -> List[str]:
@@ -148,6 +148,9 @@ class AstroStudioApplication(Gtk.Application):
             action = self.lookup_action(name)
             if action is not None:
                 action.set_enabled(enabled)
+        cancel = self.lookup_action("cancel")
+        if cancel is not None:
+            cancel.set_enabled(bool(self.engine.active_jobs))
 
     def do_shutdown(self) -> None:
         if self.window is not None:

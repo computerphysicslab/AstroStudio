@@ -34,6 +34,10 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        cover Unicode names. Effort: S (audit).
 8. [ ] Close `Gio.DataInputStream` objects in `ProcessEngine._maybe_finish()` and add a
        many-jobs FD test. Effort: S (audit).
+9. [x] Backend status icons and apt-cache detail/install dialog; all dialogs draggable;
+       Stop button restored; 40px progress bar (v0.2.8).
+10. [x] Initial ES/DE/JA translation dictionary applied to menus, toolbar and key status
+       messages (v0.2.8).
 
 ## Completed — v0.1.0 baseline
 

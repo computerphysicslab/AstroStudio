@@ -40,11 +40,14 @@ def test_toggle_label_reflects_panel_state():
     assert toggle_label("toggle-backends", "Backends Viewer", False) == "Backends Viewer: Off"
 
 
-def test_dock_toggle_is_available_and_cancel_is_gone():
+def test_dock_toggle_and_stop_action_are_available():
+    from astrostudio.app import ACTION_NAMES
+
     actions = set(iter_menu_actions())
     assert "toggle-backends" in actions
     assert "toggle-terminal" in actions
-    assert "cancel" not in actions
+    assert "toggle-histogram" in actions
+    assert "cancel" in ACTION_NAMES
 
 
 def test_filter_submenus_expose_more_than_ten_actions():

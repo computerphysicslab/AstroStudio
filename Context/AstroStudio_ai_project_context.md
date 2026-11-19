@@ -337,3 +337,25 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   progress bar is 24px high, and a persisted `font_size` preference resizes the GTK UI.
 * Version bumped to `0.2.7` with a `CHANGELOG.md` entry; format coverage audit added to
   the roadmap.
+
+---
+
+## 25. v0.2.8 — Backend Details, Movable Dialogs and Stop Button
+
+* Backends panel now shows a green `dialog-ok` / red `dialog-error` icon before each name.
+  Activating a row queries `apt-cache policy <package>` asynchronously (job id prefixed
+  `probe-`, excluded from the operation log) and opens a movable dialog with detected,
+  installed and candidate versions plus the exact `sudo apt install ...` command when
+  missing or upgradable. `core/package_info.py` owns the binary→package map and parser.
+* Log diagnosis for the reported astrometry failures: plate solve, sky map and survey
+  all exited 1 because no `--plate-center` seed was supplied and the auto chain found
+  no local `solve-field`, no ASTAP and no `AN_API_KEY`; sky-map/survey additionally need
+  a `plate_solution.json`. Astro Studio now surfaces these real backend errors.
+* All subwindows use `Gtk.HeaderBar` plus `window_utils.make_draggable()` (export format,
+  custom resize, sharpen, metadata, info/error, plate options, settings, generated map).
+  The Stop button is back in the toolbar and enabled only while `engine.active_jobs` is
+  non-empty; it sends SIGTERM through `ProcessEngine.cancel()`.
+* Progress bar is 40px high, full width, with text and a 1.2s linger at 100%.
+* `core/i18n.py` holds an extensible ES/DE/JA dictionary; menus, toolbar labels and key
+  status messages switch immediately when Options > Backend Settings saves a new language.
+* Version bumped to `0.2.8` with a `CHANGELOG.md` entry.

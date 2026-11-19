@@ -10,6 +10,7 @@ from .estimator import Estimator, StageModel
 from .export_formats import EXPORT_FORMATS, ExportFormat, find_format
 from .export_paths import unique_export_path
 from .histogram import histogram_argv, parse_histogram_text
+from .i18n import Translator
 from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
@@ -30,6 +31,7 @@ __all__ = [
     "find_format",
     "histogram_argv",
     "parse_histogram_text",
+    "Translator",
     "unique_export_path",
     "ImageWorkspace",
     "OperationLog",

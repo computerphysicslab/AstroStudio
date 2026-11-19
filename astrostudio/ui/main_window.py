@@ -21,18 +21,23 @@ from ..core import (  # noqa: E402
     EXPORT_FORMATS,
     ExportFormat,
     ImageWorkspace,
+    Translator,
     WorkingImage,
     find_output,
     unique_export_path,
     find_plate_solution,
     histogram_argv,
+    install_command,
+    package_for_binary,
     parse_histogram_text,
+    parse_policy,
     solution_for_directory,
     summarize_solution,
 )
 from .histogram_panel import HistogramWidget  # noqa: E402
 from .preview import PreviewPane  # noqa: E402
 from .resource_monitor import ResourceMonitor  # noqa: E402
+from .window_utils import make_draggable  # noqa: E402
 
 MENU_LAYOUT = (
     (
@@ -213,6 +218,7 @@ TOOL_ITEMS = (
     ("zoom-fit-best", "Fit to window", "zoom-fit"),
     ("edit-undo", "Undo", "undo"),
     ("edit-redo", "Redo", "redo"),
+    ("process-stop", "Stop job", "cancel"),
 )
 
 
@@ -249,16 +255,17 @@ def toggle_label(action: str, label: str, visible: bool) -> str:
     return "%s: %s" % (label, "On" if visible else "Off")
 
 
-def append_menu_items(menu: Gio.Menu, items, registry: dict = None) -> None:
+def append_menu_items(menu: Gio.Menu, items, registry: dict = None, tr=None) -> None:
+    translate = tr or (lambda text: text)
     for item in items:
         if item[0] is None:
             menu.append_section(None, Gio.Menu.new())
         elif len(item) == 3:
             child = Gio.Menu.new()
-            append_menu_items(child, item[2], registry)
-            menu.append_submenu(item[0], child)
+            append_menu_items(child, item[2], registry, translate)
+            menu.append_submenu(translate(item[0]), child)
         else:
-            menu_item = Gio.MenuItem.new(item[0], "app." + item[1])
+            menu_item = Gio.MenuItem.new(translate(item[0]), "app." + item[1])
             menu.append_item(menu_item)
             if registry is not None:
                 registry[item[1]] = menu_item
@@ -278,6 +285,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.registry = registry
         self.scratch = scratch
         self.engine = engine
+        self.translator = Translator(self.settings.get("language", "en"))
         self._magick_adapter = ImageMagickAdapter()
         self.adapters = {
             "ImageMagick": self._magick_adapter,
@@ -292,6 +300,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.plate_solutions: dict = {}
         self.plate_centers: dict = {}
         self.plate_options: dict = {}
+        self.package_info: dict = {}
+        self.backend_rows: dict = {}
         self._busy_count = 0
         self.metadata_pending = 0
         self.metadata_window = None
@@ -374,10 +384,10 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.status_bar = Gtk.Statusbar()
         self.status_context = self.status_bar.get_context_id("astro-studio")
-        self._status("Astro Studio ready")
+        self._status(self.translator.tr("Astro Studio ready"))
         root.pack_start(self.status_bar, False, False, 0)
         self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_size_request(-1, 24)
+        self.progress_bar.set_size_request(-1, 40)
         self.progress_bar.set_show_text(True)
         self.progress_bar.set_text("")
         root.pack_start(self.progress_bar, False, False, 0)
@@ -402,7 +412,14 @@ class MainWindow(Gtk.ApplicationWindow):
                 )
                 visible = panel.get_visible() if panel is not None else True
                 result.append(
-                    (toggle_label(item[1], TOGGLE_PANELS[item[1]], visible), item[1])
+                    (
+                        toggle_label(
+                            item[1],
+                            self.translator.tr(TOGGLE_PANELS[item[1]]),
+                            visible,
+                        ),
+                        item[1],
+                    )
                 )
             else:
                 result.append(item)
@@ -412,8 +429,10 @@ class MainWindow(Gtk.ApplicationWindow):
         menu = Gio.Menu.new()
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
-            append_menu_items(submenu, self._dynamic_entries(entries), self._menu_items)
-            menu.append_submenu(label, submenu)
+            append_menu_items(
+                submenu, self._dynamic_entries(entries), self._menu_items, self.translator.tr
+            )
+            menu.append_submenu(self.translator.tr(label), submenu)
         return Gtk.MenuBar.new_from_model(menu)
 
     def _rebuild_menu_bar(self) -> None:
@@ -430,7 +449,8 @@ class MainWindow(Gtk.ApplicationWindow):
         toolbar = Gtk.Toolbar()
         for icon, label, action in TOOL_ITEMS:
             button = Gtk.ToolButton.new(
-                Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON), label
+                Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON),
+                self.translator.tr(label),
             )
             button.set_tooltip_text(label)
             button.connect("clicked", lambda *_widget, name=action: self._activate(name))
@@ -460,16 +480,75 @@ class MainWindow(Gtk.ApplicationWindow):
         return panel
 
     def _build_backend_content(self) -> Gtk.Widget:
-        self.backend_store = Gtk.ListStore(str, str, str)
+        self.backend_store = Gtk.ListStore(GdkPixbuf.Pixbuf, str, str)
         view = Gtk.TreeView(model=self.backend_store)
-        for index, title in enumerate(("Name", "Status", "Version")):
+        view.append_column(
+            Gtk.TreeViewColumn("", Gtk.CellRendererPixbuf(), pixbuf=0)
+        )
+        for index, title in ((1, "Name"), (2, "Version")):
             view.append_column(
                 Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=index)
             )
+        view.connect("row-activated", self._on_backend_activated)
         scroll = Gtk.ScrolledWindow()
         scroll.set_min_content_height(130)
         scroll.add(view)
         return scroll
+
+    @staticmethod
+    def _backend_icon(available: bool) -> GdkPixbuf.Pixbuf:
+        name = "dialog-ok" if available else "dialog-error"
+        theme = Gtk.IconTheme.get_default()
+        try:
+            return theme.load_icon(name, 16, 0)
+        except GLib.Error:
+            return None
+
+    def _on_backend_activated(self, _view, path, _column) -> None:
+        row = self.backend_store[path]
+        name = row[1]
+        status = self.registry.status.get(name)
+        if status is None:
+            return
+        package = package_for_binary(os.path.basename(status.binary))
+        info = self.package_info.get(name)
+        if info is None:
+            job_id = "probe-package-" + name.replace(" ", "-")
+            self.engine.run(
+                job_id,
+                ["apt-cache", "policy", package],
+                on_done=lambda result: self._on_package_info(name, package, status, result),
+            )
+            self._show_info(
+                name,
+                "Querying apt-cache for %s...\nInstall command: %s"
+                % (package, install_command(status.binary)),
+            )
+            return
+        self._show_backend_info(name, status, package, info)
+
+    def _on_package_info(self, name: str, package: str, status, result) -> None:
+        installed, candidate = parse_policy(result.stdout)
+        self.package_info[name] = (installed, candidate)
+        self._show_backend_info(name, status, package, (installed, candidate))
+
+    def _show_backend_info(self, name: str, status, package: str, info) -> None:
+        installed, candidate = info
+        lines = [
+            "Connector: %s" % name,
+            "Binary: %s" % status.binary,
+            "Detected version: %s" % (status.version or "unknown"),
+            "apt package: %s" % package,
+            "apt installed: %s" % (installed or "not installed"),
+            "apt candidate: %s" % (candidate or "unknown"),
+        ]
+        if not self.registry.installed(name):
+            lines.append("Install with: " + install_command(status.binary))
+        elif candidate and installed and candidate != installed:
+            lines.append("Upgrade available: " + install_command(status.binary))
+        else:
+            lines.append("No newer package version reported.")
+        self._show_info("%s details" % name, "\n".join(lines))
 
     def _build_metadata_content(self) -> Gtk.Widget:
         notebook = Gtk.Notebook()
@@ -707,6 +786,7 @@ class MainWindow(Gtk.ApplicationWindow):
             buttons=Gtk.ButtonsType.OK,
             text=message,
         )
+        self._dialog_header(dialog, "Error")
         dialog.run()
         dialog.destroy()
 
@@ -748,8 +828,12 @@ class MainWindow(Gtk.ApplicationWindow):
             registry.status.values(),
             key=lambda status: (not status.available, status.name.lower()),
         )
+        self.backend_rows.clear()
         for status in statuses:
-            self.backend_store.append(status.label())
+            row = self.backend_store.append(
+                (self._backend_icon(status.available), status.name, status.version or "-")
+            )
+            self.backend_rows[status.name] = row
         available = sum(1 for status in registry.status.values() if status.available)
         self._status(
             "%d/%d backends installed | %d image(s) open"
@@ -963,6 +1047,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 Gtk.ResponseType.OK,
             ),
         )
+        self._dialog_header(dialog, "Resize image")
         entry = Gtk.Entry()
         entry.set_text("50")
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -1037,6 +1122,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 Gtk.ResponseType.OK,
             ),
         )
+        self._dialog_header(dialog, "Sharpen image")
         combo = Gtk.ComboBoxText()
         for label, _value in presets:
             combo.append_text(label)
@@ -1109,10 +1195,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 Gtk.ResponseType.OK,
             ),
         )
-        header = Gtk.HeaderBar()
-        header.set_title("Choose export format")
-        header.set_show_close_button(True)
-        dialog.set_titlebar(header)
+        self._dialog_header(dialog, "Choose export format")
         dialog.set_default_size(600, 560)
         dialog.set_decorated(True)
 
@@ -1217,6 +1300,7 @@ class MainWindow(Gtk.ApplicationWindow):
         close_button.connect("clicked", lambda *_: window.destroy())
         header.pack_end(close_button)
         window.set_titlebar(header)
+        make_draggable(window, header)
 
         notebook = Gtk.Notebook()
         for label, title in (("png", "PNG preview"), ("tiff", "TIFF working")):
@@ -1317,6 +1401,16 @@ class MainWindow(Gtk.ApplicationWindow):
             self.backends_panel.show()
         self._update_toggle_labels()
 
+    def action_cancel(self) -> None:
+        jobs = self.engine.active_jobs
+        for job_id in jobs:
+            self.engine.cancel(job_id)
+        if jobs:
+            self._log("Stopped jobs: %s" % ", ".join(jobs))
+            self._status("Stopped %d job(s)" % len(jobs))
+            self._stop_progress()
+        self.app.update_action_sensitivity()
+
     def action_toggle_histogram(self) -> None:
         if self.histogram_panel.get_visible():
             self.histogram_panel.hide()
@@ -1346,6 +1440,14 @@ class MainWindow(Gtk.ApplicationWindow):
         self.preview.clear()
         self._status("All views closed")
 
+    def _dialog_header(self, dialog: Gtk.Window, title: str) -> Gtk.HeaderBar:
+        header = Gtk.HeaderBar()
+        header.set_title(title)
+        header.set_show_close_button(True)
+        dialog.set_titlebar(header)
+        make_draggable(dialog, header)
+        return header
+
     def _show_info(self, title: str, text: str) -> None:
         dialog = Gtk.MessageDialog(
             parent=self,
@@ -1354,6 +1456,7 @@ class MainWindow(Gtk.ApplicationWindow):
             buttons=Gtk.ButtonsType.OK,
             text=title,
         )
+        self._dialog_header(dialog, title)
         dialog.format_secondary_text(text[:4000])
         dialog.run()
         dialog.destroy()
@@ -1365,6 +1468,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self._show_info(title, path)
             return
         dialog = Gtk.Dialog(title=title, parent=self, modal=True)
+        self._dialog_header(dialog, title)
         dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
         image = Gtk.Image.new_from_pixbuf(pixbuf)
         dialog.get_content_area().pack_start(image, True, True, 6)
@@ -1384,6 +1488,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 Gtk.ResponseType.OK,
             ),
         )
+        self._dialog_header(dialog, "Plate solving options")
         ra_entry = Gtk.Entry()
         dec_entry = Gtk.Entry()
         focal_entry = Gtk.Entry()
@@ -1631,6 +1736,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 Gtk.ResponseType.OK,
             ),
         )
+        self._dialog_header(dialog, "Backend settings")
         grid = Gtk.Grid()
         grid.set_border_width(8)
         grid.set_row_spacing(6)
@@ -1689,11 +1795,13 @@ class MainWindow(Gtk.ApplicationWindow):
             self.settings.set("threads", int(threads.get_value()))
             self.settings.set("font_size", int(font_size.get_value()))
             self.settings.save()
+            self.translator = Translator(self.settings.get("language", "en"))
             self._apply_theme()
             self._apply_font()
+            self._rebuild_menu_bar()
             self.app.update_action_sensitivity()
             self._log("Preferences saved to %s" % self.settings.path)
-            self._status("Preferences saved")
+            self._status(self.translator.tr("Preferences saved"))
         dialog.destroy()
 
     def action_undo(self) -> None:

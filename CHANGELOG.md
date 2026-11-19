@@ -8,6 +8,16 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.8 — 2026-11-19
+
+- Backends panel shows green/red status icons; clicking a connector queries
+  `apt-cache policy` and reports installed/candidate versions or the install command.
+- All dialogs get a draggable header bar, including Resize image and format selection.
+- Stop button restored on the toolbar (enabled only while jobs run); progress bar is
+  40px tall and uses the full bottom width.
+- Initial translation dictionaries for ES/DE/JA applied to menus, toolbar and key status
+  messages; language changes take effect immediately.
+
 ## 0.2.7 — 2026-11-19
 
 - SkyStacker bridge follows the current docs: `--image-op plate-solve` with
