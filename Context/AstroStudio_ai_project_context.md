@@ -689,3 +689,18 @@ to force a UI redraw.
   API key, and the native quad index finds 20 votes but no consistent transform. This
   is a SkyStacker/backend limitation, not an AstroStudio argv bug.
 * Version bumped to `0.2.28`.
+
+---
+
+## 46. v0.2.29 — Visible Version and Actionable Solver Errors
+
+* Runtime inspection confirmed v0.2.28 was actually running: meter allocation 347x56,
+  toolbar includes `Maximize`, and the rendered meter shows the percentage inside the
+  circle with a thin linear bar. GUI changes were present; the user's session had not
+  picked them up because the window was opened before the update.
+* The status bar now starts with `Astro Studio vX.Y.Z ready` so the running version is
+  visible without opening About.
+* Plate-solve failures now produce actionable hints inside the expandable error dialog:
+  install astrometry.net indexes or ASTAP, set `AN_API_KEY`, or use a linear frame with
+  a precise RA/Dec seed when Gaia matching finds no consistent transform.
+* Version bumped to `0.2.29`.

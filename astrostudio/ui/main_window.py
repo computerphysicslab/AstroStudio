@@ -519,7 +519,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.progress_bar.set_size_request(-1, 18)
         self.progress_bar.set_show_text(True)
         self.progress_bar.override_font(Pango.FontDescription("Sans 11"))
-        self._last_status = self.translator.tr("Astro Studio ready")
+        self._last_status = "Astro Studio v%s ready" % __version__
         self.progress_bar.set_text(self._last_status)
         root.pack_start(self.progress_bar, False, False, 0)
         self._rebuild_menu_bar()
@@ -2828,8 +2828,21 @@ progressbar text {
     def _on_plate_solve_done(self, result, output_dir: str) -> None:
         self._busy_end()
         if not result.ok:
-            self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
-            self._show_error("Plate solving failed: %s" % (result.error or result.stderr))
+            detail = result.error or result.stderr or ""
+            self._log("CLI %s failed: %s" % (result.job_id, detail))
+            hints = []
+            if "solve-field" in detail:
+                hints.append("Install astrometry.net with index files, or use --plate-solver native")
+            if "ASTAP" in detail:
+                hints.append("Install ASTAP with a D05-D80 database")
+            if "API key" in detail:
+                hints.append("Set AN_API_KEY for the web solver")
+            if "no consistent transform" in detail:
+                hints.append("Use a linear frame and a precise RA/Dec seed; processed JPEGs may have too few reliable stars")
+            summary = "Plate solving failed (SkyStacker backend)."
+            if hints:
+                summary += "\n" + "\n".join("- " + hint for hint in hints)
+            self._show_error(summary + "\n\n" + detail[:1500])
         else:
             solution = find_plate_solution(output_dir)
             if solution:

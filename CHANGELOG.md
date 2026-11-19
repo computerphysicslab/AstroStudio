@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.29 — 2026-11-19
+
+- Status bar now shows the running version at startup (`Astro Studio vX.Y.Z ready`).
+- Plate-solve failures show actionable backend hints (install astrometry.net/ASTAP, set AN_API_KEY, use a linear frame with a precise seed) in the expandable error dialog.
+
 ## 0.2.28 — 2026-11-19
 
 - CPU/RAM meters reduced to 56px: circular gauge with the percentage inside plus a thin linear bar; history sparkline removed.
