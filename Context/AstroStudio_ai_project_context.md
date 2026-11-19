@@ -446,3 +446,22 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * The preview canvas is a `Gtk.Drag` destination for `text/uri-list`; dropped files and
   folders are filtered by `IMAGE_EXTENSIONS` and opened through `_open_file()`.
 * Roadmap low-difficulty items 1–3 are complete. Version bumped to `0.2.13`.
+
+---
+
+## 31. v0.2.14 — Japanese UI and Current Refresh State
+
+* Japanese (`ja`) was added to `TRANSLATIONS` and the language selector; it was
+  added with menu, dialog, panel and status translations. GUI smoke confirmed
+  `ファイル / 編集 / 処理 / 天体測定` and Japanese status text.
+* Dock panel titles are translated in `_panel_with_close()`, dialog titles in
+  `_dialog_header()`, and the main status strings now call `translator.tr()` before being
+  written into the bottom progress strip.
+* Canonical current state for the opencode right panel: version **0.2.14**, branch `main`,
+  latest commit prefix to be confirmed after this change; all execution-queue items 1–10
+  are complete; low-difficulty roadmap items 1–3 are complete; 70 unit/integration tests
+  pass with 1 opt-in benchmark skipped.
+
+*Note:* the opencode right column is driven by this context file. Updating it here is the
+only way I can "refresh" what it displays; there is no opencode CLI command in the docs
+to force a UI redraw.

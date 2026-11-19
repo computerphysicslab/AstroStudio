@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.14 — 2026-11-19
+
+- Japanese (`ja`) added to the translator and the
+  Frontend Settings language selector.
+- Panel titles, dialog titles and status-bar messages are translated through the
+  shared dictionary; GUI smoke verified Japanese menus and status output.
+
 ## 0.2.13 — 2026-11-19
 
 - Settings now persist per-backend binary overrides, scratch root, Gaia cache directory

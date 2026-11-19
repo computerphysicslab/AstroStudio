@@ -467,7 +467,7 @@ class MainWindow(Gtk.ApplicationWindow):
         panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         header.set_size_request(-1, 16)
-        label = Gtk.Label(label=title, xalign=0.0)
+        label = Gtk.Label(label=self.translator.tr(title), xalign=0.0)
         label.set_hexpand(True)
         label.set_margin_top(0)
         label.set_margin_bottom(0)
@@ -709,7 +709,7 @@ progressbar text {
         gio_action = self.app.lookup_action(action)
         if gio_action is not None and not gio_action.get_enabled():
             self._log("Action unavailable: %s (check Backends panel)" % action)
-            self._status("Action unavailable: %s" % action)
+            self._status("%s: %s" % (self.translator.tr("Action unavailable"), action))
             return
         self.app.activate_action(action, None)
 
@@ -887,7 +887,9 @@ progressbar text {
             return True
         position = self.preview.image_coordinates(event.x, event.y)
         if position:
-            self._status("X=%d  Y=%d (drag to pan)" % position)
+            self._status(
+                "X=%d  Y=%d (%s)" % (position[0], position[1], self.translator.tr("drag to pan"))
+            )
         if button == 1:
             self.preview.start_pan(event.x, event.y)
         return True
@@ -907,7 +909,7 @@ progressbar text {
         else:
             return False
         zoom = "fit" if self.preview.fit else "%.0f%%" % (self.preview.zoom * 100)
-        self._status("Zoom: %s (mouse wheel)" % zoom)
+        self._status("%s: %s (mouse wheel)" % (self.translator.tr("Zoom"), zoom))
         return True
 
     def on_backends_updated(self, registry) -> None:
@@ -984,7 +986,7 @@ progressbar text {
         self._busy_end()
         self._stop_progress()
         self.preview.load(image.png_path)
-        self._status_image(image, "Ready: %s" % os.path.basename(image.source))
+        self._status_image(image, "%s: %s" % (self.translator.tr("Ready"), os.path.basename(image.source)))
         self._log(
             "Workspace ready: TIFF=%s | PNG=%s"
             % (image.tiff_path, image.png_path)
@@ -995,17 +997,17 @@ progressbar text {
         self._busy_end()
         self._stop_progress()
         if "cancel" in message.lower():
-            self._status("Process stopped (OK)")
+            self._status(self.translator.tr("Process stopped (OK)"))
             self._log("Process stopped by user (OK)")
             return
-        self._status("Workspace error")
+        self._status(self.translator.tr("Workspace error"))
         self._log(message)
         self._show_error(message)
 
     def action_export(self) -> None:
         if not self.current_images:
             self._log("Open an image before exporting")
-            self._status("Open an image before exporting")
+            self._status(self.translator.tr("Open an image before exporting"))
             return
         selected_format = self._choose_export_format()
         if selected_format is None:
@@ -1082,15 +1084,20 @@ progressbar text {
         elapsed = time.monotonic() - started
         self._log("Exported copy to %s" % destination)
         self._status(
-            "Export complete: %s (%.2f MB, %.1f s)"
-            % (os.path.basename(destination), size_mb, elapsed)
+            "%s: %s (%.2f MB, %.1f s)"
+            % (
+                self.translator.tr("Export complete"),
+                os.path.basename(destination),
+                size_mb,
+                elapsed,
+            )
         )
         self.app.update_action_sensitivity()
 
     def _run_transform(self, params: dict, description: str) -> None:
         if not self.current_images:
             self._log("Open an image before applying a transformation")
-            self._status("Open an image first")
+            self._status(self.translator.tr("Open an image first"))
             return
         if not self.registry.available("ImageMagick"):
             self._log("Backend unavailable: ImageMagick is required for transformations")
@@ -1126,7 +1133,11 @@ progressbar text {
         self._log("TIFF transformed; preview PNG regenerated: %s" % image.png_path)
         elapsed = time.monotonic() - started if started is not None else 0.0
         self._status_image(
-            image, "Transform applied in %.1f s (view unchanged)" % elapsed
+            image, "%s %.1f s (%s)" % (
+                self.translator.tr("Transform applied in"),
+                elapsed,
+                self.translator.tr("view unchanged"),
+            )
         )
         self.app.update_action_sensitivity()
 
@@ -1344,7 +1355,7 @@ progressbar text {
     def action_metadata(self) -> None:
         if not self.current_images or not self.current_paths:
             self._log("Open an image before reading metadata")
-            self._status("Open an image first")
+            self._status(self.translator.tr("Open an image first"))
             return
         image = self.current_images[-1]
         self.metadata_pending = 2
@@ -1381,7 +1392,7 @@ progressbar text {
                 "CLI %s exit %d (%s): %d lines"
                 % (result.job_id, result.exit_code, label, len(text.splitlines()))
             )
-            self._status("Metadata loaded: %s" % label)
+            self._status("%s: %s" % (self.translator.tr("Metadata loaded"), label))
         else:
             message = result.error or result.stderr or "unknown error"
             self.metadata_buffers[buffer_key].set_text("Metadata error: %s" % message)
@@ -1434,7 +1445,7 @@ progressbar text {
     def action_histogram(self) -> None:
         if not self.current_images:
             self._log("Open an image before requesting a histogram")
-            self._status("Open an image first")
+            self._status(self.translator.tr("Open an image first"))
             return
         self.histogram_panel.show()
         self._update_toggle_labels()
@@ -1451,7 +1462,7 @@ progressbar text {
         self.histogram_datasets = []
         self.histogram_widget.set_datasets([])
         self._busy_begin()
-        self._status("Computing histograms via external CLI...")
+        self._status(self.translator.tr("Computing histograms via external CLI..."))
         for key, path, label, colour in (
             ("preview", image.png_path, "Displayed PNG", (0.30, 0.65, 1.0)),
             ("working", image.tiff_path, "Working TIFF", (0.35, 0.85, 0.45)),
@@ -1481,7 +1492,7 @@ progressbar text {
         if self.histogram_pending == 0:
             self._busy_end()
             self.histogram_widget.set_datasets(self.histogram_datasets)
-            self._status("Histogram ready (drag the two handles to stretch)")
+            self._status(self.translator.tr("Histogram ready (drag the two handles to stretch)"))
 
     def _on_stretch_change(self, low: float, high: float) -> None:
         if not self.current_images:
@@ -1500,7 +1511,7 @@ progressbar text {
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
         self._log("Display stretch applied: low %.0f, high %.0f (TIFF untouched)" % (low, high))
-        self._status_image(image, "Display stretch %.0f-%.0f (view unchanged)" % (low, high))
+        self._status_image(image, "%s %.0f-%.0f (%s)" % (self.translator.tr("Display stretch"), low, high, self.translator.tr("view unchanged")))
 
     def _on_panel_closed(self, panel) -> None:
         panel.hide()
@@ -1519,7 +1530,7 @@ progressbar text {
             self.engine.cancel(job_id)
         if jobs:
             self._log("Stopped jobs: %s" % ", ".join(jobs))
-            self._status("Stopped %d job(s)" % len(jobs))
+            self._status("%s %d" % (self.translator.tr("Stopped"), len(jobs)))
             self._stop_progress()
         self.app.update_action_sensitivity()
 
@@ -1544,13 +1555,13 @@ progressbar text {
         if self.current_images:
             self.current_images.pop()
         self.preview.clear()
-        self._status("Closed active view")
+        self._status(self.translator.tr("Closed active view"))
 
     def action_close_all(self) -> None:
         self.current_paths.clear()
         self.current_images.clear()
         self.preview.clear()
-        self._status("All views closed")
+        self._status(self.translator.tr("All views closed"))
 
     def _dialog_header(self, dialog: Gtk.Window, title: str) -> Gtk.HeaderBar:
         header = Gtk.HeaderBar()
@@ -1656,7 +1667,7 @@ progressbar text {
         job_id = "%s-%d" % (job_name, self.job_counter)
         self._log("CLI %s: %s" % (job_id, " ".join(argv)))
         self._busy_begin()
-        self._status("Running %s via SkyStacker..." % job_name)
+        self._status("%s %s" % (self.translator.tr("Running"), job_name))
         self.engine.run(job_id, argv, on_log=self._log, on_done=on_done)
         self.app.update_action_sensitivity()
 
@@ -1855,10 +1866,11 @@ progressbar text {
         grid.set_column_spacing(8)
 
         language = Gtk.ComboBoxText()
-        for code in ("en", "es", "de", "ja"):
+        languages = ("en", "es", "de", "ja")
+        for code in languages:
             language.append_text(code)
         current_language = self.settings.get("language", "en")
-        language.set_active(max(0, ("en", "es", "de", "ja").index(current_language)))
+        language.set_active(max(0, languages.index(current_language)))
         theme = Gtk.ComboBoxText()
         for name in ("system", "dark", "light"):
             theme.append_text(name)
@@ -2020,24 +2032,24 @@ progressbar text {
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
         self._log("History applied to %s; preview refreshed" % image.key)
-        self._status_image(image, "History applied (view unchanged)")
+        self._status_image(image, self.translator.tr("History applied (view unchanged)"))
         self.app.update_action_sensitivity()
 
     def action_zoom_in(self) -> None:
         self.preview.zoom_in()
-        self._status("Zoom: %.0f%%" % (self.preview.zoom * 100))
+        self._status("%s: %.0f%%" % (self.translator.tr("Zoom"), self.preview.zoom * 100))
 
     def action_zoom_out(self) -> None:
         self.preview.zoom_out()
-        self._status("Zoom: %.0f%%" % (self.preview.zoom * 100))
+        self._status("%s: %.0f%%" % (self.translator.tr("Zoom"), self.preview.zoom * 100))
 
     def action_zoom_fit(self) -> None:
         self.preview.zoom_fit()
-        self._status("Zoom: fit to window")
+        self._status("%s: %s" % (self.translator.tr("Zoom"), self.translator.tr("fit to window")))
 
     def _set_zoom(self, scale: float, label: str) -> None:
         self.preview.set_zoom_scale(scale)
-        self._status("Zoom: %s" % label)
+        self._status("%s: %s" % (self.translator.tr("Zoom"), label))
 
     def action_zoom_10(self) -> None:
         self._set_zoom(0.10, "10%")
@@ -2068,7 +2080,7 @@ progressbar text {
 
     def action_zoom_1_1(self) -> None:
         self.preview.set_zoom_scale(1.0)
-        self._status("Zoom: 1:1 (one screen pixel per image pixel)")
+        self._status("%s: 1:1 (one screen pixel per image pixel)" % self.translator.tr("Zoom"))
 
     def action_quit(self) -> None:
         self.engine.cancel_all()
