@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.24 — 2026-11-19
+
+- Parameter suggestions from ISO/exposure metadata and frame quality diagnostics.
+- Non-destructive annotations (label/arrow/circle) burned in via ImageMagick `-draw`.
+- Linear-space guard blocks linear operations after non-linear stretch with optional override.
+- Unit tests for presets, annotations and the guard.
+
 ## 0.2.23 — 2026-11-19
 
 - Thumbnail strip for multiple open images and before/after difference map via ImageMagick.

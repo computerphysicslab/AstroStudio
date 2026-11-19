@@ -124,11 +124,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 10. [x] Thumbnail strip for open images and before/after difference map via ImageMagick.
 11. [x] WCS overlay marking the plate-solution reference pixel on the canvas.
 12. [x] Argv builders for RAW developers, Hugin, enfuse and GIMP with backend gating.
-13. [ ] Parameter suggestions/presets derived from image metadata and backend
-       diagnostics (v0.5.0).
-14. [ ] Non-destructive markup annotations (arrows, circles, labels) burned in only at
-       export by GIMP/ImageMagick (v0.5.0).
-15. [ ] Linear-space guard enforcement before non-linear stretching (v0.5.0).
+13. [x] Parameter suggestions from metadata (ISO, exposure) and frame diagnostics.
+14. [x] Markup annotations stored as data and burned in via ImageMagick `-draw`.
+15. [x] Linear-space guard with optional override for post-stretch operations.
 16. [ ] Derivation tree view showing which original and operation chain produced the
        current image (v0.5.0).
 17. [ ] Histogram phase 2: hybrid parametric + image-driven interface (v0.3.0):

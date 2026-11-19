@@ -622,3 +622,16 @@ to force a UI redraw.
   GIMP. Menu entries are gated by backend availability; none of these binaries are
   installed here, so no results are fabricated.
 * Roadmap medium-difficulty items 10–12 are complete. Version bumped to `0.2.23`.
+
+---
+
+## 41. v0.2.24 — Presets, Annotations and Linear Guard
+
+* `core/presets.py` parses ExifTool key/value text and suggests denoise/sharpen/stacking
+  actions from ISO, exposure and optional frame diagnostics; exposed as
+  Processing > Suggest Presets.
+* `core/annotations.py` stores label/arrow/circle markup and builds ImageMagick `-draw`
+  argv to burn it into a preview PNG only; original TIFFs are untouched.
+* `core/linear_guard.py` rejects background/deconvolution/starless operations after a
+  non-linear stretch unless `settings.linear_override` is enabled.
+* Roadmap medium-difficulty items 13–15 are complete. Version bumped to `0.2.24`.

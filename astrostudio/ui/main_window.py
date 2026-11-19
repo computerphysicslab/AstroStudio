@@ -27,6 +27,9 @@ from ..adapters import (  # noqa: E402
 )
 from ..core import (  # noqa: E402
     EXPORT_FORMATS,
+    Annotation,
+    build_annotate_argv,
+    check_linear_guard,
     ExportFormat,
     ImageWorkspace,
     Translator,
@@ -42,12 +45,14 @@ from ..core import (  # noqa: E402
     install_command,
     load_session,
     overlay_center,
+    parse_metadata_text,
     package_for_binary,
     parse_histogram_text,
     parse_measurements,
     tile_count,
     parse_policy,
     save_session,
+    suggest_presets,
     solution_for_directory,
     write_makefile,
     write_shell,
@@ -114,6 +119,7 @@ MENU_LAYOUT = (
             ("Hugin Panorama...", "panorama"),
             ("Enfuse...", "enfuse"),
             ("GIMP Script...", "gimp-script"),
+            ("Suggest Presets...", "suggest-presets"),
             ("Detect Calibration Folders...", "detect-calibration"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
@@ -153,6 +159,7 @@ MENU_LAYOUT = (
     (
         "Filter",
         (
+            ("Annotations...", "annotations"),
             (
                 "Sharpen",
                 None,
@@ -373,6 +380,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.active_image = None
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
         self._export_source = None
+        self.transform_history: List[str] = []
+        self.annotations: List[Annotation] = []
         self.job_counter = 0
         self.plate_solutions: dict = {}
         self.plate_centers: dict = {}
@@ -1493,8 +1502,6 @@ progressbar text {
             return
         image = self.current_images[-1]
         view_state = self._capture_view_state()
-        started = time.monotonic()
-        self._busy_begin()
         stage = next(iter(params), "transform")
         if stage == "resize":
             try:
@@ -1502,6 +1509,17 @@ progressbar text {
                 stage = "resize-up" if percent >= 100 else "resize-down"
             except ValueError:
                 stage = "resize-down"
+        if stage in ("background", "deconvolution", "starless", "gradient"):
+            allowed, reason = check_linear_guard(
+                self.transform_history, bool(self.settings.get("linear_override", False))
+            )
+            if not allowed:
+                self._log("Linear guard: %s" % reason)
+                self._status("Linear guard blocked operation")
+                return
+        self.transform_history.append(stage)
+        started = time.monotonic()
+        self._busy_begin()
         self._begin_estimate(stage, self._current_megapixels(), "%s via CLI..." % description)
         self.workspace.transform(
             image,
@@ -1882,6 +1900,82 @@ progressbar text {
         else:
             self._log("Before/after failed: %s" % (result.error or result.stderr))
             self._show_error("Before/after comparison failed")
+
+    def action_suggest_presets(self) -> None:
+        buffer = getattr(self, "metadata_buffers", {}).get("png")
+        text = ""
+        if buffer is not None:
+            text = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True)
+        metadata = parse_metadata_text(text)
+        lines = suggest_presets(metadata)
+        self._show_info("Suggested presets", "\n".join(lines))
+
+    def action_annotations(self) -> None:
+        if not self.registry.available("ImageMagick"):
+            self._show_error("ImageMagick is required to burn in annotations.")
+            return
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title("Annotations")
+        window.set_transient_for(self)
+        window.set_default_size(520, 360)
+        header = Gtk.HeaderBar()
+        header.set_title("Annotations")
+        header.set_show_close_button(True)
+        window.set_titlebar(header)
+        make_draggable(window, header)
+        store = Gtk.ListStore(str, str, str)
+        view = Gtk.TreeView(model=store)
+        for index, title in enumerate(("Type", "Position", "Text")):
+            view.append_column(Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=index))
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(view)
+        add = Gtk.Button(label="Add label")
+        burn = Gtk.Button(label="Burn in to preview")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.set_border_width(8)
+        box.pack_start(scroll, True, True, 0)
+        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        buttons.pack_start(add, False, False, 0)
+        buttons.pack_start(burn, False, False, 0)
+        box.pack_start(buttons, False, False, 0)
+        window.add(box)
+        window.connect("delete-event", lambda *_: window.destroy())
+
+        def refresh() -> None:
+            store.clear()
+            for item in self.annotations:
+                store.append((item.kind, "%d,%d" % (item.x, item.y), item.text))
+
+        def add_label(_button) -> None:
+            self.annotations.append(Annotation("label", 20, 20, "M42"))
+            refresh()
+
+        def burn_in(_button) -> None:
+            image = self.active_image or (self.current_images[-1] if self.current_images else None)
+            if image is None:
+                return
+            output = os.path.join(image.directory, "annotated.png")
+            argv = build_annotate_argv(self._magick_adapter, image.tiff_path, self.annotations, output)
+            self._log("CLI annotations: %s" % " ".join(argv))
+            self._busy_begin()
+            self.engine.run(
+                "annotations",
+                argv,
+                on_log=self._log,
+                on_done=lambda result: self._on_annotations_done(result, output),
+            )
+
+        add.connect("clicked", add_label)
+        burn.connect("clicked", burn_in)
+        refresh()
+        window.show_all()
+
+    def _on_annotations_done(self, result, output: str) -> None:
+        self._busy_end()
+        if result.ok:
+            self._show_image("Annotated preview", output)
+        else:
+            self._show_error("Annotation burn-in failed")
 
     def action_frame_table(self) -> None:
         window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)

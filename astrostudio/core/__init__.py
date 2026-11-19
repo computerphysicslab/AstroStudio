@@ -2,6 +2,7 @@
 
 from .astrometry import find_output, find_plate_solution, summarize_solution
 from .backends import BackendRegistry, BackendSpec, BackendStatus
+from .annotations import Annotation, build_annotate_argv, draw_command
 from .bpm import validate_bpm_count
 from .wcs import overlay_center, wcs_cards, write_wcs_sidecar
 from .calibration import discover_calibration
@@ -9,10 +10,12 @@ from .command_builder import CommandBuilder
 from .operation_log import OperationLog
 from .package_info import install_command, package_for_binary, parse_policy
 from .pipeline_export import cli_entries, write_makefile, write_shell
+from .presets import parse_metadata_text, suggest_presets
 from .plate_solution import PlateSolution, load_solution, solution_for_directory
 from .estimator import Estimator, StageModel
 from .frame_quality import FrameDiagnostics, parse_measurements
 from .gaia_cache import default_cache_dir, gaia_flags, tile_count
+from .linear_guard import check_linear_guard
 from .export_formats import EXPORT_FORMATS, ExportFormat, find_format
 from .export_paths import unique_export_path
 from .histogram import histogram_argv, parse_histogram_text
@@ -29,6 +32,9 @@ __all__ = [
     "BackendSpec",
     "BackendStatus",
     "validate_bpm_count",
+    "Annotation",
+    "build_annotate_argv",
+    "draw_command",
     "wcs_cards",
     "overlay_center",
     "write_wcs_sidecar",
@@ -38,6 +44,7 @@ __all__ = [
     "default_cache_dir",
     "gaia_flags",
     "tile_count",
+    "check_linear_guard",
     "parse_measurements",
     "find_output",
     "find_plate_solution",
@@ -58,6 +65,8 @@ __all__ = [
     "install_command",
     "package_for_binary",
     "parse_policy",
+    "parse_metadata_text",
+    "suggest_presets",
     "cli_entries",
     "write_makefile",
     "write_shell",

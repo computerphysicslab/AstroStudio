@@ -16,6 +16,7 @@ DEFAULTS: Dict[str, Any] = {
     "scratch_dir": "",
     "cache_dir": "",
     "gaia_nside": 64,
+    "linear_override": False,
     "blind_catalog_dir": "",
     "blind_catalog": "mag07",
     "recent_images": [],
