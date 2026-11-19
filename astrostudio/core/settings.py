@@ -15,6 +15,7 @@ DEFAULTS: Dict[str, Any] = {
     "binary_overrides": {},
     "scratch_dir": "",
     "cache_dir": "",
+    "gaia_nside": 64,
     "blind_catalog_dir": "",
     "blind_catalog": "mag07",
     "recent_images": [],

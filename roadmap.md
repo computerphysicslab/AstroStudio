@@ -116,12 +116,11 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 5. [x] BPM automation via SkyStacker `--bpm-auto` with 0.1% sanity-cap validation.
 6. [x] WCS values from plate_solution.json exported as a `.wcs.json` sidecar next to
        FITS outputs (installed tools cannot edit FITS headers directly).
-7. [ ] Alternative plate solvers (ASTAP, `solve-field`) with explicit pointing seeds and
-       blind-scan warnings; addresses the SkyStacker `0 matched pairs` failure (v0.4.0).
+7. [x] Direct ASTAP/solve-field adapters with seeds, scale hints and blind-scan warnings.
 7a. [x] Native wide-field blind solve with `--plate-solver native --blind-catalog mag07`
        and automatic catalog discovery (v0.2.15).
-8. [ ] Gaia DR3 cache management at `nside=64` with offline/air-gapped mode (v0.4.0).
-9. [ ] Session save/resume reusing scratch artifacts (v0.4.0).
+8. [x] Gaia cache management with configurable nside, cache path and offline mode.
+9. [x] Session save/resume with image paths, stretch points and plate solutions.
 10. [ ] Multi-document tabs, thumbnail strip and before/after slider or difference map
        via a delegated backend job (v0.2–v0.4).
 11. [ ] WCS/catalog overlay on the canvas once a plate solution exists (v0.4.0).

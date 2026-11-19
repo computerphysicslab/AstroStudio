@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.22 — 2026-11-19
+
+- Direct ASTAP and solve-field adapters with RA/Dec seeds, scale hints and blind-scan warnings.
+- Gaia cache management: configurable nside/cache path, offline mode and cache info dialog.
+- Session save/resume with image list, stretch points and plate solutions.
+- Unit tests for all three features.
+
 ## 0.2.21 — 2026-11-19
 
 - Siril connector with calibration/stacking script generation and backend gating.

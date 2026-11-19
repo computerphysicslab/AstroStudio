@@ -18,6 +18,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from ..adapters import (  # noqa: E402
+    AstrometryAdapter,
     ExifToolAdapter,
     ImageMagickAdapter,
     SirilAdapter,
@@ -34,12 +35,17 @@ from ..core import (  # noqa: E402
     find_plate_solution,
     histogram_argv,
     cli_entries,
+    default_cache_dir,
     discover_calibration,
+    gaia_flags,
     install_command,
+    load_session,
     package_for_binary,
     parse_histogram_text,
     parse_measurements,
+    tile_count,
     parse_policy,
+    save_session,
     solution_for_directory,
     write_makefile,
     write_shell,
@@ -58,6 +64,8 @@ MENU_LAYOUT = (
         (
             ("Open", "open"),
             ("Export / Save As", "export"),
+            ("Save Session...", "save-session"),
+            ("Resume Session...", "resume-session"),
             ("Export Pipeline...", "export-pipeline"),
             ("Batch Convert...", "batch"),
             (None, None),
@@ -111,6 +119,9 @@ MENU_LAYOUT = (
         "Astrometry",
         (
             ("Plate Solve...", "plate-solve"),
+            ("Solve with ASTAP...", "solve-astap"),
+            ("Solve with astrometry.net...", "solve-solvefield"),
+            ("Gaia Cache Info...", "gaia-cache-info"),
             ("Gaia Sky Map...", "sky-map"),
             ("Survey Cutout...", "survey-cutout"),
         ),
@@ -328,10 +339,14 @@ class MainWindow(Gtk.ApplicationWindow):
             "SkyStacker": SkyStackerAdapter(),
             "Siril": SirilAdapter(),
         }
+        from ..adapters.astrometry import scale_hint_arcsec
         from ..adapters.skystacker import discover_catalog_dir
+
+        self._scale_hint = scale_hint_arcsec
 
         self._magick_adapter.thread_limit = int(self.settings.get("threads", 0))
         self.adapters["SkyStacker"].cache_dir = self.settings.get("cache_dir") or None
+        self.adapters["SkyStacker"].gaia_nside = int(self.settings.get("gaia_nside", 64))
         self.adapters["SkyStacker"].catalog_dir = (
             self.settings.get("blind_catalog_dir")
             or discover_catalog_dir()
@@ -1233,6 +1248,72 @@ progressbar text {
         else:
             self._log("Batch failed: %s" % (result.error or result.stderr))
             self._show_error("Batch conversion failed: %s" % (result.error or result.stderr))
+
+    def action_save_session(self) -> None:
+        dialog = Gtk.FileChooserDialog(
+            title="Save session",
+            parent=self,
+            action=Gtk.FileChooserAction.SAVE,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_SAVE,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        dialog.set_current_name("astro-studio-session.json")
+        response = dialog.run()
+        path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not path:
+            return
+        state = {
+            "images": self.current_paths,
+            "stretch_points": {
+                image.source: list(image.stretch_points or ())
+                for image in self.current_images
+            },
+            "plate_solutions": dict(self.plate_solutions),
+            "recent_images": self.settings.get("recent_images", []),
+        }
+        save_session(path, state)
+        self._log("Session saved: %s" % path)
+        self._status("Session saved")
+
+    def action_resume_session(self) -> None:
+        dialog = Gtk.FileChooserDialog(
+            title="Resume session",
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        response = dialog.run()
+        path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not path:
+            return
+        state = load_session(path)
+        self.plate_solutions.update(state.get("plate_solutions", {}))
+        for source in state.get("images", []):
+            if os.path.isfile(source):
+                self._open_file(source)
+        for image in self.current_images:
+            points = state.get("stretch_points", {}).get(image.source)
+            if points and len(points) == 2:
+                image.stretch_points = tuple(points)
+                self.workspace.update_preview(
+                    image,
+                    on_ready=lambda final: self.preview.load(final.png_path),
+                    on_error=self._on_workspace_error,
+                    on_log=self._log,
+                )
+        self._log("Session resumed from %s" % path)
+        self._status("Session resumed")
 
     def action_export_pipeline(self) -> None:
         dialog = Gtk.FileChooserDialog(
@@ -2151,6 +2232,66 @@ progressbar text {
         dialog.destroy()
         return options
 
+    def action_gaia_cache_info(self) -> None:
+        cache_dir = self.settings.get("cache_dir") or default_cache_dir()
+        nside = int(self.settings.get("gaia_nside", 64))
+        offline = bool(self.settings.get("offline", False))
+        text = (
+            "Cache: %s\nTiles: %d\nnside: %d\nOffline: %s\nFlags: %s"
+            % (
+                cache_dir,
+                tile_count(cache_dir),
+                nside,
+                offline,
+                " ".join(gaia_flags(cache_dir, nside, offline)),
+            )
+        )
+        self._show_info("Gaia cache", text)
+
+    def _solve_external(self, binary: str) -> None:
+        if not self.current_paths:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        adapter = AstrometryAdapter(binary)
+        if not adapter.is_available():
+            self._show_error("%s is not installed." % adapter.name)
+            return
+        options = self._ask_plate_solver_options()
+        if options is None:
+            return
+        if not options["center"]:
+            self._log("Warning: blind solve without pointing seed may be slow or fail")
+        scale = ""
+        if options["focal"] and options["pixel"]:
+            scale = "%.4f" % self._scale_hint(options["focal"], options["pixel"])
+        source = self.current_paths[-1]
+        output_dir = self._astrometry_job_dir(binary.replace("-", "_"))
+        if "solve-field" in binary:
+            argv = adapter.build_solve_field_argv(
+                source,
+                output_dir,
+                *(options["center"].split(",") if options["center"] else (None, None)),
+                scale=scale,
+            )
+        else:
+            argv = adapter.build_astap_argv(source, output_dir, fov=scale)
+        self._run_astrometry(adapter.name, argv, output_dir, lambda result: self._on_external_solve(result, output_dir))
+
+    def _on_external_solve(self, result, output_dir: str) -> None:
+        self._busy_end()
+        if result.ok:
+            self._log("External solver products in %s" % output_dir)
+            self._status("External solve complete")
+        else:
+            self._log("External solve failed: %s" % (result.error or result.stderr))
+            self._show_error("External plate solve failed")
+
+    def action_solve_astap(self) -> None:
+        self._solve_external("astap")
+
+    def action_solve_solvefield(self) -> None:
+        self._solve_external("solve-field")
+
     def _run_astrometry(self, job_name: str, argv: List[str], output_dir: str, on_done) -> None:
         self.job_counter += 1
         job_id = "%s-%d" % (job_name, self.job_counter)
@@ -2477,12 +2618,15 @@ progressbar text {
         offline.set_active(bool(self.settings.get("offline", False)))
         threads = Gtk.SpinButton.new_with_range(0, 64, 1)
         threads.set_value(int(self.settings.get("threads", 0)))
+        gaia_nside = Gtk.SpinButton.new_with_range(2, 8192, 2)
+        gaia_nside.set_value(int(self.settings.get("gaia_nside", 64)))
 
         for label, widget in (
             ("Scratch directory", scratch_entry),
             ("Gaia cache directory", cache_entry),
             ("Offline", offline),
             ("Max threads (0 = backend default)", threads),
+            ("Gaia HEALPix nside", gaia_nside),
         ):
             grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
             grid.attach(widget, 1, row, 1, 1)
@@ -2501,7 +2645,11 @@ progressbar text {
             self.settings.set("cache_dir", cache_entry.get_text().strip())
             self.settings.set("offline", offline.get_active())
             self.settings.set("threads", int(threads.get_value()))
+            self.settings.set("gaia_nside", int(gaia_nside.get_value()))
             self._magick_adapter.thread_limit = int(self.settings.get("threads", 0))
+            self.adapters["SkyStacker"].gaia_nside = int(
+                self.settings.get("gaia_nside", 64)
+            )
             self.settings.save()
             self.adapters["SkyStacker"].cache_dir = (
                 self.settings.get("cache_dir") or None

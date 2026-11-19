@@ -53,6 +53,8 @@ def test_plate_solve_argv_uses_documented_image_op():
         "gaia",
         "--astrometry-timeout",
         "90",
+        "--gaia-nside",
+        "64",
         "--plate-center",
         "83.822,-5.391",
         "--gaia-offline",

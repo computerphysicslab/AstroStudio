@@ -50,6 +50,7 @@ class SkyStackerAdapter(CliAdapter):
         super().__init__(CommandBuilder(self.binary))
         self.cache_dir = None
         self.catalog_dir = None
+        self.gaia_nside = 64
 
     @staticmethod
     def _base(source: str, image_op: str, output_dir: str) -> List[str]:
@@ -73,7 +74,14 @@ class SkyStackerAdapter(CliAdapter):
         focal_length: str,
         pixel_size: str,
     ) -> List[str]:
-        flags = ["--plate-solver", solver or "auto", "--astrometry-timeout", str(timeout)]
+        flags = [
+            "--plate-solver",
+            solver or "auto",
+            "--astrometry-timeout",
+            str(timeout),
+            "--gaia-nside",
+            str(int(self.gaia_nside)),
+        ]
         if self.cache_dir:
             flags.extend(("--gaia-cache-dir", self.cache_dir))
         if plate_center:

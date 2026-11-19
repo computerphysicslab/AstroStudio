@@ -592,3 +592,18 @@ to force a UI redraw.
   writes a `.wcs.json` sidecar next to exported FITS files. Installed tools (ExifTool)
   cannot write arbitrary FITS keywords, so direct header rewriting is not attempted.
 * Roadmap medium-difficulty items 4–6 complete. Version bumped to `0.2.21`.
+
+---
+
+## 39. v0.2.22 — Alternative Solvers, Gaia Cache and Sessions
+
+* `adapters/astrometry.py` builds direct `solve-field` and `astap` argv with RA/Dec
+  seeds, ±20% scale hints derived from focal length/pixel size, and logs a warning when
+  no pointing seed is supplied. Both binaries are absent here, so actions gated on them
+  stay disabled.
+* Gaia cache management adds `gaia_nside` (default 64) to settings, passes
+  `--gaia-nside/--gaia-cache-dir/--gaia-offline` to SkyStacker, and offers a cache info
+  dialog with tile count and effective flags.
+* Session save/resume persists open images, per-image stretch points, plate solutions
+  and recent files; resuming reopens images and reapplies display stretches.
+* Roadmap medium-difficulty items 7–9 are complete. Version bumped to `0.2.22`.

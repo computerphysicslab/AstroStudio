@@ -12,6 +12,7 @@ from .pipeline_export import cli_entries, write_makefile, write_shell
 from .plate_solution import PlateSolution, load_solution, solution_for_directory
 from .estimator import Estimator, StageModel
 from .frame_quality import FrameDiagnostics, parse_measurements
+from .gaia_cache import default_cache_dir, gaia_flags, tile_count
 from .export_formats import EXPORT_FORMATS, ExportFormat, find_format
 from .export_paths import unique_export_path
 from .histogram import histogram_argv, parse_histogram_text
@@ -20,6 +21,7 @@ from .job_manager import JobManager, JobState
 from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
+from .session import load_session, save_session
 from .settings import SettingsManager
 
 __all__ = [
@@ -32,6 +34,9 @@ __all__ = [
     "CommandBuilder",
     "discover_calibration",
     "FrameDiagnostics",
+    "default_cache_dir",
+    "gaia_flags",
+    "tile_count",
     "parse_measurements",
     "find_output",
     "find_plate_solution",
@@ -63,5 +68,7 @@ __all__ = [
     "JobResult",
     "ProcessEngine",
     "ScratchManager",
+    "load_session",
+    "save_session",
     "SettingsManager",
 ]
