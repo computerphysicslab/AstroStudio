@@ -8,6 +8,17 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.4 — 2026-11-19
+
+- Histogram stretch is applied once per drag (on release) instead of on every mouse
+  motion; handles now have bottom arrow grips and the chart draws filled distributions.
+- Right-dock panel headers are half-height with smaller text and close buttons.
+- Export format dialog is larger, draggable via a header bar and shows all formats at a
+  glance with a smaller font.
+- PSD/PSB import selects the flattened composite and applies a display stretch, fixing
+  black re-opened PSDs.
+- Benchmark extended to 20 MP; log/CSV/model regenerated with the larger cases.
+
 ## 0.2.3 — 2026-11-19
 
 - Histogram is now a dock panel between CPU/RAM and Terminal; CLI output is bounded to

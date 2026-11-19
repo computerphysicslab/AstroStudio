@@ -17,12 +17,12 @@ from astrostudio.adapters import ImageMagickAdapter
 from astrostudio.core import ImageWorkspace, OperationLog, ProcessEngine, ScratchManager
 from astrostudio.core.export_formats import find_format
 
-MAX_PIXELS = 10_000_000
+MAX_PIXELS = 20_000_000
 CASES = (
     ("small", (640, 480), ("png", "jpg", "tif")),
     ("medium", (1600, 1200), ("png", "tif")),
     ("large", (3200, 2400), ("png",)),
-    ("limit-10mp", (4000, 2500), ("png",)),
+    ("limit-20mp", (5000, 4000), ("png",)),
 )
 FILTERS = (
     ("resize", {"resize": "50%"}),

@@ -71,7 +71,18 @@ class ImageWorkspace:
         key = "image-%04d" % self._counter
         directory = self.scratch.job_dir(key)
         display_stretch = source.lower().endswith(
-            (".fits", ".fit", ".fts", ".cr2", ".cr3", ".nef", ".arw", ".dng")
+            (
+                ".fits",
+                ".fit",
+                ".fts",
+                ".cr2",
+                ".cr3",
+                ".nef",
+                ".arw",
+                ".dng",
+                ".psd",
+                ".psb",
+            )
         )
         image = WorkingImage(
             key=key,

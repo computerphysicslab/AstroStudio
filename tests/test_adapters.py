@@ -46,6 +46,9 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "/tmp/job/preview.png",
     ]
     assert list(
+        adapter.build_import_argv("/data/light.psd", "/tmp/job/working.tiff")
+    ) == ["convert", "/data/light.psd[0]", "-depth", "16", "/tmp/job/working.tiff"]
+    assert list(
         adapter.build_import_argv("/data/light.fits", "/tmp/job/working.tiff")
     ) == [
         "convert",

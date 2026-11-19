@@ -60,7 +60,7 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 - [x] Transform/export status reports elapsed seconds and active PNG/TIFF sizes in MB;
       Help > About dialog added with version and build date.
 - [x] CPU/RAM bars colour-coded at 75%, syntax-highlighted terminal drawer, opt-in
-      10 MP benchmark and analyzer producing CSV + incremental proportionality model;
+      20 MP benchmark and analyzer producing CSV + incremental proportionality model;
       the GUI shows estimated seconds and a green progress bar before operations.
 - [x] Test baseline and Git history on `main` (English commit messages).
 
@@ -140,8 +140,8 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        header Bayer pattern and per-frame timestamps preserved (v0.3.0).
 21. [ ] AVI legacy capture support via ffmpeg with uncompressed/lossless codecs only;
        MJPEG rejected before stretching (v0.3.0).
-22. [ ] PSD/PSB read-back via ImageMagick with explicit "flattened layers" warning
-       (v0.3.0).
+22. [x] PSD/PSB read-back via ImageMagick `[0]` flattened composite with display stretch
+       and an integration test (v0.2.4).
 
 ### High difficulty
 

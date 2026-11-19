@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (59 passed, 1 opt-in benchmark skipped; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (60 passed, 1 opt-in benchmark skipped; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -257,3 +257,23 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * CPU analysis: `psutil.cpu_percent(interval=None)` reports system-wide usage (one saturated core on an 8-core machine reads ~12–15%), which explained the apparently wrong indicator. The bar now uses `max(overall, peak core)` and the label reads `CPU <overall>% (core <peak>%)`, so single-threaded CLI load is visible. CSS sets a dark trough, green fill below 75% and red at/above, with the same rule for RAM.
 * Export catalog gained PNG 16-bit, TIFF 32-bit float, FITS 32-bit float and flattened PSD; the Open filter accepts PSD/PSB. XISF/SER/AVI remain roadmap items because no installed CLI covers them.
 * Version bumped to `0.2.3` with a `CHANGELOG.md` entry.
+
+---
+
+## 21. v0.2.4 — Dock Ergonomics, PSD and 20 MP Benchmark
+
+* `HistogramWidget` now emits its stretch callback only on button release, so a drag
+  produces exactly one CLI `-level` job (verified with a synthetic drag smoke). Handles
+  have bottom arrow grips and a wider hit zone; the chart draws filled distributions
+  plus bars and an explicit message when no data is available.
+* Right-dock headers use `sans 9`, a 16px high box and a flat 16x14 close button, roughly
+  halving their vertical footprint. Order is fixed: CPU/RAM monitor, Backends, Metadata
+  (hidden by default), Histogram, Terminal Drawer.
+* The export format dialog has a `Gtk.HeaderBar` (draggable), 600x560 default size, 520x480
+  scroll area and `Sans 9` rows so all formats are visible at once.
+* PSD/PSB import uses the `[0]` composite selector and a CLI display stretch; a real-CLI
+  integration test verifies an RGB PNG survives a PSD round trip with visible colour.
+* Benchmark limit raised to 20 MP (5000x4000 case). Re-run produced 1211 new log entries,
+  a 715-row CSV and 11 stage models with doubled sample counts.
+* **Right panel rule:** this dock state section must be refreshed on every iteration so
+  the opencode right panel never shows stale panel visibility/order.

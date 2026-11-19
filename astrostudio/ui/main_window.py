@@ -430,11 +430,17 @@ class MainWindow(Gtk.ApplicationWindow):
     def _panel_with_close(self, title: str, content: Gtk.Widget) -> Gtk.Widget:
         panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        header.set_size_request(-1, 16)
         label = Gtk.Label(label=title, xalign=0.0)
         label.set_hexpand(True)
+        label.set_margin_top(0)
+        label.set_margin_bottom(0)
+        label.override_font(Pango.FontDescription("sans 9"))
         close_button = Gtk.Button.new_from_icon_name(
             "window-close-symbolic", Gtk.IconSize.MENU
         )
+        close_button.set_relief(Gtk.ReliefStyle.NONE)
+        close_button.set_size_request(16, 14)
         close_button.set_tooltip_text("Close panel")
         close_button.connect("clicked", lambda *_: self._on_panel_closed(panel))
         header.pack_start(label, True, True, 0)
@@ -1006,16 +1012,25 @@ class MainWindow(Gtk.ApplicationWindow):
                 Gtk.ResponseType.OK,
             ),
         )
+        header = Gtk.HeaderBar()
+        header.set_title("Choose export format")
+        header.set_show_close_button(True)
+        dialog.set_titlebar(header)
+        dialog.set_default_size(600, 560)
+        dialog.set_decorated(True)
+
         store = Gtk.ListStore(str, str, str)
         for export_format in EXPORT_FORMATS:
             store.append((export_format.key, export_format.label, export_format.category))
         view = Gtk.TreeView(model=store)
-        view.append_column(Gtk.TreeViewColumn("Format", Gtk.CellRendererText(), text=1))
+        renderer = Gtk.CellRendererText()
+        renderer.set_property("font", "Sans 9")
+        view.append_column(Gtk.TreeViewColumn("Format", renderer, text=1))
         view.append_column(Gtk.TreeViewColumn("Type", Gtk.CellRendererText(), text=2))
         view.connect("row-activated", lambda *_: dialog.response(Gtk.ResponseType.OK))
         scroll = Gtk.ScrolledWindow()
-        scroll.set_min_content_width(460)
-        scroll.set_min_content_height(260)
+        scroll.set_min_content_width(520)
+        scroll.set_min_content_height(480)
         scroll.add(view)
         content = dialog.get_content_area()
         content.pack_start(scroll, True, True, 6)

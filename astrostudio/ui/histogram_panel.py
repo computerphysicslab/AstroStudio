@@ -60,15 +60,19 @@ class HistogramWidget(Gtk.DrawingArea):
             new_high = max(value, self.low + 5.0)
             changed = new_high != self.high
             self.high = new_high
-        if changed and self.on_change is not None:
-            self.on_change(self.low, self.high)
         self.queue_draw()
 
     def _on_press(self, _widget, event) -> bool:
         width = self.get_allocated_width()
+        height = self.get_allocated_height()
         if width <= 0:
             return False
-        self._drag = self._nearest_handle(event.x, width)
+        low_x = self._handle_x(self.low, width)
+        high_x = self._handle_x(self.high, width)
+        if event.y > height - 22:
+            self._drag = "low" if abs(event.x - low_x) <= abs(event.x - high_x) else "high"
+        else:
+            self._drag = self._nearest_handle(event.x, width)
         self._move_handle(event.x, width)
         return True
 
@@ -79,6 +83,8 @@ class HistogramWidget(Gtk.DrawingArea):
         return True
 
     def _on_release(self, _widget, _event) -> bool:
+        if self._drag is not None and self.on_change is not None:
+            self.on_change(self.low, self.high)
         self._drag = None
         return False
 
@@ -106,12 +112,31 @@ class HistogramWidget(Gtk.DrawingArea):
                 max_log = max(max_log, value)
 
         for label, colour, points in prepared:
-            cr.set_source_rgba(*colour, 0.65)
+            if not points:
+                continue
+            cr.set_source_rgba(*colour, 0.30)
+            cr.move_to(points[0][0] / 255.0 * width, height)
+            for intensity, value in points:
+                cr.line_to(
+                    intensity / 255.0 * width,
+                    height - value / max_log * (height - 8),
+                )
+            cr.line_to(points[-1][0] / 255.0 * width, height)
+            cr.close_path()
+            cr.fill()
+            cr.set_source_rgba(*colour, 0.85)
+            cr.set_line_width(1.5)
             for intensity, value in points:
                 x = intensity / 255.0 * width
                 bar_height = value / max_log * (height - 8)
-                cr.rectangle(x, height - bar_height, max(width / 255.0, 1.0), bar_height)
+                cr.rectangle(x, height - bar_height, max(width / 200.0, 2.0), bar_height)
                 cr.fill()
+
+        if not prepared:
+            cr.set_source_rgb(0.7, 0.7, 0.7)
+            cr.set_font_size(11)
+            cr.move_to(10, height / 2)
+            cr.show_text("Press View > Histogram to compute distributions")
 
         for value, colour in ((self.low, (0.20, 0.85, 1.0)), (self.high, (1.0, 0.65, 0.20))):
             x = self._handle_x(value, width)
@@ -120,6 +145,12 @@ class HistogramWidget(Gtk.DrawingArea):
             cr.move_to(x, 0)
             cr.line_to(x, height)
             cr.stroke()
+            grip_x = max(8.0, min(width - 8.0, x))
+            cr.move_to(grip_x - 6, height - 2)
+            cr.line_to(grip_x + 6, height - 2)
+            cr.line_to(grip_x, height - 14)
+            cr.close_path()
+            cr.fill()
 
         cr.set_source_rgb(0.9, 0.9, 0.9)
         cr.set_font_size(10)

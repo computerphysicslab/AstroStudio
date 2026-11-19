@@ -43,10 +43,14 @@ class ImageMagickAdapter(CliAdapter):
         )
 
     def build_import_argv(self, source: str, tiff_path: str) -> Sequence[str]:
-        if source.lower().endswith((".fits", ".fit", ".fts")):
+        lowered = source.lower()
+        if lowered.endswith((".fits", ".fit", ".fts")):
             # ImageMagick writes RGB FITS as three grayscale HDUs; -combine
             # restores them to one RGB working TIFF.
             return [self.binary, source, "-combine", "-depth", "16", tiff_path]
+        if lowered.endswith((".psd", ".psb")):
+            # Select the flattened composite instead of the first layer.
+            return [self.binary, source + "[0]", "-depth", "16", tiff_path]
         return [self.binary, source, "-depth", "16", tiff_path]
 
     def build_preview_argv(

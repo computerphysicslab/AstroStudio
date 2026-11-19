@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.2.3**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.2.4**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -102,7 +102,7 @@ PYTHONPATH=. python3 tests/benchmark_operations.py
 PYTHONPATH=. python3 scripts/analyze_operations.py
 ```
 
-The benchmark generates images up to 10 MP, opens them, applies filters and exports to
+The benchmark generates images up to 20 MP, opens them, applies filters and exports to
 several formats, appending timed events to the operation log. The analyzer writes
 `~/.local/share/astro-studio/operations.csv` and incrementally updates
 `estimates.json`; the GUI uses that model to show an estimated duration and a green
