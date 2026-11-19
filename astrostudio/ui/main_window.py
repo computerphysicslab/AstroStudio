@@ -278,7 +278,7 @@ TOOL_ITEMS = (
     ("edit-undo", "Undo", "undo"),
     ("edit-redo", "Redo", "redo"),
     ("process-stop", "Stop job", "cancel"),
-    ("view-fullscreen", "Maximize", "toggle-maximize"),
+    ("view-fullscreen", "FullScreen", "fullscreen"),
 )
 
 
@@ -405,6 +405,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.active_image = None
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
         self._export_source = None
+        self._gamma_timer = None
         self.transform_history: List[str] = []
         self.annotations: List[Annotation] = []
         self.job_counter = 0
@@ -452,8 +453,11 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self.preview.connect("drag-data-received", self._on_drag_data_received)
         self.preview.connect("drag-motion", self._on_drag_motion)
+        self.add_events(Gdk.EventMask.KEY_PRESS_MASK)
+        self.connect("key-press-event", self._on_key_press)
 
         self._build_layout()
+        self._apply_panel_visibility()
         self._apply_theme()
         self._apply_font()
         self.connect("destroy", lambda *_widget: self.resource_monitor.stop())
@@ -481,11 +485,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.thumbnail_view = Gtk.IconView(model=self.thumbnail_store)
         self.thumbnail_view.set_pixbuf_column(0)
         self.thumbnail_view.set_text_column(1)
+        self.thumbnail_view.connect("selection-changed", self._on_thumbnail_selected)
         self.thumbnail_view.connect("item-activated", self._on_thumbnail_activated)
-        thumb_scroll = Gtk.ScrolledWindow()
-        thumb_scroll.set_size_request(-1, 96)
-        thumb_scroll.add(self.thumbnail_view)
-        left.pack_start(thumb_scroll, False, False, 0)
+        self.thumbnail_scroll = Gtk.ScrolledWindow()
+        self.thumbnail_scroll.set_size_request(-1, 96)
+        self.thumbnail_scroll.add(self.thumbnail_view)
+        left.pack_start(self.thumbnail_scroll, False, False, 0)
         paned.pack1(left, True, False)
 
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -577,10 +582,12 @@ class MainWindow(Gtk.ApplicationWindow):
         menu = Gio.Menu.new()
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
-            append_menu_items(
-                submenu, self._dynamic_entries(entries), self._menu_items, self.translator.tr
-            )
+            dynamic_entries = self._dynamic_entries(entries)
             if label == "File":
+                first, remaining = dynamic_entries[:1], dynamic_entries[1:]
+                append_menu_items(
+                    submenu, first, self._menu_items, self.translator.tr
+                )
                 recent_menu = Gio.Menu.new()
                 paths = self.settings.get("recent_images", [])
                 if paths:
@@ -591,6 +598,13 @@ class MainWindow(Gtk.ApplicationWindow):
                 else:
                     recent_menu.append(self.translator.tr("No recent images"), "app.open")
                 submenu.append_submenu(self.translator.tr("Open Recent"), recent_menu)
+                append_menu_items(
+                    submenu, remaining, self._menu_items, self.translator.tr
+                )
+            else:
+                append_menu_items(
+                    submenu, dynamic_entries, self._menu_items, self.translator.tr
+                )
             menu.append_submenu(self.translator.tr(label), submenu)
         return Gtk.MenuBar.new_from_model(menu)
 
@@ -830,6 +844,10 @@ progressbar text {
             return
         size = int(self.settings.get("font_size", 9))
         gtk_settings.set_property("gtk-font-name", "Sans %d" % max(7, min(18, size)))
+
+    def _apply_panel_visibility(self) -> None:
+        self.thumbnail_scroll.set_visible(bool(self.settings.get("show_thumbnails", False)))
+        self.resource_monitor.set_visible(bool(self.settings.get("show_resources", True)))
 
     def validate_geometry(self) -> None:
         minimum, _natural = self.get_preferred_size()
@@ -1118,6 +1136,9 @@ progressbar text {
         button = event.button
         if not isinstance(button, int):
             button = button.button
+        if button == 3:
+            self._show_context_menu(event)
+            return True
         if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
             self.action_zoom_fit()
             return True
@@ -1147,6 +1168,38 @@ progressbar text {
                 self._status("Selection: %dx%d" % (rectangle[2], rectangle[3]))
             return True
         self.preview.end_pan()
+        return False
+
+    def _show_context_menu(self, event) -> None:
+        popup = Gtk.Menu()
+        item = Gtk.MenuItem(label=self.translator.tr("menu"))
+        item.connect("activate", lambda *_: self._show_app_menu(event))
+        popup.append(item)
+        popup.attach_to_widget(self, None)
+        popup.show_all()
+        popup.popup_at_pointer(event)
+
+    def _show_app_menu(self, event) -> None:
+        model = Gio.Menu.new()
+        for label, entries in MENU_LAYOUT:
+            submenu = Gio.Menu.new()
+            append_menu_items(submenu, entries, None, self.translator.tr)
+            model.append_submenu(self.translator.tr(label), submenu)
+        popup = Gtk.Menu.new_from_model(model)
+        popup.attach_to_widget(self, None)
+        popup.show_all()
+        popup.popup_at_pointer(event)
+
+    def _on_key_press(self, _widget, event) -> bool:
+        window = self.get_window()
+        if (
+            event.keyval == Gdk.KEY_Escape
+            and window is not None
+            and window.get_state() & Gdk.WindowState.FULLSCREEN
+        ):
+            self.unfullscreen()
+            self._status("Fullscreen off")
+            return True
         return False
 
     def _on_preview_scroll(self, widget, event) -> bool:
@@ -1219,6 +1272,17 @@ progressbar text {
         row = self.thumbnail_store.append((pixbuf, os.path.basename(image.source)))
         self.thumbnail_view.select_path(self.thumbnail_store.get_path(row))
         self.active_image = image
+
+    def _on_thumbnail_selected(self, view, _path=None) -> None:
+        selected = view.get_selected_items()
+        if not selected:
+            return
+        index = selected[0][0]
+        if index < len(self.current_images):
+            image = self.current_images[index]
+            self.active_image = image
+            self.preview.load(image.png_path)
+            self._status_image(image, self.translator.tr("Ready"))
 
     def _on_thumbnail_activated(self, _view, path) -> None:
         index = path[0]
@@ -2553,13 +2617,23 @@ progressbar text {
         )
 
     def _on_gamma_changed(self, _scale) -> None:
+        if self._gamma_timer is not None:
+            GLib.source_remove(self._gamma_timer)
+        self._gamma_timer = GLib.timeout_add(800, self._apply_gamma_now)
+
+    def _apply_gamma_now(self) -> bool:
+        self._gamma_timer = None
         widget = self.histogram_widget
         self._on_stretch_change(widget.low, widget.high)
+        return False
 
     def _on_stretch_preview_ready(self, image: WorkingImage, view_state: dict, low: float, high: float) -> None:
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
-        self._log("Display stretch applied: low %.0f, high %.0f (TIFF untouched)" % (low, high))
+        self._log(
+            "Display stretch applied: low %.0f, high %.0f, gamma %.2f (TIFF untouched)"
+            % (low, high, self.gamma_scale.get_value())
+        )
         self._status_image(image, "%s %.0f-%.0f (%s)" % (self.translator.tr("Display stretch"), low, high, self.translator.tr("view unchanged")))
 
     def _on_panel_closed(self, panel) -> None:
@@ -2590,14 +2664,14 @@ progressbar text {
             self._stop_progress()
         self.app.update_action_sensitivity()
 
-    def action_toggle_maximize(self) -> None:
+    def action_fullscreen(self) -> None:
         window = self.get_window()
-        if window is not None and window.get_state() & Gdk.WindowState.MAXIMIZED:
-            self.unmaximize()
-            self._status("Window restored")
+        if window is not None and window.get_state() & Gdk.WindowState.FULLSCREEN:
+            self.unfullscreen()
+            self._status("Fullscreen off")
         else:
-            self.maximize()
-            self._status("Window maximized")
+            self.fullscreen()
+            self._status("Fullscreen: ESC to exit, right-click for menu")
 
     def action_toggle_histogram(self) -> None:
         if self.histogram_panel.get_visible():
@@ -2619,12 +2693,18 @@ progressbar text {
             self.current_paths.pop()
         if self.current_images:
             self.current_images.pop()
+        last = None
+        for row in self.thumbnail_store:
+            last = row.iter
+        if last is not None:
+            self.thumbnail_store.remove(last)
         self.preview.clear()
         self._status(self.translator.tr("Closed active view"))
 
     def action_close_all(self) -> None:
         self.current_paths.clear()
         self.current_images.clear()
+        self.thumbnail_store.clear()
         self.preview.clear()
         self._status(self.translator.tr("All views closed"))
 
@@ -3035,6 +3115,10 @@ progressbar text {
         )
         font_size = Gtk.SpinButton.new_with_range(7, 18, 1)
         font_size.set_value(int(self.settings.get("font_size", 9)))
+        show_thumbnails = Gtk.CheckButton(label="Show thumbnail strip")
+        show_thumbnails.set_active(bool(self.settings.get("show_thumbnails", False)))
+        show_resources = Gtk.CheckButton(label="Show CPU / RAM indicators")
+        show_resources.set_active(bool(self.settings.get("show_resources", True)))
 
         from ..app import DEFAULT_SHORTCUTS
 
@@ -3045,6 +3129,8 @@ progressbar text {
             ("Theme", theme),
             ("Accent colour", accent),
             ("Application font size", font_size),
+            ("", show_thumbnails),
+            ("", show_resources),
         ]
         for action, default in DEFAULT_SHORTCUTS.items():
             entry = Gtk.Entry()
@@ -3064,6 +3150,8 @@ progressbar text {
             self.settings.set("theme", theme.get_active_text())
             self.settings.set("accent_color", accent.get_active_text() or "green")
             self.settings.set("font_size", int(font_size.get_value()))
+            self.settings.set("show_thumbnails", show_thumbnails.get_active())
+            self.settings.set("show_resources", show_resources.get_active())
             self.settings.set(
                 "shortcuts",
                 {
@@ -3078,6 +3166,7 @@ progressbar text {
             self._apply_theme()
             self._apply_font()
             self._apply_progress_css()
+            self._apply_panel_visibility()
             self._status(self.translator.tr("Preferences saved"))
         dialog.destroy()
 

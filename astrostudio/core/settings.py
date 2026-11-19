@@ -12,6 +12,8 @@ DEFAULTS: Dict[str, Any] = {
     "threads": 0,
     "font_size": 9,
     "accent_color": "green",
+    "show_thumbnails": False,
+    "show_resources": True,
     "binary_overrides": {},
     "scratch_dir": "",
     "cache_dir": "",

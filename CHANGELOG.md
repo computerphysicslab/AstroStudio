@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.32 — 2026-11-19
+
+- Gamma slider is debounced (one CLI preview job per 800ms) and logs the applied value.
+- Thumbnails respond to single click, clear when images are closed, and are hidden by default; Frontend Settings toggles them.
+- Replaced Maximize toolbar action with FullScreen (ESC exits). Right-click canvas shows a floating `menu` entry that opens the full application menu.
+- Open Recent moved directly below Open in the File menu.
+- Frontend Settings can hide CPU/RAM indicators; RAM linear bar removed, circle only.
+
 ## 0.2.31 — 2026-11-19
 
 - Root cause of non-maximizable window fixed: right dock was forcing a 868px minimum, taller than the 768px screen. Dock is now scrollable with reduced panel minimums (window minimum 258px).

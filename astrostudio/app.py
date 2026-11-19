@@ -41,7 +41,7 @@ def iter_menu_actions():
 
 ACTION_NAMES = frozenset(
     set(iter_menu_actions())
-    | {"cancel"}
+    | {"cancel", "fullscreen"}
     | {"open-recent-%d" % index for index in range(10)}
 )
 
@@ -154,6 +154,7 @@ class AstroStudioApplication(Gtk.Application):
         if self.window is None:
             self.window = MainWindow(self, self.registry, self.scratch, self.engine)
             self.window.show_all()
+            self.window._apply_panel_visibility()
             self.window.validate_geometry()
             self.update_action_sensitivity()
             GLib.idle_add(self._discover_backends)

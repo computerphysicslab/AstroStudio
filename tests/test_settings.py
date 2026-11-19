@@ -66,3 +66,9 @@ def test_corrupt_settings_file_falls_back_to_defaults(tmp_path):
     settings = SettingsManager(str(path))
     assert settings.get("language") == "en"
     assert settings.is_backend_enabled("ExifTool")
+
+
+def test_optional_panel_defaults():
+    settings = SettingsManager("/tmp/astro-studio-nonexistent-panels.json")
+    assert settings.get("show_thumbnails") is False
+    assert settings.get("show_resources") is True

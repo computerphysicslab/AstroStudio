@@ -57,8 +57,9 @@ def cpu_delta(previous, current) -> float:
 class MeterWidget(Gtk.DrawingArea):
     """Circular gauge, 60-sample history sparkline and optional core bars."""
 
-    def __init__(self, title: str) -> None:
+    def __init__(self, title: str, show_bar: bool = True) -> None:
         super().__init__()
+        self.show_bar = show_bar
         self.title = title
         self.value = 0.0
         self.history = []
@@ -104,12 +105,13 @@ class MeterWidget(Gtk.DrawingArea):
         cr.show_text(self.title)
 
         bar_x, bar_y, bar_w, bar_h = 64, 22, max(10, width - 74), 12
-        cr.set_source_rgb(0.22, 0.22, 0.26)
-        cr.rectangle(bar_x, bar_y, bar_w, bar_h)
-        cr.fill()
-        cr.set_source_rgb(*self._colour(self.value))
-        cr.rectangle(bar_x, bar_y, bar_w * self.value / 100.0, bar_h)
-        cr.fill()
+        if self.show_bar:
+            cr.set_source_rgb(0.22, 0.22, 0.26)
+            cr.rectangle(bar_x, bar_y, bar_w, bar_h)
+            cr.fill()
+            cr.set_source_rgb(*self._colour(self.value))
+            cr.rectangle(bar_x, bar_y, bar_w * self.value / 100.0, bar_h)
+            cr.fill()
 
         if self.per_core:
             core_y = 40
@@ -132,7 +134,7 @@ class ResourceMonitor(Gtk.Box):
     def __init__(self, interval_ms: int = 1000) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.cpu_meter = MeterWidget("CPU")
-        self.ram_meter = MeterWidget("RAM")
+        self.ram_meter = MeterWidget("RAM", show_bar=False)
         self.pack_start(self.cpu_meter, False, False, 0)
         self.pack_start(self.ram_meter, False, False, 0)
         self._previous_cpu = self._read_proc_cpu()

@@ -734,3 +734,21 @@ to force a UI redraw.
   (`ASTROSTUDIO_WM_TEST=1`) that launches the app in a private D-Bus session and verifies
   min size and maximization.
 * Version bumped to `0.2.31`.
+
+---
+
+## 49. v0.2.32 — Gamma, Thumbnails and Fullscreen UX
+
+* Gamma changes are debounced with an 800ms timer and log the applied low/high/gamma
+  values; the CLI preview command was verified (`-evaluate Pow 2.000`).
+* Thumbnail strip now switches images on single click (`selection-changed`), is cleared by
+  Close/Close All, and is hidden by default via `show_thumbnails`. CPU/RAM panel has a
+  matching `show_resources` toggle. Both are applied **after** `show_all()` in
+  `do_activate()` so GTK does not override visibility.
+* The toolbar Maximize button was ineffective because `toggle-maximize` was never added to
+  `app.ACTION_NAMES`. Replaced by a registered `fullscreen` action; ESC exits fullscreen,
+  and right-click on the canvas opens a popup with a `menu` entry that shows the same
+  `Gio.Menu` model as the application menu bar.
+* Open Recent is inserted immediately after Open in the File menu.
+* RAM meter keeps only the circular gauge; CPU keeps gauge, linear bar and per-core bars.
+* Version bumped to `0.2.32`.

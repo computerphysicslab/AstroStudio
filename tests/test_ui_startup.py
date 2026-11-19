@@ -6,7 +6,7 @@ import pytest
 
 from gi.repository import Gtk
 
-from astrostudio.app import AstroStudioApplication
+from astrostudio.app import ACTION_NAMES, AstroStudioApplication
 from astrostudio.ui import MainWindow
 from astrostudio.ui.main_window import geometry_warning
 
@@ -27,10 +27,16 @@ def test_main_window_builds_with_small_minimum_size():
     assert window.job_panel is not None
     assert window.backends_panel is not None
     assert window.histogram_panel is not None
+    assert "fullscreen" in ACTION_NAMES
+    assert window.thumbnail_scroll.get_visible() is False
+    assert window.resource_monitor.get_visible() is True
     window.show_all()
     minimum, _natural = window.get_preferred_size()
     assert isinstance(window.right_scroll, Gtk.ScrolledWindow)
     assert minimum.height < 400
     assert geometry_warning(minimum.height, 768) is None
     window.validate_geometry()
+    file_menu = window.menu_bar.get_children()[0].get_submenu()
+    labels = [item.get_label() for item in file_menu.get_children()]
+    assert labels[:2] == ["Open", "Open Recent"]
     window.destroy()
