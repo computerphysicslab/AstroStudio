@@ -8,6 +8,16 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.3 — 2026-11-19
+
+- Histogram is now a dock panel between CPU/RAM and Terminal; CLI output is bounded to
+  256 colours on a 256px thumbnail, eliminating the multi-minute load.
+- Two draggable cut-point handles on the histogram set low/high clipping via ImageMagick
+  `-level`, regenerating only the preview PNG; the working TIFF stays untouched.
+- CPU meter now exposes per-core saturation (`CPU 15% (core 98%)`) to explain single-core
+  CLI loads; trough is dark, fill green below 75% and red at/above it (same for RAM).
+- New export formats: PNG 16-bit, TIFF 32-bit float, FITS 32-bit float and flattened PSD.
+
 ## 0.2.2 — 2026-11-19
 
 - CPU/RAM bars turn green below 75% and red at/above 75%.

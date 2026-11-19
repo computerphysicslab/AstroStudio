@@ -48,6 +48,30 @@ EXPORT_FORMATS: Tuple[ExportFormat, ...] = (
         "FITS header support via the external backend",
     ),
     ExportFormat(
+        "tiff32f",
+        "TIFF 32-bit float - scientific",
+        "tif",
+        "Scientific",
+        ("-define", "quantum:format=floating-point", "-depth", "32"),
+        "Floating-point data for analysis pipelines",
+    ),
+    ExportFormat(
+        "fits32f",
+        "FITS 32-bit float - scientific",
+        "fits",
+        "Scientific",
+        ("-define", "quantum:format=floating-point", "-depth", "32"),
+        "Floating-point FITS for photometry",
+    ),
+    ExportFormat(
+        "png16",
+        "PNG 16-bit - lossless interchange",
+        "png",
+        "Scientific",
+        ("-define", "png:bit-depth=16", "-depth", "16"),
+        "16-bit lossless PNG for external tools",
+    ),
+    ExportFormat(
         "png8",
         "PNG 8-bit - display preview",
         "png",
@@ -78,6 +102,14 @@ EXPORT_FORMATS: Tuple[ExportFormat, ...] = (
         "Display",
         ("-depth", "8"),
         "Uncompressed display format",
+    ),
+    ExportFormat(
+        "psd8",
+        "PSD 8-bit - flattened layers",
+        "psd",
+        "Display",
+        ("-depth", "8"),
+        "Photoshop document; ImageMagick writes a flattened composite",
     ),
 )
 

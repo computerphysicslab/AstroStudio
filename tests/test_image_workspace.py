@@ -94,6 +94,21 @@ def test_fits_source_combines_hdus_and_uses_display_stretch(tmp_path, monkeypatc
     assert "0.45" in engine.calls[1][1]
 
 
+def test_update_preview_regenerates_png_with_stretch_points(tmp_path, monkeypatch):
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    image = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+    image.stretch_points = (25.5, 204.0)
+
+    workspace.update_preview(image, lambda *_: None, lambda message: pytest.fail(message))
+
+    assert "-level" in engine.calls[-1][1]
+    assert "10.0%,80.0%" in engine.calls[-1][1]
+    assert "-resize" not in engine.calls[-1][1]
+
+
 def test_undo_and_redo_restore_both_artifacts(tmp_path, monkeypatch):
     engine = FakeEngine()
     workspace = _workspace(tmp_path, monkeypatch, engine)

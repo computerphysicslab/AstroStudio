@@ -14,6 +14,10 @@ def test_catalog_covers_scientific_and_display_formats():
         "jpg90",
         "jpg95",
         "bmp8",
+        "png16",
+        "tiff32f",
+        "fits32f",
+        "psd8",
     } <= keys
 
 

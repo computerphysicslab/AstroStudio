@@ -39,6 +39,10 @@ def parse_proc_cpu(line: str):
 
 
 _METER_CSS = b"""
+levelbar.astro-meter trough {
+    background-color: #1c1c1c;
+    border: 1px solid #3a3a3a;
+}
 levelbar.astro-meter block {
     background-color: #2ecc71;
 }
@@ -63,6 +67,13 @@ def apply_meter_css() -> None:
         Gtk.StyleContext.add_provider_for_screen(
             screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+
+
+def cpu_reading(overall: float, per_core: list):
+    """Return the bar value and label, exposing per-core saturation."""
+    peak = max(per_core) if per_core else overall
+    value = max(float(overall), float(peak))
+    return value, "CPU %.0f%% (core %.0f%%)" % (overall, peak)
 
 
 def cpu_delta(previous, current) -> float:
@@ -121,11 +132,12 @@ class ResourceMonitor(Gtk.Box):
 
     def _update(self) -> bool:
         if psutil is not None:
-            cpu = psutil.cpu_percent(interval=None)
+            overall = psutil.cpu_percent(interval=None)
+            cpu, cpu_text = cpu_reading(overall, psutil.cpu_percent(percpu=True))
             ram = psutil.virtual_memory().percent
         else:
             current = self._read_proc_cpu()
-            cpu = cpu_delta(self._previous_cpu, current)
+            cpu, cpu_text = cpu_reading(cpu_delta(self._previous_cpu, current), [])
             self._previous_cpu = current
             ram = self._read_proc_memory()
         cpu = max(0.0, min(100.0, cpu))
@@ -140,7 +152,7 @@ class ResourceMonitor(Gtk.Box):
             else:
                 context.remove_class("astro-meter-high")
                 context.add_class("astro-meter-ok")
-        self.cpu_label.set_text("CPU %.0f%%" % cpu)
+        self.cpu_label.set_text(cpu_text)
         self.ram_label.set_text("RAM %.0f%%" % ram)
         return True
 

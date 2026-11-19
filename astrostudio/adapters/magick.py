@@ -50,11 +50,23 @@ class ImageMagickAdapter(CliAdapter):
         return [self.binary, source, "-depth", "16", tiff_path]
 
     def build_preview_argv(
-        self, tiff_path: str, png_path: str, display_stretch: bool = False
+        self,
+        tiff_path: str,
+        png_path: str,
+        display_stretch: bool = False,
+        stretch_points: tuple = None,
     ) -> Sequence[str]:
         argv = [self.binary, tiff_path]
         if display_stretch:
             argv.extend(("-evaluate", "Pow", "0.45"))
+        if stretch_points:
+            low, high = stretch_points
+            argv.extend(
+                (
+                    "-level",
+                    "%.1f%%,%.1f%%" % (low / 255.0 * 100.0, high / 255.0 * 100.0),
+                )
+            )
         argv.extend(("-depth", "8", png_path))
         return argv
 

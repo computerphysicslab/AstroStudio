@@ -37,6 +37,7 @@ class WorkingImage:
     tiff_path: str
     png_path: str
     display_stretch: bool = False
+    stretch_points: tuple = None
 
 
 class ImageWorkspace:
@@ -117,7 +118,10 @@ class ImageWorkspace:
         on_log: Optional[LogCallback],
     ) -> None:
         argv = self.adapter.build_preview_argv(
-            image.tiff_path, image.png_path, image.display_stretch
+            image.tiff_path,
+            image.png_path,
+            image.display_stretch,
+            image.stretch_points,
         )
         if on_log:
             on_log("Preview PNG from TIFF: %s" % " ".join(argv))
@@ -144,6 +148,16 @@ class ImageWorkspace:
         if on_log:
             on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         on_ready(image)
+
+    def update_preview(
+        self,
+        image: WorkingImage,
+        on_ready: ReadyCallback,
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback] = None,
+    ) -> None:
+        """Regenerate only the display PNG, keeping the high-depth TIFF intact."""
+        self._make_preview(image, on_ready, on_error, on_log)
 
     def transform(
         self,

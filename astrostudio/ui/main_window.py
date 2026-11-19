@@ -25,6 +25,7 @@ from ..core import (  # noqa: E402
     find_output,
     unique_export_path,
     find_plate_solution,
+    histogram_argv,
     parse_histogram_text,
     summarize_solution,
 )
@@ -199,6 +200,8 @@ IMAGE_EXTENSIONS = (
     "arw",
     "dng",
     "xisf",
+    "psd",
+    "psb",
 )
 
 TOOL_ITEMS = (
@@ -348,11 +351,17 @@ class MainWindow(Gtk.ApplicationWindow):
             "Metadata (ExifTool, read-only)", self._build_metadata_content()
         )
         self.metadata_panel.set_no_show_all(True)
+        self.histogram_widget = HistogramWidget()
+        self.histogram_widget.on_change = self._on_stretch_change
+        self.histogram_panel = self._panel_with_close(
+            "Histogram (CLI data, click handles to stretch)", self.histogram_widget
+        )
         self.terminal_panel = self._panel_with_close(
             "Terminal Drawer", self._build_log_content()
         )
         right.pack_start(self.backends_panel, False, False, 0)
         right.pack_start(self.metadata_panel, False, False, 0)
+        right.pack_start(self.histogram_panel, False, False, 0)
         right.pack_start(self.terminal_panel, True, True, 0)
         paned.pack2(right, False, True)
         root.pack_start(paned, True, True, 0)
@@ -1123,6 +1132,8 @@ class MainWindow(Gtk.ApplicationWindow):
             self._show_error("ImageMagick is not installed; histograms are unavailable.")
             return
         image = self.current_images[-1]
+        self.histogram_panel.show()
+        self.histogram_widget.set_points(*(image.stretch_points or (0.0, 255.0)))
         self.histogram_pending = 2
         self.histogram_datasets = []
         self._busy_begin()
@@ -1131,7 +1142,7 @@ class MainWindow(Gtk.ApplicationWindow):
             ("preview", image.png_path, "Displayed PNG", (0.30, 0.65, 1.0)),
             ("working", image.tiff_path, "Working TIFF", (0.35, 0.85, 0.45)),
         ):
-            argv = [self._magick_adapter.binary, path, "-format", "%c", "histogram:info:-"]
+            argv = histogram_argv(self._magick_adapter.binary, path)
             self._log("CLI histogram-%s: %s" % (key, " ".join(argv)))
             self.job_counter += 1
             job_id = "histogram-%s-%d" % (key, self.job_counter)
@@ -1153,34 +1164,27 @@ class MainWindow(Gtk.ApplicationWindow):
         self.histogram_pending -= 1
         if self.histogram_pending == 0:
             self._busy_end()
-            self._show_histogram_window()
+            self.histogram_widget.set_datasets(self.histogram_datasets)
+            self._status("Histogram ready (drag the two handles to stretch)")
 
-    def _show_histogram_window(self) -> None:
-        if self.histogram_window is not None:
-            self.histogram_window.destroy()
-        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
-        window.set_title("Histogram - Astro Studio")
-        window.set_transient_for(self)
-        window.set_default_size(720, 360)
-        header = Gtk.HeaderBar()
-        header.set_show_close_button(False)
-        header.set_title("Histogram (CLI data, logarithmic count axis)")
-        close_button = Gtk.Button.new_from_icon_name(
-            "window-close-symbolic", Gtk.IconSize.BUTTON
+    def _on_stretch_change(self, low: float, high: float) -> None:
+        if not self.current_images:
+            return
+        image = self.current_images[-1]
+        image.stretch_points = (low, high)
+        view_state = self._capture_view_state()
+        self.workspace.update_preview(
+            image,
+            on_ready=lambda final: self._on_stretch_preview_ready(final, view_state, low, high),
+            on_error=self._on_workspace_error,
+            on_log=self._log,
         )
-        close_button.set_tooltip_text("Close histogram window")
-        close_button.connect("clicked", lambda *_: window.destroy())
-        header.pack_end(close_button)
-        window.set_titlebar(header)
-        chart = HistogramWidget()
-        chart.set_datasets(self.histogram_datasets)
-        window.add(chart)
-        window.connect("destroy", self._on_histogram_window_destroyed)
-        self.histogram_window = window
-        window.show_all()
 
-    def _on_histogram_window_destroyed(self, _widget) -> None:
-        self.histogram_window = None
+    def _on_stretch_preview_ready(self, image: WorkingImage, view_state: dict, low: float, high: float) -> None:
+        self.preview.load(image.png_path)
+        self._restore_view_state(view_state)
+        self._log("Display stretch applied: low %.0f, high %.0f (TIFF untouched)" % (low, high))
+        self._status_image(image, "Display stretch %.0f-%.0f (view unchanged)" % (low, high))
 
     def _on_panel_closed(self, panel) -> None:
         panel.hide()

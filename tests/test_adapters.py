@@ -83,6 +83,25 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "/tmp/job/working.tiff",
         "/tmp/job/next.tiff",
     ]
+    assert list(
+        adapter.build_preview_argv(
+            "/tmp/job/working.tiff",
+            "/tmp/job/preview.png",
+            display_stretch=True,
+            stretch_points=(25.5, 204.0),
+        )
+    ) == [
+        "convert",
+        "/tmp/job/working.tiff",
+        "-evaluate",
+        "Pow",
+        "0.45",
+        "-level",
+        "10.0%,80.0%",
+        "-depth",
+        "8",
+        "/tmp/job/preview.png",
+    ]
     assert adapter.build_export_argv("/tmp/job/working.tiff", "/tmp/out.tif") == [
         "convert",
         "/tmp/job/working.tiff",

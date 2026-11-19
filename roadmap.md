@@ -79,15 +79,16 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
 8. [ ] Crop / rotate / flip / mirror option dialogs with internally generated flags
        (v0.2.0).
-9. [x] Histogram phase 1: CLI-generated histogram text into a floating panel, logarithmic
-       Y axis, preview vs working-TIFF distributions; pixel line profile still pending
-       (v0.2.2).
+9. [x] Histogram phase 1: CLI-generated histogram text in a dock between CPU/RAM and
+       Terminal, logarithmic Y axis, preview vs working-TIFF distributions and two
+       clickable/draggable low/high cut-point handles that trigger a CLI `-level` preview
+       regeneration; pixel line profile still pending (v0.2.3).
 10. [ ] Localization of interface strings (EN/ES/DE/JA) (v0.2.0).
 11. [x] Small CPU/RAM level indicators using `psutil` with a `/proc` fallback, refreshed
        by `GLib.timeout_add()` in the right dock.
-12. [ ] Extended export compression presets for already-installed backends: PNG 8/16-bit,
-       JPEG quality + 4:4:4 subsampling, TIFF ZIP/LZW/PackBits/BigTIFF, FITS with the
-       floating-point compression caveat documented in Context (v0.2.0).
+12. [x] Initial extended export formats via ImageMagick: PNG 16-bit, TIFF 32-bit float,
+       FITS 32-bit float and flattened PSD. Remaining: JPEG 4:4:4 control, TIFF PackBits,
+       BigTIFF and FITS tile-compression adapters (v0.2.3).
 
 ### Medium difficulty
 

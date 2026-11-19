@@ -1,6 +1,21 @@
 """CLI histogram text parsing tests."""
 
-from astrostudio.core.histogram import parse_histogram_text
+from astrostudio.core.histogram import histogram_argv, parse_histogram_text
+
+
+def test_histogram_argv_limits_output_size():
+    argv = histogram_argv("convert", "big.tiff")
+    assert argv == [
+        "convert",
+        "big.tiff",
+        "-resize",
+        "256x256!",
+        "-colors",
+        "256",
+        "-format",
+        "%c",
+        "histogram:info:-",
+    ]
 
 
 def test_parse_histogram_text_aggregates_by_luminance():

@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (56 passed, 1 opt-in benchmark skipped; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (59 passed, 1 opt-in benchmark skipped; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -247,3 +247,13 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * `tests/benchmark_operations.py` (opt-in, max 10 MP) opens, filters and exports images, appending timed events to the persistent log. `scripts/analyze_operations.py` exports `operations.csv` and incrementally updates `estimates.json` with sufficient statistics per stage (`seconds = slope * megapixels + intercept`). Both were executed: 648 new log entries, 11 modelled stages.
 * `Estimator` feeds the GUI: before open/transform/export the status bar shows the estimated seconds and a full-width green `Gtk.ProgressBar` fills over that duration. Verified with a GUI smoke using an injected model.
 * Version is now `0.2.2` with the corresponding `CHANGELOG.md` entry.
+
+---
+
+## 20. v0.2.3 — Fast Histogram Dock, Stretch Handles and More Formats
+
+* The histogram is now a closable dock panel between CPU/RAM and Terminal instead of a floating window. `histogram_argv()` bounds the CLI work with `-resize 256x256! -colors 256`, so the chart appears in about a second instead of minutes even for large TIFFs; a real GUI smoke confirmed two datasets and a fast refresh.
+* `HistogramWidget` exposes two draggable cut-point handles. Releasing/dragging calls `_on_stretch_change()`, which stores the points on `WorkingImage` and asks `ImageWorkspace.update_preview()` to regenerate only `preview.png` with ImageMagick `-level low%,high%`. The 16-bit TIFF is never modified; zoom/pan are restored after the refresh.
+* CPU analysis: `psutil.cpu_percent(interval=None)` reports system-wide usage (one saturated core on an 8-core machine reads ~12–15%), which explained the apparently wrong indicator. The bar now uses `max(overall, peak core)` and the label reads `CPU <overall>% (core <peak>%)`, so single-threaded CLI load is visible. CSS sets a dark trough, green fill below 75% and red at/above, with the same rule for RAM.
+* Export catalog gained PNG 16-bit, TIFF 32-bit float, FITS 32-bit float and flattened PSD; the Open filter accepts PSD/PSB. XISF/SER/AVI remain roadmap items because no installed CLI covers them.
+* Version bumped to `0.2.3` with a `CHANGELOG.md` entry.
