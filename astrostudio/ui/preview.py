@@ -1,5 +1,7 @@
 """Read-only image preview surface for backend output files."""
 
+import math
+
 import gi
 
 gi.require_version("Gdk", "3.0")
@@ -34,6 +36,7 @@ class PreviewPane(Gtk.DrawingArea):
         self.selection_start = None
         self.selection_end = None
         self.selection = None
+        self.wcs_center = None
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -178,5 +181,17 @@ class PreviewPane(Gtk.DrawingArea):
             cr.set_source_rgb(0.20, 0.75, 1.0)
             cr.set_line_width(2)
             cr.rectangle(x, y, width, height)
+            cr.stroke()
+        if self.wcs_center is not None:
+            cx = offset_x + self.wcs_center[0] * scale
+            cy = offset_y + self.wcs_center[1] * scale
+            cr.set_source_rgb(1.0, 0.85, 0.2)
+            cr.set_line_width(1.5)
+            cr.arc(cx, cy, 12, 0, 2 * math.pi)
+            cr.stroke()
+            cr.move_to(cx - 18, cy)
+            cr.line_to(cx + 18, cy)
+            cr.move_to(cx, cy - 18)
+            cr.line_to(cx, cy + 18)
             cr.stroke()
         return False

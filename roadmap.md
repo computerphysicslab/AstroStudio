@@ -121,11 +121,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        and automatic catalog discovery (v0.2.15).
 8. [x] Gaia cache management with configurable nside, cache path and offline mode.
 9. [x] Session save/resume with image paths, stretch points and plate solutions.
-10. [ ] Multi-document tabs, thumbnail strip and before/after slider or difference map
-       via a delegated backend job (v0.2–v0.4).
-11. [ ] WCS/catalog overlay on the canvas once a plate solution exists (v0.4.0).
-12. [ ] RAW developers (RawTherapee/darktable/LibRaw), Hugin/enfuse and GIMP headless
-       actions (v0.5.0).
+10. [x] Thumbnail strip for open images and before/after difference map via ImageMagick.
+11. [x] WCS overlay marking the plate-solution reference pixel on the canvas.
+12. [x] Argv builders for RAW developers, Hugin, enfuse and GIMP with backend gating.
 13. [ ] Parameter suggestions/presets derived from image metadata and backend
        diagnostics (v0.5.0).
 14. [ ] Non-destructive markup annotations (arrows, circles, labels) burned in only at

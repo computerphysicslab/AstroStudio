@@ -607,3 +607,18 @@ to force a UI redraw.
 * Session save/resume persists open images, per-image stretch points, plate solutions
   and recent files; resuming reopens images and reapplies display stretches.
 * Roadmap medium-difficulty items 7–9 are complete. Version bumped to `0.2.22`.
+
+---
+
+## 40. v0.2.23 — Multi-document Strip, WCS Overlay and Optional Tools
+
+* A thumbnail strip below the canvas lists open images and switches the active preview;
+  View > Before / After runs ImageMagick `-compose difference -composite -auto-level`
+  against the first stored TIFF snapshot and displays the result in a movable window.
+* View > WCS Overlay draws a crosshair and circle at the plate solution's 0-based CRPIX
+  reference pixel. `overlay_center()` uses CRPIX directly; FITS sidecars add 1 for the
+  1-based FITS convention.
+* `ExternalToolAdapter` supplies argv for RawTherapee/Darktable/LibRaw, Hugin, enfuse and
+  GIMP. Menu entries are gated by backend availability; none of these binaries are
+  installed here, so no results are fabricated.
+* Roadmap medium-difficulty items 10–12 are complete. Version bumped to `0.2.23`.

@@ -30,3 +30,9 @@ def test_sidecar_written(tmp_path):
     path = write_wcs_sidecar(str(fits), SOLUTION)
     assert path.endswith("out.wcs.json")
     assert json.loads(open(path).read())["METHOD"] == "native"
+
+
+def test_overlay_center_is_zero_based():
+    from astrostudio.core.wcs import overlay_center
+
+    assert overlay_center(SOLUTION) == (0.0, 0.0)

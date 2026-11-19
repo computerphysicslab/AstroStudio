@@ -86,6 +86,23 @@ class ImageMagickAdapter(CliAdapter):
         argv.extend(("-depth", "8", png_path))
         return self._with_threads(argv)
 
+    def build_diff_argv(self, current_tiff: str, before_tiff: str, output_png: str) -> List[str]:
+        """Create a stretched difference map between two TIFF snapshots."""
+        return self._with_threads(
+            [
+                self.binary,
+                current_tiff,
+                before_tiff,
+                "-compose",
+                "difference",
+                "-composite",
+                "-auto-level",
+                "-depth",
+                "8",
+                output_png,
+            ]
+        )
+
     def build_batch_argv(
         self, inputs: Sequence[str], output_dir: str, extension: str
     ) -> List[str]:

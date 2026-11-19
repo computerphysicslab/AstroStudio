@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.23 — 2026-11-19
+
+- Thumbnail strip for multiple open images and before/after difference map via ImageMagick.
+- WCS overlay marking the plate-solution reference pixel on the canvas.
+- Argv builders for RAW developers, Hugin, enfuse and GIMP with backend gating.
+- Unit tests for the new adapters and WCS overlay conversion.
+
 ## 0.2.22 — 2026-11-19
 
 - Direct ASTAP and solve-field adapters with RA/Dec seeds, scale hints and blind-scan warnings.

@@ -3,7 +3,7 @@
 from .astrometry import find_output, find_plate_solution, summarize_solution
 from .backends import BackendRegistry, BackendSpec, BackendStatus
 from .bpm import validate_bpm_count
-from .wcs import wcs_cards, write_wcs_sidecar
+from .wcs import overlay_center, wcs_cards, write_wcs_sidecar
 from .calibration import discover_calibration
 from .command_builder import CommandBuilder
 from .operation_log import OperationLog
@@ -30,6 +30,7 @@ __all__ = [
     "BackendStatus",
     "validate_bpm_count",
     "wcs_cards",
+    "overlay_center",
     "write_wcs_sidecar",
     "CommandBuilder",
     "discover_calibration",

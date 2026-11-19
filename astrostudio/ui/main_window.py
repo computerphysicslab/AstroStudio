@@ -5,7 +5,7 @@ import os
 import shutil
 import time
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 import gi
 
@@ -20,6 +20,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 from ..adapters import (  # noqa: E402
     AstrometryAdapter,
     ExifToolAdapter,
+    ExternalToolAdapter,
     ImageMagickAdapter,
     SirilAdapter,
     SkyStackerAdapter,
@@ -40,6 +41,7 @@ from ..core import (  # noqa: E402
     gaia_flags,
     install_command,
     load_session,
+    overlay_center,
     package_for_binary,
     parse_histogram_text,
     parse_measurements,
@@ -108,6 +110,10 @@ MENU_LAYOUT = (
             ("Generate BPM (auto)...", "bpm-auto"),
             ("Siril Calibrate...", "siril-calibrate"),
             ("Siril Stack...", "siril-stack"),
+            ("Develop RAW...", "develop-raw"),
+            ("Hugin Panorama...", "panorama"),
+            ("Enfuse...", "enfuse"),
+            ("GIMP Script...", "gimp-script"),
             ("Detect Calibration Folders...", "detect-calibration"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
@@ -198,6 +204,8 @@ MENU_LAYOUT = (
             (None, None),
             ("Histogram", "histogram"),
             ("Frame Table...", "frame-table"),
+            ("Before / After...", "before-after"),
+            ("WCS Overlay", "wcs-overlay"),
             ("Pixel Line Profile", "line-profile"),
             ("Metadata Viewer", "metadata"),
             ("Toggle Backends Viewer", "toggle-backends"),
@@ -362,6 +370,7 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self.current_images: List[WorkingImage] = []
         self.current_paths = []
+        self.active_image = None
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
         self._export_source = None
         self.job_counter = 0
@@ -433,6 +442,16 @@ class MainWindow(Gtk.ApplicationWindow):
         self.preview_scroll.add(self.preview)
         frame.add(self.preview_scroll)
         left.pack_start(frame, True, True, 0)
+
+        self.thumbnail_store = Gtk.ListStore(GdkPixbuf.Pixbuf, str)
+        self.thumbnail_view = Gtk.IconView(model=self.thumbnail_store)
+        self.thumbnail_view.set_pixbuf_column(0)
+        self.thumbnail_view.set_text_column(1)
+        self.thumbnail_view.connect("item-activated", self._on_thumbnail_activated)
+        thumb_scroll = Gtk.ScrolledWindow()
+        thumb_scroll.set_size_request(-1, 96)
+        thumb_scroll.add(self.thumbnail_view)
+        left.pack_start(thumb_scroll, False, False, 0)
         paned.pack1(left, True, False)
 
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -1125,6 +1144,25 @@ progressbar text {
                 self._open_file(path)
         dialog.destroy()
 
+    def _add_thumbnail(self, image: WorkingImage) -> None:
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image.png_path, 80, 60)
+        except Exception:
+            return
+        if self.thumbnail_store.get_iter_first() is None:
+            self.thumbnail_store.clear()
+        row = self.thumbnail_store.append((pixbuf, os.path.basename(image.source)))
+        self.thumbnail_view.select_path(self.thumbnail_store.get_path(row))
+        self.active_image = image
+
+    def _on_thumbnail_activated(self, _view, path) -> None:
+        index = path[0]
+        if index < len(self.current_images):
+            image = self.current_images[index]
+            self.active_image = image
+            self.preview.load(image.png_path)
+            self._status_image(image, self.translator.tr("Ready"))
+
     def _remember_recent(self, path: str) -> None:
         recent = [item for item in self.settings.get("recent_images", []) if item != path]
         recent.insert(0, path)
@@ -1168,6 +1206,7 @@ progressbar text {
         self._busy_end()
         self._stop_progress()
         self.preview.load(image.png_path)
+        self._add_thumbnail(image)
         self._status_image(image, "%s: %s" % (self.translator.tr("Ready"), os.path.basename(image.source)))
         self._log(
             "Workspace ready: TIFF=%s | PNG=%s"
@@ -1792,6 +1831,58 @@ progressbar text {
     def _on_metadata_window_destroyed(self, _widget) -> None:
         self.metadata_window = None
 
+    def action_wcs_overlay(self) -> None:
+        if self.preview.wcs_center is not None:
+            self.preview.wcs_center = None
+            self.preview.queue_draw()
+            self._status("WCS overlay: off")
+            return
+        image = self.active_image or (self.current_images[-1] if self.current_images else None)
+        if image is None:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        path = self.plate_solutions.get(image.source)
+        if not path or not os.path.isfile(path):
+            self._log("No plate solution for this image")
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                center = overlay_center(json.load(handle))
+        except (OSError, ValueError, KeyError):
+            self._log("Invalid plate solution")
+            return
+        self.preview.wcs_center = center
+        self.preview.queue_draw()
+        self._status("WCS overlay: center at %.0f, %.0f" % center)
+
+    def action_before_after(self) -> None:
+        image = self.active_image or (self.current_images[-1] if self.current_images else None)
+        if image is None:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        before = os.path.join(image.directory, "snapshot_001.tiff")
+        if not os.path.isfile(before):
+            self._log("No earlier snapshot available for before/after comparison")
+            return
+        output = os.path.join(image.directory, "before_after.png")
+        argv = self._magick_adapter.build_diff_argv(image.tiff_path, before, output)
+        self._log("CLI before/after: %s" % " ".join(argv))
+        self._busy_begin()
+        self.engine.run(
+            "before-after",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_before_after_done(result, output),
+        )
+
+    def _on_before_after_done(self, result, output: str) -> None:
+        self._busy_end()
+        if result.ok:
+            self._show_image("Before / After", output)
+        else:
+            self._log("Before/after failed: %s" % (result.error or result.stderr))
+            self._show_error("Before/after comparison failed")
+
     def action_frame_table(self) -> None:
         window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
         window.set_title(self.translator.tr("Frame Table"))
@@ -1892,6 +1983,59 @@ progressbar text {
         path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
         dialog.destroy()
         return path or ""
+
+    def _run_external_pipeline(self, label: str, binaries: Sequence[str], builder) -> None:
+        image = self.active_image or (self.current_images[-1] if self.current_images else None)
+        if image is None:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        binary = next((name for name in binaries if shutil.which(name)), None)
+        if binary is None:
+            self._show_error("%s backend is not installed" % label)
+            return
+        adapter = ExternalToolAdapter(binary)
+        output_dir = self.scratch.job_dir("%s-%d" % (label, self.job_counter))
+        self.job_counter += 1
+        output = os.path.join(output_dir, "result.tiff")
+        argv = builder(adapter, image.source, output)
+        self._log("CLI %s: %s" % (label, " ".join(argv)))
+        self._busy_begin()
+        self.engine.run(
+            "%s-%d" % (label, self.job_counter),
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_siril_done(label, result),
+        )
+
+    def action_develop_raw(self) -> None:
+        self._run_external_pipeline(
+            "RAW",
+            ("rawtherapee-cli", "darktable-cli", "dcraw_emu"),
+            lambda adapter, source, output: adapter.develop_raw(source, output),
+        )
+
+    def action_panorama(self) -> None:
+        self._run_external_pipeline(
+            "Hugin",
+            ("pto_gen",),
+            lambda adapter, source, output: adapter.panorama([source], output),
+        )
+
+    def action_enfuse(self) -> None:
+        self._run_external_pipeline(
+            "Enfuse",
+            ("enfuse",),
+            lambda adapter, source, output: adapter.fuse([source], output),
+        )
+
+    def action_gimp_script(self) -> None:
+        self._run_external_pipeline(
+            "GIMP",
+            ("gimp",),
+            lambda adapter, source, output: adapter.gimp_script(
+                "(gimp-file-load RUN-NONINTERACTIVE \"%s\" \"%s\")" % (source, source)
+            ),
+        )
 
     def _run_siril_script(self, script: str, label: str) -> None:
         adapter = self.adapters["Siril"]

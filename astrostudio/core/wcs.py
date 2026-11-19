@@ -29,6 +29,12 @@ def wcs_cards(solution: Dict):
     }
 
 
+def overlay_center(solution: Dict):
+    """Return canvas pixel coordinates from the plate solution's 0-based CRPIX."""
+    wcs = solution["WCS"]
+    return float(wcs["CRPIX1"]), float(wcs["CRPIX2"])
+
+
 def write_wcs_sidecar(fits_path: str, solution: Dict) -> str:
     path = os.path.splitext(fits_path)[0] + ".wcs.json"
     with open(path, "w", encoding="utf-8") as handle:
