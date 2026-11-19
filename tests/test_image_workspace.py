@@ -94,6 +94,34 @@ def test_fits_source_combines_hdus_and_uses_display_stretch(tmp_path, monkeypatc
     assert "0.45" in engine.calls[1][1]
 
 
+def test_cr2_prepare_uses_skystacker_float_tiff(tmp_path, monkeypatch):
+    class RawEngine(FakeEngine):
+        def run(self, job_id, argv, on_log=None, on_done=None):
+            if "raw-import" in job_id:
+                self.calls.append((job_id, list(argv)))
+                output_dir = argv[argv.index("--output") + 1]
+                produced = Path(output_dir) / "TIFF" / "stacked_sum.tif"
+                produced.parent.mkdir(parents=True, exist_ok=True)
+                produced.write_bytes(b"float-tiff")
+                on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=0))
+                return
+            super().run(job_id, argv, on_log, on_done)
+
+    engine = RawEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    source = tmp_path / "light.CR2"
+    source.write_bytes(b"cr2")
+
+    ready = []
+    image = workspace.prepare(str(source), ready.append, lambda message: pytest.fail(message))
+
+    assert ready == [image]
+    assert image.display_stretch
+    assert Path(image.tiff_path).read_bytes() == b"float-tiff"
+    assert any("raw-import" in call[0] for call in engine.calls)
+    assert "-evaluate" in engine.calls[-1][1]
+
+
 def test_update_preview_regenerates_png_with_stretch_points(tmp_path, monkeypatch):
     engine = FakeEngine()
     workspace = _workspace(tmp_path, monkeypatch, engine)

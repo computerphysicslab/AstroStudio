@@ -12,6 +12,23 @@ from astrostudio.core.astrometry import (
 from astrostudio.core.plate_solution import load_solution
 
 
+def test_cr2_raw_import_argv_uses_skystacker_native_decoder():
+    argv = SkyStackerAdapter().build_raw_import_argv("/tmp/in", "/tmp/out")
+    assert argv == [
+        "skystacker",
+        "/tmp/in",
+        "--output",
+        "/tmp/out",
+        "--overwrite",
+        "--tiff",
+        "--no-postprocess",
+        "--no-register",
+        "--workers",
+        "2",
+        "--no-donation",
+    ]
+
+
 def test_plate_solve_argv_uses_documented_image_op():
     argv = SkyStackerAdapter().build_plate_solve_argv(
         "/data/light.png",

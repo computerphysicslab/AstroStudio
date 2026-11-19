@@ -93,6 +93,28 @@ class ImageWorkspace:
             display_stretch=display_stretch,
         )
         self.images[key] = image
+
+        if source.lower().endswith(".cr2"):
+            from ..adapters.skystacker import SkyStackerAdapter
+
+            raw_adapter = SkyStackerAdapter()
+            raw_input = os.path.join(directory, "raw_input")
+            raw_output = os.path.join(directory, "raw_stack")
+            os.makedirs(raw_input, exist_ok=True)
+            shutil.copy2(source, os.path.join(raw_input, os.path.basename(source)))
+            argv = raw_adapter.build_raw_import_argv(raw_input, raw_output)
+            if on_log:
+                on_log("CR2 native decode: %s" % " ".join(argv))
+            self.engine.run(
+                key + "-raw-import",
+                argv,
+                on_log=on_log,
+                on_done=lambda result: self._on_raw_import(
+                    result, image, raw_output, on_ready, on_error, on_log
+                ),
+            )
+            return image
+
         argv = self.adapter.build_import_argv(source, image.tiff_path)
         if on_log:
             on_log("Import to 16-bit TIFF: %s" % " ".join(argv))
@@ -119,6 +141,33 @@ class ImageWorkspace:
             return
         if on_log:
             on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
+        self._make_preview(image, on_ready, on_error, on_log)
+
+    def _on_raw_import(
+        self,
+        result: JobResult,
+        image: WorkingImage,
+        output_dir: str,
+        on_ready: ReadyCallback,
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback],
+    ) -> None:
+        if not result.ok:
+            self._fail("CR2 decode failed: %s" % (result.error or result.stderr), on_error, on_log)
+            return
+        produced = os.path.join(output_dir, "TIFF", "stacked_sum.tif")
+        if not os.path.isfile(produced):
+            for root, _dirs, files in os.walk(output_dir):
+                for name in sorted(files):
+                    if name.lower().endswith((".tif", ".tiff")):
+                        produced = os.path.join(root, name)
+                        break
+        if not os.path.isfile(produced):
+            self._fail("CR2 decode produced no TIFF", on_error, on_log)
+            return
+        shutil.copyfile(produced, image.tiff_path)
+        if on_log:
+            on_log("CLI %s exit %d; float TIFF ready" % (result.job_id, result.exit_code))
         self._make_preview(image, on_ready, on_error, on_log)
 
     def _make_preview(

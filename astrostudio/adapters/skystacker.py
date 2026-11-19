@@ -15,7 +15,21 @@ class SkyStackerAdapter(CliAdapter):
     name = "SkyStacker"
     binary = "skystacker"
     description = "Plate solving, layered Gaia SVG maps and HiPS survey cutouts"
-    input_formats = ("jpg", "jpeg", "png", "fits", "fit", "tif", "tiff")
+    input_formats = (
+        "jpg",
+        "jpeg",
+        "png",
+        "fits",
+        "fit",
+        "tif",
+        "tiff",
+        "cr2",
+        "cr3",
+        "ser",
+        "pgm",
+        "ppm",
+        "xisf",
+    )
 
     def __init__(self) -> None:
         super().__init__(CommandBuilder(self.binary))
@@ -96,6 +110,23 @@ class SkyStackerAdapter(CliAdapter):
             )
         )
         return argv
+
+    @staticmethod
+    def build_raw_import_argv(source_dir: str, output_dir: str) -> List[str]:
+        """Stack a single CR2 into a 32-bit float TIFF using the native decoder."""
+        return [
+            "skystacker",
+            source_dir,
+            "--output",
+            output_dir,
+            "--overwrite",
+            "--tiff",
+            "--no-postprocess",
+            "--no-register",
+            "--workers",
+            "2",
+            "--no-donation",
+        ]
 
     def build_survey_cutout_argv(
         self,

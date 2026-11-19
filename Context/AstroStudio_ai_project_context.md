@@ -416,3 +416,19 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   270), `.f32raw/.f64raw`, OpenEXR/PFM/RGBE, Bayer dumps, extended camera RAW suffixes,
   planetary MP4/MOV and WebP/JXL/JPEG2000.
 * Version bumped to `0.2.11` with a `CHANGELOG.md` entry.
+
+---
+
+## 29. v0.2.12 — Canon CR2 Input via SkyStacker
+
+* SkyStacker docs confirm native pure-Go CR2 decoding and accepted inputs `jpg, jpeg, png,
+  cr2, cr3, fits, fit, ser, pgm, ppm, xisf`. Direct CLI verification on a real 10MP CR2
+  produced `TIFF/stacked_sum.tif` (3944x2622, 32-bit float RGB) with
+  `--tiff --no-postprocess --no-register --overwrite`.
+* `ImageWorkspace.prepare()` now special-cases `.cr2`: copies the original into a scratch
+  input directory, runs `SkyStackerAdapter.build_raw_import_argv()`, copies the produced
+  float TIFF into `working.tiff` and regenerates the PNG preview with ImageMagick. The
+  original file is never modified. `MainWindow._open_file()` requires SkyStacker for CR2.
+* CR2 remains a high-depth source, so `display_stretch=True` applies to its preview.
+  Unit tests cover the argv shape and the full prepare path with a simulated raw engine.
+* Version bumped to `0.2.12` with a `CHANGELOG.md` entry; roadmap marks CR2 supported.

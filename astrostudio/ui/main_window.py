@@ -942,6 +942,9 @@ progressbar text {
         if not self.registry.available("ImageMagick"):
             self._log("Backend unavailable: ImageMagick is required for the TIFF workspace")
             return
+        if path.lower().endswith(".cr2") and not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is required to decode Canon CR2 files.")
+            return
         self.current_paths.append(path)
         self.operation_log.record("open_requested", source=path)
         self._busy_begin()

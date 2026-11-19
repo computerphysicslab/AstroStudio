@@ -208,7 +208,8 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 | FITS tile compression `.fz`, GZIP_2 | planned | Needs `fpack`/`funpack` adapter (medium) |
 | TIFF / BigTIFF | supported / planned | ZIP/LZW exported; BigTIFF needs `-define tiff:bigtiff` |
 | XISF `.xisf` | planned | No installed CLI; research external reader/writer (high) |
-| RAW `.cr2/.cr3/.nef/.arw/.raf/.orf/.rw2` | partially supported | Import via ImageMagick; RAW developers pending (medium) |
+| RAW `.cr2` | supported | SkyStacker native decoder → 32-bit float TIFF workspace |
+| RAW `.cr3/.nef/.arw/.raf/.orf/.rw2` | partially supported | Import via ImageMagick; RAW developers pending (medium) |
 | DNG `.dng` | planned | RawTherapee/LibRaw adapter with linear vs Bayer warning |
 | SER `.ser` | planned | Siril/ffmpeg for 8/16-bit uncompressed sequences |
 | AVI `.avi` | planned | ffmpeg, uncompressed/lossless only |
