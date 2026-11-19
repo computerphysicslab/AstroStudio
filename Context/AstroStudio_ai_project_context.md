@@ -149,7 +149,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 ## 10. View-Only Scale and Dialog-Driven Parameters
 
 * The Parameter Inspector was removed. Users never type CLI flags: Processing > Resize Image asks for a percentage, Processing > Sharpen offers light/medium/strong presets, and Save As asks for the export format. The GUI maps those choices to `-resize`, `-unsharp` and format flags before spawning the backend.
-* Processing > Precise Scale is a view-only submenu: 10%, 25%, 50%, 75%, 100%, 150%, 200%, 400%, 1000%, 1:1 (one screen pixel per image pixel) and Fit to Window. Double-clicking the preview (or the fit toolbar button) performs Fit to Window. These actions only change `PreviewPane` display state.
+* Processing > Resize Image is a CLI-action submenu: 10%, 25%, 50%, 75%, 100%, 150%, 200%, 400%, 1000% plus Custom Scale; each resizes the working TIFF and regenerates the preview. Double-clicking the preview (or the fit toolbar button) performs Fit to Window as a view-only action.
 * Save As / Export asks for format first, then destination, and writes from the current working TIFF; it no longer performs a hidden transform. A cancelled dialog is reported in the log/status instead of failing silently.
 * Verified with a GUI smoke: zoom levels apply, double-click restores fit, Save As writes a TIFF from the working TIFF, and 29 tests pass.
 
@@ -295,3 +295,23 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   registered and recommended for PSD.
 * Canonical version line at the top of this document now tracks the current release
   rather than the original v0.1.0 baseline.
+
+---
+
+## 23. v0.2.6 — Resize Submenu and Trustworthy Estimates
+
+* Processing > Resize Image now owns the scale choices (10–1000% plus Custom Scale) as
+  real CLI transforms. The view-only Precise Scale submenu and its 1:1 / Fit to Window
+  entries were removed; Fit to Window stays in View and double-click.
+* Estimation analysis from the log: a 300% resize estimated ~0.3 s actually took 3.66 s,
+  and a star-reduction estimated 3 s took 9.6 s because 3.86 s went to the transform and
+  5.74 s to regenerating the stretched PNG preview. The benchmark now keeps a display
+  stretch on previews and includes a 300% resize case, so end-to-end timings are measured.
+* `scripts/analyze_operations.py` now uses the 75th percentile of seconds/megapixel per
+  stage instead of least squares, avoiding systematic underestimation on slower code
+  paths. Models are versioned (v2); resize-up and resize-down have separate slopes.
+* The progress bar is 16 px high with text, pulses when no model is available, fills to
+  100% with "Done in X s" and lingers 1.2 s before resetting. `estimate` and
+  `estimate_result` events are appended to the persistent operation log for later
+  accuracy analysis.
+* Version bumped to `0.2.6` with a `CHANGELOG.md` entry.

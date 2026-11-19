@@ -25,7 +25,8 @@ CASES = (
     ("limit-20mp", (5000, 4000), ("png",)),
 )
 FILTERS = (
-    ("resize", {"resize": "50%"}),
+    ("resize-down", {"resize": "50%"}),
+    ("resize-up", {"resize": "300%"}),
     ("unsharp", {"unsharp": "1.5x1+0.7+0.02"}),
     ("blur", {"blur": "0x2"}),
     ("median", {"median": "3"}),
@@ -72,6 +73,8 @@ def _run_case(log, workspace, name, size, extensions, root):
             log.record("benchmark_timeout", case=name, stage="prepare")
             continue
         image = ready[0]
+        # Real sessions keep a display stretch on the preview; include its cost.
+        image.stretch_points = (0.0, 220.0)
         log.record(
             "benchmark_case",
             case=name,
@@ -83,6 +86,8 @@ def _run_case(log, workspace, name, size, extensions, root):
         )
 
         for filter_name, params in FILTERS:
+            if filter_name == "resize-up" and size[0] * size[1] > 8_000_000:
+                continue
             done = []
             started = time.monotonic()
             workspace.transform(

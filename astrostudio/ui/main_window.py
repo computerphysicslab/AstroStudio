@@ -60,24 +60,22 @@ MENU_LAYOUT = (
         "Processing",
         (
             (
-                "Precise Scale",
+                "Resize Image",
                 None,
                 (
-                    ("10%", "zoom-10"),
-                    ("25%", "zoom-25"),
-                    ("50%", "zoom-50"),
-                    ("75%", "zoom-75"),
-                    ("100%", "zoom-100"),
-                    ("150%", "zoom-150"),
-                    ("200%", "zoom-200"),
-                    ("400%", "zoom-400"),
-                    ("1000%", "zoom-1000"),
+                    ("10%", "resize-10"),
+                    ("25%", "resize-25"),
+                    ("50%", "resize-50"),
+                    ("75%", "resize-75"),
+                    ("100%", "resize-100"),
+                    ("150%", "resize-150"),
+                    ("200%", "resize-200"),
+                    ("400%", "resize-400"),
+                    ("1000%", "resize-1000"),
                     (None, None),
-                    ("1:1 (pixel per pixel)", "zoom-1-1"),
-                    ("Fit to Window", "zoom-fit"),
+                    ("Custom Scale...", "resize-custom"),
                 ),
             ),
-            ("Resize Image...", "resize"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
             ("Image Geometry", "geometry"),
@@ -271,6 +269,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.operation_log = app.operation_log
         self.estimator = app.estimator
         self._progress_timer = None
+        self._progress_reset_timer = None
         self._progress_started = None
         self._progress_estimate = None
         self.registry = registry
@@ -371,7 +370,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self._status("Astro Studio ready")
         root.pack_start(self.status_bar, False, False, 0)
         self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_size_request(-1, 8)
+        self.progress_bar.set_size_request(-1, 16)
+        self.progress_bar.set_show_text(True)
+        self.progress_bar.set_text("")
         root.pack_start(self.progress_bar, False, False, 0)
         self._rebuild_menu_bar()
 
@@ -552,31 +553,73 @@ class MainWindow(Gtk.ApplicationWindow):
         return 1.0
 
     def _begin_estimate(self, stage: str, megapixels: float, message: str) -> None:
-        seconds = self.estimator.estimate(stage, megapixels)
-        if seconds is None:
-            self._status(message)
-            return
-        self._status("%s (est. %.1f s)" % (message, seconds))
         self._stop_progress()
+        seconds = self.estimator.estimate(stage, megapixels)
+        self._estimate_stage = stage
+        self._estimate_mp = megapixels
+        self._estimate_s = seconds
         self._progress_started = time.monotonic()
         self._progress_estimate = seconds
+        self.operation_log.record(
+            "estimate", stage=stage, megapixels=megapixels, estimate_s=seconds
+        )
+        if seconds is None:
+            self._status(message)
+            self.progress_bar.set_text("Working...")
+            self._progress_timer = GLib.timeout_add(100, self._pulse_progress)
+            return
+        self._status("%s (est. %.1f s)" % (message, seconds))
         self.progress_bar.set_fraction(0.0)
+        self.progress_bar.set_text("0%% (est. %.1f s)" % seconds)
         self._progress_timer = GLib.timeout_add(100, self._tick_progress)
+
+    def _pulse_progress(self) -> bool:
+        self.progress_bar.pulse()
+        return True
 
     def _tick_progress(self) -> bool:
         if self._progress_started is None or not self._progress_estimate:
             return False
         elapsed = time.monotonic() - self._progress_started
-        self.progress_bar.set_fraction(min(1.0, elapsed / self._progress_estimate))
+        fraction = min(1.0, elapsed / self._progress_estimate)
+        self.progress_bar.set_fraction(fraction)
+        self.progress_bar.set_text(
+            "%.0f%% (est. %.1f s)" % (fraction * 100, self._progress_estimate)
+        )
         return True
 
+    def _reset_progress(self) -> bool:
+        self._progress_reset_timer = None
+        self.progress_bar.set_fraction(0.0)
+        self.progress_bar.set_text("")
+        return False
+
     def _stop_progress(self) -> None:
+        if self._progress_reset_timer is not None:
+            GLib.source_remove(self._progress_reset_timer)
+            self._progress_reset_timer = None
         if self._progress_timer is not None:
             GLib.source_remove(self._progress_timer)
             self._progress_timer = None
+        started = self._progress_started
+        estimate = self._progress_estimate
         self._progress_started = None
         self._progress_estimate = None
-        self.progress_bar.set_fraction(0.0)
+        if started is None:
+            self.progress_bar.set_fraction(0.0)
+            self.progress_bar.set_text("")
+            return
+        actual = time.monotonic() - started
+        self.operation_log.record(
+            "estimate_result",
+            stage=self._estimate_stage,
+            megapixels=self._estimate_mp,
+            estimate_s=estimate,
+            actual_s=round(actual, 3),
+        )
+        self.progress_bar.set_fraction(1.0)
+        self.progress_bar.set_text("Done in %.1f s" % actual)
+        self._progress_reset_timer = GLib.timeout_add(1200, self._reset_progress)
 
     def _status_image(self, image: WorkingImage, message: str) -> None:
         try:
@@ -861,6 +904,12 @@ class MainWindow(Gtk.ApplicationWindow):
         started = time.monotonic()
         self._busy_begin()
         stage = next(iter(params), "transform")
+        if stage == "resize":
+            try:
+                percent = float(str(params["resize"]).rstrip("%"))
+                stage = "resize-up" if percent >= 100 else "resize-down"
+            except ValueError:
+                stage = "resize-down"
         self._begin_estimate(stage, self._current_megapixels(), "%s via CLI..." % description)
         self.workspace.transform(
             image,
@@ -918,7 +967,38 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.destroy()
         return value
 
-    def action_resize(self) -> None:
+    def _resize_to(self, percent: int) -> None:
+        scale = "%d%%" % percent
+        self._run_transform({"resize": scale}, "Resize to " + scale)
+
+    def action_resize_10(self) -> None:
+        self._resize_to(10)
+
+    def action_resize_25(self) -> None:
+        self._resize_to(25)
+
+    def action_resize_50(self) -> None:
+        self._resize_to(50)
+
+    def action_resize_75(self) -> None:
+        self._resize_to(75)
+
+    def action_resize_100(self) -> None:
+        self._resize_to(100)
+
+    def action_resize_150(self) -> None:
+        self._resize_to(150)
+
+    def action_resize_200(self) -> None:
+        self._resize_to(200)
+
+    def action_resize_400(self) -> None:
+        self._resize_to(400)
+
+    def action_resize_1000(self) -> None:
+        self._resize_to(1000)
+
+    def action_resize_custom(self) -> None:
         scale = self._ask_percentage()
         if scale:
             self._run_transform({"resize": scale}, "Resize to " + scale)

@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.2.4**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.2.6**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -168,13 +168,11 @@ serialization, adapter flag mapping, scratch isolation, process lifecycle
 3. **Metadata:** `Ctrl+I` or the (i) toolbar button opens the Metadata panel with two
    tabs (PNG preview and TIFF working) filled by ExifTool; close it with its X.
 4. **Display zoom:** double-click the image (or press the fit button) to fit it to
-   the window. Processing > Precise Scale offers 10/25/50/75/100/150/200/400/1000%,
-   1:1 (one screen pixel per image pixel) and Fit to Window. Left-drag pans the image
-   when zoomed. These are view-only.
-5. **Transform via CLI:** Processing > Resize Image asks for the percentage and
-   Processing > Sharpen offers light/medium/strong presets. The GUI generates the CLI
-   flags, transforms the working TIFF, replaces it and regenerates the PNG preview.
-   No parameter inspector is involved. *Edit > Undo / Redo* restores the previous
+   the window; the mouse wheel zooms and left-drag pans. Fit to Window remains in View.
+5. **Transform via CLI:** Processing > Resize Image offers 10/25/50/75/100/150/200/
+   400/1000% plus Custom Scale; Processing > Sharpen offers light/medium/strong presets.
+   The GUI generates the CLI flags, transforms the working TIFF, replaces it and
+   regenerates the PNG preview. No parameter inspector is involved. *Edit > Undo / Redo* restores the previous
    TIFF and PNG snapshots.
 6. **Export via CLI:** File > Export / Save As asks for the format first, then the
    destination and writes the chosen artifact from the current working TIFF. If the

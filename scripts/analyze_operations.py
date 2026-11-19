@@ -36,8 +36,16 @@ def stage_from_argv(argv: List[str]) -> str:
         return "unknown"
     program = os.path.basename(argv[0])
     joined = " ".join(argv)
+    if "-resize" in argv:
+        index = argv.index("-resize")
+        if index + 1 < len(argv):
+            try:
+                percent = float(argv[index + 1].rstrip("%"))
+                return "resize-up" if percent >= 100 else "resize-down"
+            except ValueError:
+                pass
+        return "resize-down"
     options = (
-        ("-resize", "resize"),
         ("-unsharp", "unsharp"),
         ("-blur", "blur"),
         ("-gaussian-blur", "gaussian-blur"),
@@ -121,7 +129,10 @@ def update_model(rows: List[Dict], path: str) -> Dict:
             data = json.load(handle)
     except (OSError, ValueError):
         data = {}
-    stats = data.get("stats", {})
+    if data.get("version") != 2:
+        stats = {}
+    else:
+        stats = data.get("stats", {})
     for row in rows:
         if row["megapixels"] in (None, "") or row["duration_s"] in (None, ""):
             continue
@@ -131,29 +142,32 @@ def update_model(rows: List[Dict], path: str) -> Dict:
         if x <= 0 or y <= 0:
             continue
         entry = stats.setdefault(
-            stage, {"n": 0, "sum_x": 0.0, "sum_y": 0.0, "sum_xx": 0.0, "sum_xy": 0.0}
+            stage,
+            {
+                "n": 0,
+                "sum_x": 0.0,
+                "sum_y": 0.0,
+                "ratios": [],
+            },
         )
         entry["n"] += 1
         entry["sum_x"] += x
         entry["sum_y"] += y
-        entry["sum_xx"] += x * x
-        entry["sum_xy"] += x * y
+        entry.setdefault("ratios", []).append(round(y / x, 4))
 
     models = {}
     for stage, values in stats.items():
         n = values["n"]
         if n == 0:
             continue
-        denominator = n * values["sum_xx"] - values["sum_x"] ** 2
-        if denominator > 1e-9:
-            slope = (
-                n * values["sum_xy"] - values["sum_x"] * values["sum_y"]
-            ) / denominator
-        else:
-            slope = values["sum_y"] / values["sum_x"] if values["sum_x"] else 0.0
-        intercept = (values["sum_y"] - slope * values["sum_x"]) / n
+        ratios = sorted(values.get("ratios", []))
+        # Conservative p75 seconds-per-megapixel avoids systematically
+        # underestimating jobs that hit a slower code path or a busy machine.
+        slope = ratios[min(n - 1, int(0.75 * (n - 1)))]
+        intercept = max(
+            0.0, (values["sum_y"] - slope * values["sum_x"]) / n
+        )
         slope = max(0.0, slope)
-        intercept = max(0.0, intercept)
         models[stage] = {
             "samples": n,
             "slope": round(slope, 4),
@@ -161,8 +175,9 @@ def update_model(rows: List[Dict], path: str) -> Dict:
         }
 
     result = {
+        "version": 2,
         "generated": datetime.now().isoformat(timespec="seconds"),
-        "formula": "seconds = slope * megapixels + intercept",
+        "formula": "seconds = p75(seconds/megapixel) * megapixels + intercept",
         "models": models,
         "stats": stats,
     }

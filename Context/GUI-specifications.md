@@ -59,7 +59,7 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 
 ### 3.3 Processing (`Processing`)
 
-* **Precise Scale (view only):** submenu with 10%, 25%, 50%, 75%, 100%, 150%, 200%, 400%, 1000%, **1:1** (one screen pixel per image pixel) and **Fit to Window**. Double-clicking the preview also triggers Fit to Window. No file or CLI job is involved. [P1]
+* **Resize Image:** submenu with 10%, 25%, 50%, 75%, 100%, 150%, 200%, 400%, 1000% and Custom Scale. Each entry launches a CLI resize of the working TIFF and regenerates the preview; no raw flag entry is shown. [P1]
 * **Resize Image...:** asks for a percentage in a dialog; the GUI generates `-resize N%`, transforms the working TIFF via the external CLI, replaces it and regenerates the PNG preview. [P1]
 * **Sharpen...:** asks for a light/medium/strong preset; the GUI generates the corresponding `-unsharp` flags. [P1]
 * **Calibration (Master Dark / Master Flat / Darks / Flats / Biases):** The GUI discovers calibration folders case-insensitively (`Light(s)`, `Dark(s)`, `Flat(s)`, `Bias(es)`) and exposes real-frame selectors; `siril-cli` / `skystacker` build masters via CLI flags. Synthetic bias/dark/flat generation is never exposed. Output masters are written under scratch and registered as new inputs for stacking. [P2]
@@ -97,7 +97,7 @@ All three write only to scratch, require a real star field (and catalog/network 
 
 ### 3.8 View (`View`)
 
-* **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window; left-drag pans when the image exceeds the viewport. Processing > Precise Scale provides the full percentage list. [P1]
+* **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window; left-drag pans when the image exceeds the viewport. The former Precise Scale submenu was removed; percentages now resize image data under Processing > Resize Image. [P1]
 * **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It will show raw vs displayed distributions and the active display stretch; clicking the chart will select a stretch preset that the GUI converts into a CLI flag and applies by launching a new preview job. It never computes pixel statistics internally. See the phased design in `Context/AstroStudio_ai_project_context.md`. [P2]
 * **Pixel Line Profile (`Pixellinie als Diagramm`):** A drawn line becomes a crop/coordinate request to the backend (e.g. `magick ... txt:`); the returned values are plotted by the GUI. [P3]
 * **Metadata Viewer:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` is invoked by the (i) button for both the rendered PNG and the high-depth TIFF, filling the two tabs of the on-demand Metadata panel; no pixel decoding. [P1]

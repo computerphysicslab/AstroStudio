@@ -1,4 +1,4 @@
-"""Menu structure and precise-scale action tests."""
+"""Menu structure and resize action tests."""
 
 from astrostudio.app import iter_menu_actions
 from astrostudio.ui.main_window import (
@@ -9,21 +9,21 @@ from astrostudio.ui.main_window import (
 )
 
 
-def test_precise_scale_actions_are_registered():
+def test_resize_actions_are_registered():
     actions = set(iter_menu_actions())
     assert {
-        "zoom-10",
-        "zoom-25",
-        "zoom-50",
-        "zoom-75",
-        "zoom-100",
-        "zoom-150",
-        "zoom-200",
-        "zoom-400",
-        "zoom-1000",
-        "zoom-1-1",
-        "zoom-fit",
+        "resize-10",
+        "resize-25",
+        "resize-50",
+        "resize-75",
+        "resize-100",
+        "resize-150",
+        "resize-200",
+        "resize-400",
+        "resize-1000",
+        "resize-custom",
     } <= actions
+    assert "zoom-1-1" not in actions
 
 
 def test_log_segments_colourise_commands_and_errors():
@@ -88,12 +88,15 @@ def test_astrometry_menu_is_registered():
     assert "Astrometry" in dict(MENU_LAYOUT)
 
 
-def test_processing_contains_precise_scale_submenu_and_cli_actions():
+def test_processing_resize_submenu_has_scales_and_custom():
     processing = dict(MENU_LAYOUT)["Processing"]
-    submenu = next(item for item in processing if item[0] == "Precise Scale")
+    submenu = next(item for item in processing if item[0] == "Resize Image")
     assert submenu[1] is None
     labels = [label for label, _action in submenu[2] if label]
-    assert "1:1 (pixel per pixel)" in labels
-    assert "Fit to Window" in labels
+    assert "10%" in labels and "1000%" in labels
+    assert "Custom Scale..." in labels
+    assert "Fit to Window" not in labels
+    assert "1:1 (pixel per pixel)" not in labels
     actions = set(iter_menu_actions())
-    assert {"resize", "unsharp", "export"} <= actions
+    assert {"unsharp", "export"} <= actions
+    assert "resize" not in actions

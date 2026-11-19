@@ -8,6 +8,16 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.6 — 2026-11-19
+
+- Processing > Resize Image is now the scale submenu (10–1000% plus Custom Scale);
+  the view-only Precise Scale submenu, 1:1 and Fit to Window entries were removed.
+- Time model uses a conservative p75 seconds-per-megapixel, separates resize-up from
+  resize-down, and the benchmark now includes a 300% case and keeps a display stretch on
+  previews so end-to-end timings match real sessions.
+- Progress bar is 16px high with text, pulses when no model exists and lingers at 100%
+  with the actual duration before resetting. Estimate vs actual pairs are logged.
+
 ## 0.2.5 — 2026-11-19
 
 - Roadmap expanded with the v0.2.3 audit findings: robustness fixes, test gaps,

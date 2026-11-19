@@ -77,7 +77,8 @@ def test_menu_actions_are_gated_by_backend_availability(monkeypatch):
 
     registry.status["ImageMagick"].available = True
     assert registry.is_action_enabled("export")
-    assert registry.is_action_enabled("resize")
+    assert registry.is_action_enabled("resize-50")
+    assert registry.is_action_enabled("resize-custom")
 
     registry.status["ExifTool"].available = True
     assert registry.is_action_enabled("metadata")
