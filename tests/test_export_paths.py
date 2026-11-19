@@ -21,6 +21,15 @@ def test_prefers_plain_name_and_increments_on_collisions(tmp_path):
     )
 
 
+def test_uuid_fallback_after_many_collisions(monkeypatch):
+    import astrostudio.core.export_paths as module
+
+    monkeypatch.setattr(module.os.path, "exists", lambda _path: True)
+    result = module.unique_export_path("/tmp", "M42", "fits")
+    assert result.startswith("/tmp/M42-")
+    assert result.endswith(".fits")
+
+
 def test_extension_is_normalised(tmp_path):
     assert unique_export_path(str(tmp_path), "M42", ".fits") == str(
         tmp_path / "M42.fits"

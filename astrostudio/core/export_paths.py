@@ -1,6 +1,7 @@
 """Destination naming helpers for Save As / Export."""
 
 import os
+import uuid
 
 
 def unique_export_path(directory: str, stem: str, extension: str) -> str:
@@ -18,4 +19,5 @@ def unique_export_path(directory: str, stem: str, extension: str) -> str:
         candidate = "%s-%d.%s" % (base, index, suffix)
         if not os.path.exists(candidate):
             return candidate
-    raise RuntimeError("could not find a free export name for %s" % stem)
+    suffix_id = uuid.uuid4().hex[:8]
+    return os.path.join(directory, "%s-%s.%s" % (stem, suffix_id, suffix))

@@ -8,6 +8,16 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.10 — 2026-11-19
+
+- Histogram dock is visible from startup and filled automatically after open.
+- Progress bar uses CSS so the whole 18px bottom strip is the indicator; status text is
+  drawn inside it, and the separate status bar was removed.
+- Translation dictionary expanded to submenus and dialog titles; Frontend Settings now
+  owns language/theme/font, Backend Settings keeps connectors/offline/threads.
+- Custom resize is a draggable Gtk.Window with a header bar.
+- Roadmap audit items 6–8 completed: sanitized cleanup, UUID export fallback, stream close.
+
 ## 0.2.9 — 2026-11-19
 
 - Backend click now opens a single detail window with copyable install/upgrade command;

@@ -178,7 +178,7 @@ MENU_LAYOUT = (
         "Options",
         (
             ("Backend Settings", "settings"),
-            ("Language", "language"),
+            ("Frontend Settings", "frontend-settings"),
         ),
     ),
     (
@@ -372,7 +372,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.histogram_panel = self._panel_with_close(
             "Histogram (CLI data, click handles to stretch)", self.histogram_widget
         )
-        self.histogram_panel.set_no_show_all(True)
         self.terminal_panel = self._panel_with_close(
             "Terminal Drawer", self._build_log_content()
         )
@@ -383,8 +382,9 @@ class MainWindow(Gtk.ApplicationWindow):
         paned.pack2(right, False, True)
         root.pack_start(paned, True, True, 0)
 
+        self._apply_progress_css()
         self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_size_request(-1, 36)
+        self.progress_bar.set_size_request(-1, 18)
         self.progress_bar.set_show_text(True)
         self._last_status = self.translator.tr("Astro Studio ready")
         self.progress_bar.set_text(self._last_status)
@@ -622,6 +622,29 @@ class MainWindow(Gtk.ApplicationWindow):
         scroll = Gtk.ScrolledWindow()
         scroll.add(self.log_view)
         return scroll
+
+    @staticmethod
+    def _apply_progress_css() -> None:
+        provider = Gtk.CssProvider()
+        provider.load_from_data(
+            b"""
+progressbar, progressbar trough, progressbar progress {
+    min-height: 18px;
+}
+progressbar trough {
+    background-color: #1c1c1c;
+    border: none;
+}
+progressbar progress {
+    background-color: #2ecc71;
+}
+"""
+        )
+        screen = Gdk.Screen.get_default()
+        if screen is not None:
+            Gtk.StyleContext.add_provider_for_screen(
+                screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
 
     def _apply_font(self) -> None:
         gtk_settings = Gtk.Settings.get_default()
@@ -1074,38 +1097,55 @@ class MainWindow(Gtk.ApplicationWindow):
         self.app.update_action_sensitivity()
 
     def _ask_percentage(self) -> Optional[str]:
-        dialog = Gtk.Dialog(
-            title="Resize image",
-            parent=self,
-            modal=True,
-            buttons=(
-                Gtk.STOCK_CANCEL,
-                Gtk.ResponseType.CANCEL,
-                Gtk.STOCK_OK,
-                Gtk.ResponseType.OK,
-            ),
-        )
-        self._dialog_header(dialog, "Resize image")
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title(self.translator.tr("Resize image"))
+        window.set_transient_for(self)
+        window.set_modal(True)
+        window.set_default_size(320, 110)
+        header = Gtk.HeaderBar()
+        header.set_title(self.translator.tr("Resize image"))
+        header.set_show_close_button(False)
+        cancel = Gtk.Button(label=self.translator.tr("Cancel"))
+        ok = Gtk.Button(label=self.translator.tr("OK"))
+        ok.get_style_context().add_class("suggested-action")
+        header.pack_start(cancel)
+        header.pack_end(ok)
+        window.set_titlebar(header)
+        make_draggable(window, header)
+
         entry = Gtk.Entry()
         entry.set_text("50")
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.set_border_width(12)
         box.pack_start(Gtk.Label(label="Scale (%)"), False, False, 0)
         box.pack_start(entry, True, True, 0)
-        dialog.get_content_area().pack_start(box, True, True, 6)
-        dialog.show_all()
-        value = None
-        if dialog.run() == Gtk.ResponseType.OK:
-            text = entry.get_text().strip().rstrip("%")
-            try:
-                number = float(text)
-            except ValueError:
-                number = 0.0
-            if 0 < number <= 10000:
-                value = "%g%%" % number
-            else:
-                self._log("Invalid scale; enter a percentage between 0 and 10000")
-        dialog.destroy()
-        return value
+        window.add(box)
+
+        loop = GLib.MainLoop()
+        accepted = {"value": False}
+
+        def finish(_button) -> None:
+            accepted["value"] = _button is ok
+            loop.quit()
+
+        cancel.connect("clicked", finish)
+        ok.connect("clicked", finish)
+        window.connect("delete-event", lambda *_: (loop.quit(), True)[1])
+        window.show_all()
+        loop.run()
+        window.destroy()
+
+        if not accepted["value"]:
+            return None
+        text = entry.get_text().strip().rstrip("%")
+        try:
+            number = float(text)
+        except ValueError:
+            number = 0.0
+        if 0 < number <= 10000:
+            return "%g%%" % number
+        self._log("Invalid scale; enter a percentage between 0 and 10000")
+        return None
 
     def _resize_to(self, percent: int) -> None:
         scale = "%d%%" % percent
@@ -1324,7 +1364,7 @@ class MainWindow(Gtk.ApplicationWindow):
         if self.metadata_window is not None:
             self.metadata_window.destroy()
         window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
-        window.set_title("Metadata - Astro Studio")
+        window.set_title(self.translator.tr("Metadata - Astro Studio"))
         window.set_transient_for(self)
         window.set_modal(False)
         window.set_default_size(560, 380)
@@ -1480,7 +1520,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _dialog_header(self, dialog: Gtk.Window, title: str) -> Gtk.HeaderBar:
         header = Gtk.HeaderBar()
-        header.set_title(title)
+        header.set_title(self.translator.tr(title))
         header.set_show_close_button(True)
         dialog.set_titlebar(header)
         make_draggable(dialog, header)
@@ -1762,6 +1802,58 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.run()
         dialog.destroy()
 
+    def action_frontend_settings(self) -> None:
+        dialog = Gtk.Dialog(
+            title="Frontend settings",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        self._dialog_header(dialog, "Frontend settings")
+        grid = Gtk.Grid()
+        grid.set_border_width(10)
+        grid.set_row_spacing(6)
+        grid.set_column_spacing(8)
+
+        language = Gtk.ComboBoxText()
+        for code in ("en", "es", "de", "ja"):
+            language.append_text(code)
+        current_language = self.settings.get("language", "en")
+        language.set_active(max(0, ("en", "es", "de", "ja").index(current_language)))
+        theme = Gtk.ComboBoxText()
+        for name in ("system", "dark", "light"):
+            theme.append_text(name)
+        theme.set_active(max(0, ("system", "dark", "light").index(self.settings.get("theme", "system"))))
+        font_size = Gtk.SpinButton.new_with_range(7, 18, 1)
+        font_size.set_value(int(self.settings.get("font_size", 9)))
+        for row, (label, widget) in enumerate(
+            (
+                ("Language", language),
+                ("Theme", theme),
+                ("Application font size", font_size),
+            )
+        ):
+            grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
+            grid.attach(widget, 1, row, 1, 1)
+        dialog.get_content_area().pack_start(grid, True, True, 0)
+        dialog.show_all()
+        if dialog.run() == Gtk.ResponseType.OK:
+            self.settings.set("language", language.get_active_text())
+            self.settings.set("theme", theme.get_active_text())
+            self.settings.set("font_size", int(font_size.get_value()))
+            self.settings.save()
+            self.translator = Translator(self.settings.get("language", "en"))
+            self._apply_theme()
+            self._apply_font()
+            self._rebuild_menu_bar()
+            self._status(self.translator.tr("Preferences saved"))
+        dialog.destroy()
+
     def action_settings(self) -> None:
         dialog = Gtk.Dialog(
             title="Backend settings and preferences",
@@ -1796,27 +1888,14 @@ class MainWindow(Gtk.ApplicationWindow):
             checkboxes[status.name] = checkbox
             row += 1
 
-        language = Gtk.ComboBoxText()
-        for code in ("en", "es", "de", "ja"):
-            language.append_text(code)
-        language.set_active(max(0, ("en", "es", "de", "ja").index(self.settings.get("language", "en"))))
-        theme = Gtk.ComboBoxText()
-        for name in ("system", "dark", "light"):
-            theme.append_text(name)
-        theme.set_active(max(0, ("system", "dark", "light").index(self.settings.get("theme", "system"))))
         offline = Gtk.CheckButton(label="Offline mode (no catalog downloads)")
         offline.set_active(bool(self.settings.get("offline", False)))
         threads = Gtk.SpinButton.new_with_range(0, 64, 1)
         threads.set_value(int(self.settings.get("threads", 0)))
-        font_size = Gtk.SpinButton.new_with_range(7, 18, 1)
-        font_size.set_value(int(self.settings.get("font_size", 9)))
 
         for label, widget in (
-            ("Language", language),
-            ("Theme", theme),
             ("Offline", offline),
             ("Max threads (0 = backend default)", threads),
-            ("Application font size", font_size),
         ):
             grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
             grid.attach(widget, 1, row, 1, 1)
@@ -1827,16 +1906,9 @@ class MainWindow(Gtk.ApplicationWindow):
         if dialog.run() == Gtk.ResponseType.OK:
             for name, checkbox in checkboxes.items():
                 self.settings.set_backend_enabled(name, checkbox.get_active())
-            self.settings.set("language", language.get_active_text())
-            self.settings.set("theme", theme.get_active_text())
             self.settings.set("offline", offline.get_active())
             self.settings.set("threads", int(threads.get_value()))
-            self.settings.set("font_size", int(font_size.get_value()))
             self.settings.save()
-            self.translator = Translator(self.settings.get("language", "en"))
-            self._apply_theme()
-            self._apply_font()
-            self._rebuild_menu_bar()
             self.app.update_action_sensitivity()
             self._log("Preferences saved to %s" % self.settings.path)
             self._status(self.translator.tr("Preferences saved"))

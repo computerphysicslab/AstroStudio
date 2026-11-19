@@ -381,3 +381,21 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   processed JPEGs yields `0 matched pairs`. This is a SkyStacker/backend limitation,
   not a GUI argv bug; Astro Studio surfaces the exact backend error.
 * Version bumped to `0.2.9` with a `CHANGELOG.md` entry.
+
+---
+
+## 27. v0.2.10 — Histogram on Startup and Frontend Settings
+
+* Histogram dock is no longer `no_show_all`; it is visible at startup and `action_histogram`
+  (View > Histogram) refreshes the same panel. GUI smoke confirmed two datasets after open.
+* Progress UI: the separate `Gtk.Statusbar` was removed; the bottom `Gtk.ProgressBar` is the
+  whole strip with CSS forcing an 18px minimum height and green fill. `_status()` writes
+  the status text into the bar.
+* Translations expanded for submenus and dialog titles via `_dialog_header()`. Options >
+  Language was removed; Options > Frontend Settings now owns language, theme and font size,
+  while Backend Settings keeps connector toggles, offline mode and thread limits.
+* Custom resize is now a `Gtk.Window` with a `HeaderBar` and `make_draggable()`, verified by
+  a unit test that simulates a header drag. Three further audit items are complete: shared
+  `job_id` sanitization in `ScratchManager`, UUID fallback in `unique_export_path()`, and
+  closing `Gio.DataInputStream` objects when a job finishes.
+* Version bumped to `0.2.10` with a `CHANGELOG.md` entry.

@@ -170,6 +170,12 @@ class ProcessEngine:
         if handle.finished or handle.pending_streams or not handle.process_finished:
             return
         handle.finished = True
+        for stream in handle.streams:
+            try:
+                stream.close()
+            except GLib.Error:
+                pass
+        handle.streams.clear()
         self._record_end(handle)
         self._active.pop(handle.job_id, None)
         on_done = getattr(handle, "on_done", None)

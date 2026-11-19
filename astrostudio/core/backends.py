@@ -109,6 +109,7 @@ ACTION_BACKENDS: Dict[str, Tuple[str, ...]] = {
     "survey-cutout": ("SkyStacker",),
     "about": (),
     "cancel": (),
+    "frontend-settings": (),
     "toggle-backends": (),
     "toggle-histogram": (),
     "toggle-terminal": (),
@@ -161,6 +162,7 @@ IMPLEMENTED_ACTIONS = frozenset(
         "survey-cutout",
         "about",
         "cancel",
+        "frontend-settings",
         "settings",
     }
 )

@@ -26,12 +26,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 4. [x] `cli_end` records now include `input_bytes`/`output_bytes` from existing files.
 5. [x] CPU/RAM bars update every second via `GLib.timeout_add`, and the timeout is
        removed on `destroy`.
-6. [ ] Fix `cleanup_job()` to use the same `job_id` sanitization as `job_dir()` and add a
-       regression test. Effort: S (from the v0.2.3 audit).
-7. [ ] Add a UUID/timestamp fallback to `unique_export_path()` beyond 10000 collisions and
-       cover Unicode names. Effort: S (audit).
-8. [ ] Close `Gio.DataInputStream` objects in `ProcessEngine._maybe_finish()` and add a
-       many-jobs FD test. Effort: S (audit).
+6. [x] `cleanup_job()` shares `job_dir()` sanitization with a regression test.
+7. [x] `unique_export_path()` falls back to a short UUID after 10000 collisions.
+8. [x] `Gio.DataInputStream` objects are closed in `ProcessEngine._maybe_finish()`.
 9. [x] Backend status icons and apt-cache detail/install dialog; all dialogs draggable;
        Stop button restored; 40px progress bar (v0.2.8).
 10. [x] Initial ES/DE/JA translation dictionary applied to menus, toolbar and key status

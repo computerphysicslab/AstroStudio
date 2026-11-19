@@ -19,17 +19,21 @@ class ScratchManager:
             self.root = tempfile.mkdtemp(prefix="astro_studio_%s_" % session_id)
         os.makedirs(self.root, exist_ok=True)
 
-    def job_dir(self, job_id: str) -> str:
+    @staticmethod
+    def _safe_job_id(job_id: str) -> str:
         safe_id = "".join(
             character if character.isalnum() or character in "-_" else "_"
             for character in job_id
         )
-        path = os.path.join(self.root, safe_id or "job")
+        return safe_id or "job"
+
+    def job_dir(self, job_id: str) -> str:
+        path = os.path.join(self.root, self._safe_job_id(job_id))
         os.makedirs(path, exist_ok=True)
         return path
 
     def cleanup_job(self, job_id: str) -> None:
-        shutil.rmtree(os.path.join(self.root, job_id), ignore_errors=True)
+        shutil.rmtree(os.path.join(self.root, self._safe_job_id(job_id)), ignore_errors=True)
 
     def cleanup_all(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
