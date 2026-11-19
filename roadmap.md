@@ -28,15 +28,21 @@ first; the milestone tags are a reference for release planning only.
 - [x] SkyStacker bridge: WCS-capable plate solve, Gaia sky map and survey cutout with
       `plate_solution.json` caching and real failure reporting.
 - [x] Backends sorted installed-first alphabetically; busy (watch) cursor during jobs;
-      FITS first-HDU import and CLI display stretch for dark scientific previews.
+      FITS RGB/HDU import with `-combine` and CLI display stretch for dark previews.
+- [x] Persistent preferences: installed-connector on/off state, language, theme, offline
+      mode and thread limit in `Options > Backend Settings`, saved under XDG config.
+- [x] Save As uses the original name with the chosen extension, adding `-1`, `-2`...
+      only on collision; status bar reports size in MB and elapsed seconds.
+- [x] Filter menu reorganized into submenus with more than ten ImageMagick-backed
+      operations (blur, denoise, convolution, morphology, star-size reduction).
 - [x] Test baseline and Git history on `main` (English commit messages).
 
 ## Pending backlog — ordered by difficulty (easiest first)
 
 ### Low difficulty
 
-1. [ ] Real Settings dialog with persistence: binary overrides, scratch/cache dirs,
-       thread limits, offline mode and theme preference (v0.2.0).
+1. [ ] Extend Settings with binary overrides, scratch/cache directories and shortcut
+       customization on top of the persisted connector/language/theme preferences (v0.2.0).
 2. [ ] Complete keyboard shortcut set and shortcut customization (v0.2.0).
 3. [ ] Drag-and-drop of files and folders onto the preview canvas (v0.2.0).
 4. [ ] Dark theme CSS and configurable accent colours (v0.2.0).
@@ -46,7 +52,9 @@ first; the milestone tags are a reference for release planning only.
 7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
 8. [ ] Crop / rotate / flip / mirror option dialogs with internally generated flags
        (v0.2.0).
-9. [ ] CLI-generated histogram view and pixel line profile (v0.2.0).
+9. [ ] CLI-generated histogram view and pixel line profile (v0.2.0). Phased design is
+       documented in `Context/AstroStudio_ai_project_context.md`: CLI text histogram,
+       raw vs displayed stretch, clickable stretch presets converted to CLI flags.
 10. [ ] Localization of interface strings (EN/ES/DE/JA) (v0.2.0).
 
 ### Medium difficulty

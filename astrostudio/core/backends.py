@@ -82,6 +82,19 @@ ACTION_BACKENDS: Dict[str, Tuple[str, ...]] = {
     "histogram": ("ImageMagick",),
     "line-profile": ("ImageMagick",),
     "clone-stamp": ("GIMP", "PhotoFlow"),
+    "filter-sharpen": ("ImageMagick",),
+    "filter-convolve-sharpen": ("ImageMagick",),
+    "filter-blur": ("ImageMagick",),
+    "filter-gaussian-blur": ("ImageMagick",),
+    "filter-median": ("ImageMagick",),
+    "filter-despeckle": ("ImageMagick",),
+    "filter-adaptive-blur": ("ImageMagick",),
+    "filter-convolve-gaussian": ("ImageMagick",),
+    "filter-morphology-erode": ("ImageMagick",),
+    "filter-edge": ("ImageMagick",),
+    "filter-emboss": ("ImageMagick",),
+    "filter-star-reduction": ("ImageMagick",),
+    "filter-stretch": ("SkyStacker",),
     "plate-solve": ("SkyStacker",),
     "sky-map": ("SkyStacker",),
     "survey-cutout": ("SkyStacker",),
@@ -103,6 +116,18 @@ IMPLEMENTED_ACTIONS = frozenset(
         "export",
         "resize",
         "unsharp",
+        "filter-sharpen",
+        "filter-convolve-sharpen",
+        "filter-blur",
+        "filter-gaussian-blur",
+        "filter-median",
+        "filter-despeckle",
+        "filter-adaptive-blur",
+        "filter-convolve-gaussian",
+        "filter-morphology-erode",
+        "filter-edge",
+        "filter-emboss",
+        "filter-star-reduction",
         "metadata",
         "toggle-backends",
         "toggle-terminal",
@@ -117,8 +142,9 @@ IMPLEMENTED_ACTIONS = frozenset(
 class BackendRegistry:
     """Holds installed/version status for every connector target."""
 
-    def __init__(self, specs: Sequence[BackendSpec] = BACKENDS) -> None:
+    def __init__(self, specs: Sequence[BackendSpec] = BACKENDS, settings=None) -> None:
         self.specs = tuple(specs)
+        self.settings = settings
         self.status: Dict[str, BackendStatus] = {
             spec.name: BackendStatus(spec.name, spec.binary, spec.category)
             for spec in self.specs
@@ -181,9 +207,16 @@ class BackendRegistry:
         if on_update:
             GLib.idle_add(on_update, self)
 
-    def available(self, name: str) -> bool:
+    def installed(self, name: str) -> bool:
         status = self.status.get(name)
         return bool(status and status.available)
+
+    def available(self, name: str) -> bool:
+        if not self.installed(name):
+            return False
+        if self.settings is not None and not self.settings.is_backend_enabled(name):
+            return False
+        return True
 
     def version(self, name: str) -> Optional[str]:
         status = self.status.get(name)

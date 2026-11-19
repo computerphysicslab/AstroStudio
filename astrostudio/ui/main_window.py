@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import time
 from datetime import datetime
 from typing import List, Optional
 
@@ -20,6 +21,7 @@ from ..core import (  # noqa: E402
     ImageWorkspace,
     WorkingImage,
     find_output,
+    unique_export_path,
     find_plate_solution,
     summarize_solution,
 )
@@ -106,10 +108,46 @@ MENU_LAYOUT = (
     (
         "Filter",
         (
-            ("Sharpening / Unsharp", "unsharp"),
-            ("Smoothing & Denoising", "filter"),
-            ("Deconvolution", "deconvolution"),
-            ("Star Reduction", "star-reduction"),
+            (
+                "Sharpen",
+                None,
+                (
+                    ("Unsharp Mask (preset)", "unsharp"),
+                    ("Sharpen", "filter-sharpen"),
+                    ("Convolve Sharpen", "filter-convolve-sharpen"),
+                ),
+            ),
+            (
+                "Smooth & Denoise",
+                None,
+                (
+                    ("Blur", "filter-blur"),
+                    ("Gaussian Blur", "filter-gaussian-blur"),
+                    ("Median", "filter-median"),
+                    ("Despeckle", "filter-despeckle"),
+                    ("Adaptive Blur", "filter-adaptive-blur"),
+                ),
+            ),
+            (
+                "Convolution & Morphology",
+                None,
+                (
+                    ("Convolve Gaussian", "filter-convolve-gaussian"),
+                    ("Morphological Erode", "filter-morphology-erode"),
+                    ("Edge", "filter-edge"),
+                    ("Emboss", "filter-emboss"),
+                ),
+            ),
+            (
+                "Astronomical",
+                None,
+                (
+                    ("Star Size Reduction", "filter-star-reduction"),
+                    ("Deconvolution", "deconvolution"),
+                    ("Background Extraction", "gradient"),
+                    ("Asinh Stretch", "filter-stretch"),
+                ),
+            ),
         ),
     ),
     (
@@ -163,10 +201,23 @@ TOOL_ITEMS = (
 )
 
 
+def append_menu_items(menu: Gio.Menu, items) -> None:
+    for item in items:
+        if item[0] is None:
+            menu.append_section(None, Gio.Menu.new())
+        elif len(item) == 3:
+            child = Gio.Menu.new()
+            append_menu_items(child, item[2])
+            menu.append_submenu(item[0], child)
+        else:
+            menu.append(item[0], "app." + item[1])
+
+
 class MainWindow(Gtk.ApplicationWindow):
     def __init__(self, app, registry, scratch, engine) -> None:
         super().__init__(application=app, title="Astro Studio")
         self.app = app
+        self.settings = app.settings
         self.registry = registry
         self.scratch = scratch
         self.engine = engine
@@ -242,19 +293,7 @@ class MainWindow(Gtk.ApplicationWindow):
         menu = Gio.Menu.new()
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
-            for item in entries:
-                if item[0] is None:
-                    submenu.append_section(None, Gio.Menu.new())
-                elif len(item) == 3:
-                    child = Gio.Menu.new()
-                    for sub_label, sub_action in item[2]:
-                        if sub_label is None:
-                            child.append_section(None, Gio.Menu.new())
-                        else:
-                            child.append(sub_label, "app." + sub_action)
-                    submenu.append_submenu(item[0], child)
-                else:
-                    submenu.append(item[0], "app." + item[1])
+            append_menu_items(submenu, entries)
             menu.append_submenu(label, submenu)
         return Gtk.MenuBar.new_from_model(menu)
 
@@ -532,7 +571,7 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         dialog.set_do_overwrite_confirmation(True)
         dialog.set_current_name(
-            "%s_processed.%s"
+            "%s.%s"
             % (
                 os.path.splitext(os.path.basename(image.source))[0],
                 selected_format.extension,
@@ -546,25 +585,36 @@ class MainWindow(Gtk.ApplicationWindow):
             return
         root, extension = os.path.splitext(destination)
         if extension.lower() != "." + selected_format.extension:
-            destination = root + "." + selected_format.extension
+            root = destination
             self._log("Extension adjusted to %s" % selected_format.extension)
+        directory = os.path.dirname(root) or "."
+        stem = os.path.basename(root)
+        destination = unique_export_path(directory, stem, selected_format.extension)
+        if destination != os.path.join(directory, stem + "." + selected_format.extension):
+            self._log("Destination existed; using %s" % os.path.basename(destination))
 
+        started = time.monotonic()
         self._busy_begin()
         self._status("Exporting as %s..." % selected_format.label)
         self.workspace.export(
             image,
             destination,
-            on_ready=self._on_export_ready,
+            on_ready=lambda path: self._on_export_ready(path, started),
             on_error=self._on_workspace_error,
             on_log=self._log,
             export_format=selected_format,
         )
         self.app.update_action_sensitivity()
 
-    def _on_export_ready(self, destination: str) -> None:
+    def _on_export_ready(self, destination: str, started: float) -> None:
         self._busy_end()
+        size_mb = os.path.getsize(destination) / (1024.0 * 1024.0)
+        elapsed = time.monotonic() - started
         self._log("Exported copy to %s" % destination)
-        self._status("Export complete: %s" % destination)
+        self._status(
+            "Export complete: %s (%.2f MB, %.1f s)"
+            % (os.path.basename(destination), size_mb, elapsed)
+        )
         self.app.update_action_sensitivity()
 
     def _run_transform(self, params: dict, description: str) -> None:
@@ -669,6 +719,47 @@ class MainWindow(Gtk.ApplicationWindow):
         value = self._ask_unsharp()
         if value:
             self._run_transform({"unsharp": value}, "Sharpen")
+
+    def _run_filter(self, params: dict, label: str) -> None:
+        self._run_transform(params, label)
+
+    def action_filter_sharpen(self) -> None:
+        self._run_filter({"sharpen": "0x1"}, "Sharpen filter")
+
+    def action_filter_convolve_sharpen(self) -> None:
+        kernel = "0,-1,0,-1,5,-1,0,-1,0"
+        self._run_filter({"convolve": kernel}, "Convolve sharpen")
+
+    def action_filter_blur(self) -> None:
+        self._run_filter({"blur": "0x2"}, "Blur filter")
+
+    def action_filter_gaussian_blur(self) -> None:
+        self._run_filter({"gaussian-blur": "0x1.5"}, "Gaussian blur")
+
+    def action_filter_median(self) -> None:
+        self._run_filter({"median": "3"}, "Median filter")
+
+    def action_filter_despeckle(self) -> None:
+        self._run_filter({"despeckle": True}, "Despeckle")
+
+    def action_filter_adaptive_blur(self) -> None:
+        self._run_filter({"adaptive-blur": "0x2"}, "Adaptive blur")
+
+    def action_filter_convolve_gaussian(self) -> None:
+        kernel = "1,2,1,2,4,2,1,2,1"
+        self._run_filter({"convolve": kernel}, "Convolve gaussian")
+
+    def action_filter_morphology_erode(self) -> None:
+        self._run_filter({"morphology": "Erode Disk:1"}, "Morphological erode")
+
+    def action_filter_edge(self) -> None:
+        self._run_filter({"edge": True}, "Edge filter")
+
+    def action_filter_emboss(self) -> None:
+        self._run_filter({"emboss": True}, "Emboss filter")
+
+    def action_filter_star_reduction(self) -> None:
+        self._run_filter({"morphology": "Erode Disk:1"}, "Star size reduction")
 
     def _choose_export_format(self) -> Optional[ExportFormat]:
         dialog = Gtk.Dialog(
@@ -991,7 +1082,75 @@ class MainWindow(Gtk.ApplicationWindow):
         self._show_info("Observatory survey cutout", text)
 
     def action_settings(self) -> None:
-        self._log("Backend availability: %s" % "; ".join(self.registry.summary()))
+        dialog = Gtk.Dialog(
+            title="Backend settings and preferences",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        grid = Gtk.Grid()
+        grid.set_border_width(8)
+        grid.set_row_spacing(6)
+        grid.set_column_spacing(8)
+        row = 0
+
+        installed = [
+            status
+            for status in self.registry.status.values()
+            if self.registry.installed(status.name)
+        ]
+        grid.attach(Gtk.Label(label="Installed connectors", xalign=0.0), 0, row, 2, 1)
+        row += 1
+        checkboxes = {}
+        for status in installed:
+            checkbox = Gtk.CheckButton(label=status.name)
+            checkbox.set_active(self.settings.is_backend_enabled(status.name))
+            grid.attach(checkbox, 0, row, 2, 1)
+            checkboxes[status.name] = checkbox
+            row += 1
+
+        language = Gtk.ComboBoxText()
+        for code in ("en", "es", "de", "ja"):
+            language.append_text(code)
+        language.set_active(max(0, ("en", "es", "de", "ja").index(self.settings.get("language", "en"))))
+        theme = Gtk.ComboBoxText()
+        for name in ("system", "dark", "light"):
+            theme.append_text(name)
+        theme.set_active(max(0, ("system", "dark", "light").index(self.settings.get("theme", "system"))))
+        offline = Gtk.CheckButton(label="Offline mode (no catalog downloads)")
+        offline.set_active(bool(self.settings.get("offline", False)))
+        threads = Gtk.SpinButton.new_with_range(0, 64, 1)
+        threads.set_value(int(self.settings.get("threads", 0)))
+
+        for label, widget in (
+            ("Language", language),
+            ("Theme", theme),
+            ("Offline", offline),
+            ("Max threads (0 = backend default)", threads),
+        ):
+            grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
+            grid.attach(widget, 1, row, 1, 1)
+            row += 1
+
+        dialog.get_content_area().pack_start(grid, True, True, 0)
+        dialog.show_all()
+        if dialog.run() == Gtk.ResponseType.OK:
+            for name, checkbox in checkboxes.items():
+                self.settings.set_backend_enabled(name, checkbox.get_active())
+            self.settings.set("language", language.get_active_text())
+            self.settings.set("theme", theme.get_active_text())
+            self.settings.set("offline", offline.get_active())
+            self.settings.set("threads", int(threads.get_value()))
+            self.settings.save()
+            self.app.update_action_sensitivity()
+            self._log("Preferences saved to %s" % self.settings.path)
+            self._status("Preferences saved")
+        dialog.destroy()
 
     def action_undo(self) -> None:
         if not self.current_images:

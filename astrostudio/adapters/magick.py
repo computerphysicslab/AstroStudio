@@ -28,13 +28,26 @@ class ImageMagickAdapter(CliAdapter):
                     ("-resize", "resize", None),
                     ("-rotate", "rotate", None),
                     ("-unsharp", "unsharp", None),
+                    ("-blur", "blur", None),
+                    ("-gaussian-blur", "gaussian-blur", None),
+                    ("-median", "median", None),
+                    ("-despeckle", "despeckle", None),
+                    ("-adaptive-blur", "adaptive-blur", None),
+                    ("-sharpen", "sharpen", None),
+                    ("-convolve", "convolve", None),
+                    ("-morphology", "morphology", None),
+                    ("-edge", "edge", None),
+                    ("-emboss", "emboss", None),
                 ),
             )
         )
 
     def build_import_argv(self, source: str, tiff_path: str) -> Sequence[str]:
-        selector = "[0]" if source.lower().endswith((".fits", ".fit", ".fts")) else ""
-        return [self.binary, source + selector, "-depth", "16", tiff_path]
+        if source.lower().endswith((".fits", ".fit", ".fts")):
+            # ImageMagick writes RGB FITS as three grayscale HDUs; -combine
+            # restores them to one RGB working TIFF.
+            return [self.binary, source, "-combine", "-depth", "16", tiff_path]
+        return [self.binary, source, "-depth", "16", tiff_path]
 
     def build_preview_argv(
         self, tiff_path: str, png_path: str, display_stretch: bool = False

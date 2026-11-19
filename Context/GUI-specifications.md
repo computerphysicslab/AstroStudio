@@ -45,7 +45,7 @@ Each entry lists the backend that performs the work. Tags: **[P1]** implemented 
 | Command | GUI responsibility | Backend / CLI action | I/O routing | Status |
 | --- | --- | --- | --- | --- |
 | Open (`Ctrl+O`) | Choose local files (PNG/JPEG/TIFF/FITS/BMP/RAW, upper- and lowercase, plus All files) and render them | None (read-only decode for display, `GdkPixbuf`) | Source files stay read-only | [P1] |
-| Save As / Export | First choose format (FITS, TIFF 16-bit uncompressed/LZW/Zip, PNG, JPEG 90/95%, BMP), then destination | `magick`/`convert` conversion from the working TIFF | Working TIFF -> CLI output -> user export path | [P1] |
+| Save As / Export | First choose format (FITS, TIFF 16-bit uncompressed/LZW/Zip, PNG, JPEG 90/95%, BMP), then destination; suggested name is the current name with the chosen extension, with `-1`, `-2`... only on collision | `magick`/`convert` conversion from the working TIFF | Working TIFF -> CLI output -> user export path | [P1] |
 | Close / Close All | Clear open views and job state | None | Scratch kept until session end | [P1] |
 | Batch | Select directory, pattern, target format, flags | `gm mogrify` / `magick mogrify` batch argv built by adapter | Directory -> scratch -> export directory | [P2] |
 | Exit | Cancel active jobs, clean scratch, quit | None | Scratch removed unless resume requested | [P1] |
@@ -98,7 +98,7 @@ All three write only to scratch, require a real star field (and catalog/network 
 ### 3.8 View (`View`)
 
 * **Zoom Controls (In / Out / Fit / 1:1, mouse wheel, double-click):** Read-only manipulation of the preview widget; no image data is changed. Scrolling up/down zooms in/out; double-clicking the canvas fits the image to the window; left-drag pans when the image exceeds the viewport. Processing > Precise Scale provides the full percentage list. [P1]
-* **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It does not compute pixel statistics internally. [P2]
+* **Histogram Display:** The backend is asked to emit histogram data (e.g. ImageMagick `histogram:` text) into scratch; the GUI parses that text and draws the chart. It will show raw vs displayed distributions and the active display stretch; clicking the chart will select a stretch preset that the GUI converts into a CLI flag and applies by launching a new preview job. It never computes pixel statistics internally. See the phased design in `Context/AstroStudio_ai_project_context.md`. [P2]
 * **Pixel Line Profile (`Pixellinie als Diagramm`):** A drawn line becomes a crop/coordinate request to the backend (e.g. `magick ... txt:`); the returned values are plotted by the GUI. [P3]
 * **Metadata Viewer:** `exiftool -s -ExposureTime -ISO -FNumber -DateTimeOriginal ...` is invoked by the (i) button for both the rendered PNG and the high-depth TIFF, filling the two tabs of the on-demand Metadata panel; no pixel decoding. [P1]
 * **Toggle Backends Viewer:** Shows or hides the Backends panel. [P1]
@@ -106,7 +106,7 @@ All three write only to scratch, require a real star field (and catalog/network 
 
 ### 3.9 Options / Settings (`Options`)
 
-* **Backend Settings:** Binary paths, scratch directory, cache location (`nside=64` Gaia DR3 cache), offline mode, and thread limits. These values are injected into adapter argv; they never change GUI internals. The Backends panel lists installation status and detected version for every connector, and menu sensitivity follows that status. [P1 partial]
+* **Backend Settings:** *Options > Backend Settings* opens a persistent preferences dialog with on/off checkboxes for installed connectors plus language, theme, offline mode and thread limit. `SettingsManager` saves these to `$XDG_CONFIG_HOME/astro-studio/settings.json`; a disabled connector stays installed but its actions are disabled across sessions. The Backends panel lists installation status and detected version for every connector. [P1]
 * **Language Selection:** Interface strings (English, German, Spanish, Japanese). [P3]
 
 ## 4. Toolbars and Interactive Control Elements

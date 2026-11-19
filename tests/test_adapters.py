@@ -47,7 +47,14 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
     ]
     assert list(
         adapter.build_import_argv("/data/light.fits", "/tmp/job/working.tiff")
-    ) == ["convert", "/data/light.fits[0]", "-depth", "16", "/tmp/job/working.tiff"]
+    ) == [
+        "convert",
+        "/data/light.fits",
+        "-combine",
+        "-depth",
+        "16",
+        "/tmp/job/working.tiff",
+    ]
     assert list(
         adapter.build_preview_argv(
             "/tmp/job/working.tiff", "/tmp/job/preview.png", display_stretch=True

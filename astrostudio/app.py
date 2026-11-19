@@ -10,21 +10,25 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
-from .core import BackendRegistry, ProcessEngine, ScratchManager  # noqa: E402
+from .core import BackendRegistry, ProcessEngine, ScratchManager, SettingsManager  # noqa: E402
 from .ui import MainWindow  # noqa: E402
 from .ui.main_window import MENU_LAYOUT  # noqa: E402
 
+def _iter_actions(entries):
+    for item in entries:
+        if item[0] is None:
+            continue
+        if len(item) == 3:
+            for action in _iter_actions(item[2]):
+                yield action
+        else:
+            yield item[1]
+
+
 def iter_menu_actions():
     for _label, entries in MENU_LAYOUT:
-        for item in entries:
-            if item[0] is None:
-                continue
-            if len(item) == 3:
-                for sub_item in item[2]:
-                    if sub_item[0] is not None:
-                        yield sub_item[1]
-            else:
-                yield item[1]
+        for action in _iter_actions(entries):
+            yield action
 
 
 ACTION_NAMES = frozenset(iter_menu_actions())
@@ -60,7 +64,8 @@ class AstroStudioApplication(Gtk.Application):
             application_id="org.astrostudio.gui.v2",
             flags=Gio.ApplicationFlags.HANDLES_OPEN,
         )
-        self.registry = BackendRegistry()
+        self.settings = SettingsManager()
+        self.registry = BackendRegistry(settings=self.settings)
         self.scratch = ScratchManager()
         self.engine = ProcessEngine()
         self.window = None

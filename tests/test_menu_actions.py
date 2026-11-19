@@ -28,6 +28,28 @@ def test_dock_toggle_is_available_and_cancel_is_gone():
     assert "cancel" not in actions
 
 
+def test_filter_submenus_expose_more_than_ten_actions():
+    filter_menu = dict(MENU_LAYOUT)["Filter"]
+    actions = set(iter_menu_actions())
+    expected = {
+        "unsharp",
+        "filter-sharpen",
+        "filter-convolve-sharpen",
+        "filter-blur",
+        "filter-gaussian-blur",
+        "filter-median",
+        "filter-despeckle",
+        "filter-adaptive-blur",
+        "filter-convolve-gaussian",
+        "filter-morphology-erode",
+        "filter-edge",
+        "filter-emboss",
+        "filter-star-reduction",
+    }
+    assert expected <= actions
+    assert all(len(item) == 3 for item in filter_menu)
+
+
 def test_open_filter_covers_astronomical_formats():
     assert {"png", "jpg", "jpeg", "tif", "tiff", "fits", "bmp", "cr2"} <= set(
         IMAGE_EXTENSIONS

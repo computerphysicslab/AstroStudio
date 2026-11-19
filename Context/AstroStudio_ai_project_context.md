@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (37 tests passing; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (44 tests passing, including real-CLI FITS round-trip integration; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -193,3 +193,17 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * FITS import uses the CLI selector `file.fits[0]` to take the first HDU; FITS/RAW sources set `WorkingImage.display_stretch`, so `build_preview_argv()` adds ImageMagick `-evaluate Pow 0.45` when regenerating the display PNG. Scientific exports stay linear. Verified on `assets/IMG_4062_processed.fits`: preview mean went from ~7 to ~49 (visible).
 * Plate-solving diagnosis: the exact same SkyStacker command run directly outside AstroStudio reproduces `plate solve: no consistent transform (0 matched pairs)`, so the failure is in the backend's star matching / catalog data, not in AstroStudio's argv or UI. The JPG has no RA/DEC EXIF tags (only camera/date/focal length), so no reliable header seed is available; blind solving and an M42 seed with higher Gaia magnitude limit both failed. AstroStudio now reports the real error; alternative solvers (ASTAP, `solve-field`) are on the roadmap.
 * `roadmap.md` was reorganised: completed v0.1.0 baseline first, then the pending backlog ordered by difficulty (low → medium → high) with milestone tags and the audited feature ideas (pipeline-as-code, job queue, thumbnails, before/after, derivation tree, hot-folder, plugins, remote compute, GTK 4).
+
+---
+
+## 15. Persistent Preferences, Export Naming, Filters and Histogram Plan
+
+* `SettingsManager` persists user preferences as JSON under `$XDG_CONFIG_HOME/astro-studio/settings.json`: installed-connector on/off state, language, theme, offline mode and thread limit. `BackendRegistry.available()` now requires both installation and the user-enabled flag, while `installed()` reports the physical state. *Options > Backend Settings* opens a dialog with checkboxes for installed connectors plus the other preferences; saving persists them for later sessions.
+* Save As suggests the current image name with the chosen format's extension (no `_processed` suffix). `unique_export_path()` appends `-1`, `-2`, `-3`, ... before the extension only when the exact destination already exists. The status bar reports `Export complete: name (X.XX MB, Y.Y s)` using file size and monotonic elapsed time.
+* FITS colour round-trip fixed: ImageMagick writes RGB FITS as three grayscale HDUs, so import now uses `convert file.fits -combine -depth 16 ...`; a real-CLI integration test verifies that an RGB PNG exported to FITS and re-imported remains RGB.
+* The Filter menu now has recursive submenus (Sharpen / Smooth & Denoise / Convolution & Morphology / Astronomical) with more than ten ImageMagick-backed operations (blur, gaussian blur, median, despeckle, adaptive blur, sharpen, convolve, morphology, edge, emboss, star-size reduction); all are generated as flags by the GUI and run on the working TIFF.
+* Histogram design (analysis requested; implementation planned under the v0.2.0 roadmap item):
+  1. Add a docked Histogram panel fed by CLI text (`convert <preview> histogram:`), never by GUI pixel math; show the current display stretch (none for PNG/JPEG, `-evaluate Pow 0.45` for FITS/RAW) in the legend.
+  2. Make the stretch an explicit per-image setting (`display_stretch` already exists on `WorkingImage`) and display raw vs displayed histograms side by side.
+  3. Clicking/dragging on the histogram selects a stretch preset (gamma/black point), which is converted into an ImageMagick flag and triggers a fresh CLI preview job; the canvas and histogram refresh together.
+  4. Cache histogram/preview results by content hash and keep scientific exports linear; later extend to backend-provided asinh/STF stretches when a TIFF-capable backend is available. See `Context/GUI-specifications.md` and the CLI-generated histogram roadmap item.
