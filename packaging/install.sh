@@ -6,13 +6,15 @@ DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 APPS_DIR="$DATA_DIR/applications"
 ICON_DIR="$DATA_DIR/icons/hicolor"
 
-mkdir -p "$APPS_DIR" "$ICON_DIR/scalable/apps"
+mkdir -p "$APPS_DIR" "$ICON_DIR/scalable/apps" "$DATA_DIR/mime/packages"
 chmod +x "$PROJECT_ROOT/packaging/astro-studio"
 
 sed "s|@EXEC@|$PROJECT_ROOT/packaging/astro-studio|" \
     "$PROJECT_ROOT/packaging/astro-studio.desktop" > "$APPS_DIR/astro-studio.desktop"
 install -m 0644 "$PROJECT_ROOT/packaging/astro-studio.svg" \
     "$ICON_DIR/scalable/apps/astro-studio.svg"
+install -m 0644 "$PROJECT_ROOT/packaging/astro-studio-mime.xml" \
+    "$DATA_DIR/mime/packages/astro-studio-formats.xml"
 
 if command -v inkscape >/dev/null 2>&1; then
     for size in 16 22 24 32 48 64 96 128 256; do

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="image/vnd.adobe.photoshop">
+    <glob pattern="*.psb" weight="50"/>
+    <glob pattern="*.PSB" weight="50"/>
+  </mime-type>
+  <mime-type type="image/x-xisf">
+    <comment>AstroImage XISF</comment>
+    <glob pattern="*.xisf"/>
+    <glob pattern="*.XISF"/>
+  </mime-type>
+  <mime-type type="image/x-sky-ser">
+    <comment>SER lucky-imaging sequence</comment>
+    <glob pattern="*.ser"/>
+    <glob pattern="*.SER"/>
+  </mime-type>
+</mime-info>

@@ -28,6 +28,12 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        estimator has file-size features. Effort: S.
 5. [ ] Confirm CPU/RAM bars update within one second and the timeout is removed on
        window destruction. Effort: S.
+6. [ ] Fix `cleanup_job()` to use the same `job_id` sanitization as `job_dir()` and add a
+       regression test. Effort: S (from the v0.2.3 audit).
+7. [ ] Add a UUID/timestamp fallback to `unique_export_path()` beyond 10000 collisions and
+       cover Unicode names. Effort: S (audit).
+8. [ ] Close `Gio.DataInputStream` objects in `ProcessEngine._maybe_finish()` and add a
+       many-jobs FD test. Effort: S (audit).
 
 ## Completed — v0.1.0 baseline
 
@@ -89,6 +95,18 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 12. [x] Initial extended export formats via ImageMagick: PNG 16-bit, TIFF 32-bit float,
        FITS 32-bit float and flattened PSD. Remaining: JPEG 4:4:4 control, TIFF PackBits,
        BigTIFF and FITS tile-compression adapters (v0.2.3).
+13. [ ] Propagate `settings.threads` to ImageMagick `-limit thread` and future adapters
+       (v0.2.5).
+14. [ ] Operation-log rotation/compaction by size/date plus `input_bytes`/`output_bytes`
+       in `cli_end` records (v0.2.5).
+15. [ ] Collapsible error dialog showing the relevant backend `stderr` in addition to the
+       terminal drawer (v0.2.5).
+16. [ ] Documentation: Mermaid architecture diagram, adapter `build_*_argv` contract
+       docstrings, a "how to add an adapter" checklist and a known-limitations page
+       (SkyStacker TIFF, FITS multi-HDU, display vs data stretch) (v0.2.5).
+17. [ ] Unit-test gaps: scratch sanitization vs cleanup, histogram malformed lines,
+       corrupt settings, Unicode/edge export names, process cancellation/timeouts and
+       multi-image undo/redo (v0.2.5).
 
 ### Medium difficulty
 
@@ -142,6 +160,18 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        MJPEG rejected before stretching (v0.3.0).
 22. [x] PSD/PSB read-back via ImageMagick `[0]` flattened composite with display stretch
        and an integration test (v0.2.4).
+23. [ ] First `MainWindow` refactor: extract `MenuBuilder`, `ActionRegistry`,
+       `DockManager` and reusable dialogs; keep behaviour identical (v0.3.0).
+24. [ ] `mypy` strict on the core plus `pytest-cov` threshold (70% in `core/` and
+       `adapters/`) in a pre-commit/CI job with `desktop-file-validate` (v0.3.0).
+25. [ ] UI smoke tests with `pytest-gtk` that start the window and verify menus, dock
+       toggles and metadata/histogram panels (v0.3.0).
+26. [ ] SIGKILL escalation after a configurable per-job timeout to avoid zombie jobs
+       (v0.3.0).
+27. [ ] FITS multi-HDU detection with explicit errors instead of silent `-combine`
+       failure on unusual files (v0.3.0).
+28. [ ] Structured logging: standard Python logger mirrored into `OperationLog` instead
+       of ad-hoc `_log()` strings (v0.3.0).
 
 ### High difficulty
 

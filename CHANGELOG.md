@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.5 — 2026-11-19
+
+- Roadmap expanded with the v0.2.3 audit findings: robustness fixes, test gaps,
+  documentation contracts, thread propagation, log rotation and the first
+  `MainWindow` refactor, ordered by difficulty.
+- Desktop integration registers PSD/PSB, DNG, RAF, ORF, RW2, XISF and SER MIME types via
+  a user-level shared-mime package, so Astro Studio appears in "Open With".
+
 ## 0.2.4 — 2026-11-19
 
 - Histogram stretch is applied once per drag (on release) instead of on every mouse

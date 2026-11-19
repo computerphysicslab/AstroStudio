@@ -4,7 +4,7 @@
 
 * **Application Name:** Astro Studio
 * **Platform & Toolkit:** Native Linux / Ubuntu desktop application built with **GTK 3.24** (GNOME standard) and GLib, implemented in **Python 3.8 with PyGObject** (`Gio.Subprocess` for async CLI execution). GTK4 is not available in the development environment.
-* **Version:** `v0.1.0` (Initial architectural baseline)
+* **Version:** `v0.2.5` (build 2026-11-19; see `CHANGELOG.md` and `roadmap.md` for milestone history)
 * **Architectural Mandate (Zero-Processing GUI):**
   * Astro Studio is strictly a **decoupled, asynchronous desktop orchestration front-end**.
   * **No internal pixel manipulation:** The GUI codebase must **never** implement internal stacking, calibration, demosaicing, stretching, or mathematical image filtering algorithms.
@@ -277,3 +277,21 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   a 715-row CSV and 11 stage models with doubled sample counts.
 * **Right panel rule:** this dock state section must be refreshed on every iteration so
   the opencode right panel never shows stale panel visibility/order.
+
+---
+
+## 22. v0.2.5 — Audit Backlog and Extended MIME Registration
+
+* The v0.2.3 audit findings were added to `roadmap.md` while keeping the difficulty
+  order: low (cleanup sanitization, export-name fallback, stream closing, thread
+  propagation, log rotation/bytes, error dialog, documentation contracts, unit-test
+  gaps), medium (first `MainWindow` refactor, mypy/coverage CI, UI smoke tests, SIGKILL
+  escalation, FITS multi-HDU detection, structured logging) and the existing high
+  tier (hardlink undo, pyramids, plugin system, GTK 4).
+* Desktop registration now includes `image/vnd.adobe.photoshop` (plus the `x-psd`
+  alias), DNG/RAF/ORF/RW2, XISF and SER MIME types. A user-level shared-mime XML adds
+  `*.psb`, `*.xisf` and `*.ser` globs; `install.sh` installs it and refreshes the MIME
+  database. Verified with `gio mime image/vnd.adobe.photoshop`: Astro Studio is both
+  registered and recommended for PSD.
+* Canonical version line at the top of this document now tracks the current release
+  rather than the original v0.1.0 baseline.
