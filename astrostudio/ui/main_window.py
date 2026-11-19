@@ -8,6 +8,8 @@ from typing import List, Optional
 
 import gi
 
+from .. import BUILD_DATE, __version__
+
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
@@ -72,7 +74,6 @@ MENU_LAYOUT = (
                 ),
             ),
             ("Resize Image...", "resize"),
-            ("Sharpen...", "unsharp"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
             ("Image Geometry", "geometry"),
@@ -171,6 +172,12 @@ MENU_LAYOUT = (
             ("Language", "language"),
         ),
     ),
+    (
+        "Help",
+        (
+            ("About", "about"),
+        ),
+    ),
 )
 
 IMAGE_EXTENSIONS = (
@@ -192,6 +199,8 @@ IMAGE_EXTENSIONS = (
 )
 
 TOOL_ITEMS = (
+    ("edit-undo", "Undo", "undo"),
+    ("edit-redo", "Redo", "redo"),
     ("document-open", "Open", "open"),
     ("document-save-as", "Export", "export"),
     ("dialog-information", "Metadata", "metadata"),
@@ -201,16 +210,19 @@ TOOL_ITEMS = (
 )
 
 
-def append_menu_items(menu: Gio.Menu, items) -> None:
+def append_menu_items(menu: Gio.Menu, items, registry: dict = None) -> None:
     for item in items:
         if item[0] is None:
             menu.append_section(None, Gio.Menu.new())
         elif len(item) == 3:
             child = Gio.Menu.new()
-            append_menu_items(child, item[2])
+            append_menu_items(child, item[2], registry)
             menu.append_submenu(item[0], child)
         else:
-            menu.append(item[0], "app." + item[1])
+            menu_item = Gio.MenuItem.new(item[0], "app." + item[1])
+            menu.append_item(menu_item)
+            if registry is not None:
+                registry[item[1]] = menu_item
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -235,6 +247,16 @@ class MainWindow(Gtk.ApplicationWindow):
         self.plate_solutions: dict = {}
         self.plate_centers: dict = {}
         self._busy_count = 0
+        self._menu_items: dict = {}
+        gtk_settings = Gtk.Settings.get_default()
+        self._system_theme = (
+            gtk_settings.get_property("gtk-theme-name") if gtk_settings else "Adwaita",
+            bool(
+                gtk_settings.get_property("gtk-application-prefer-dark-theme")
+                if gtk_settings
+                else False
+            ),
+        )
         self.set_default_size(1100, 720)
 
         self.preview = PreviewPane()
@@ -246,6 +268,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.preview.connect("scroll-event", self._on_preview_scroll)
 
         self._build_layout()
+        self._apply_theme()
         self.on_backends_updated(registry)
 
     def _build_layout(self) -> None:
@@ -293,7 +316,7 @@ class MainWindow(Gtk.ApplicationWindow):
         menu = Gio.Menu.new()
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
-            append_menu_items(submenu, entries)
+            append_menu_items(submenu, entries, self._menu_items)
             menu.append_submenu(label, submenu)
         return Gtk.MenuBar.new_from_model(menu)
 
@@ -317,7 +340,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "window-close-symbolic", Gtk.IconSize.MENU
         )
         close_button.set_tooltip_text("Close panel")
-        close_button.connect("clicked", lambda *_: panel.hide())
+        close_button.connect("clicked", lambda *_: self._on_panel_closed(panel))
         header.pack_start(label, True, True, 0)
         header.pack_start(close_button, False, False, 0)
         panel.pack_start(header, False, False, 0)
@@ -367,6 +390,35 @@ class MainWindow(Gtk.ApplicationWindow):
         scroll.add(self.log_view)
         return scroll
 
+    def _apply_theme(self) -> None:
+        gtk_settings = Gtk.Settings.get_default()
+        if gtk_settings is None:
+            return
+        choice = self.settings.get("theme", "system")
+        if choice == "system":
+            name, dark = self._system_theme
+        elif choice == "dark":
+            name, dark = ("Yaru-dark", True)
+            if not os.path.isdir("/usr/share/themes/Yaru-dark"):
+                name = "Adwaita-dark"
+        else:
+            name, dark = ("Yaru-light", False)
+            if not os.path.isdir("/usr/share/themes/Yaru-light"):
+                name = "Adwaita"
+        gtk_settings.set_property("gtk-theme-name", name)
+        gtk_settings.set_property("gtk-application-prefer-dark-theme", dark)
+
+    def _update_toggle_labels(self) -> None:
+        for action_name, panel, label in (
+            ("toggle-backends", self.backends_panel, "Backends Viewer"),
+            ("toggle-terminal", self.terminal_panel, "Terminal Drawer"),
+        ):
+            menu_item = self._menu_items.get(action_name)
+            if menu_item is None:
+                continue
+            state = "Off" if panel.get_visible() else "On"
+            menu_item.set_label("Toggle %s %s" % (label, state))
+
     def _activate(self, action: str) -> None:
         gio_action = self.app.lookup_action(action)
         if gio_action is not None and not gio_action.get_enabled():
@@ -377,6 +429,16 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _status(self, text: str) -> None:
         self.status_bar.push(self.status_context, text)
+
+    def _status_image(self, image: WorkingImage, message: str) -> None:
+        try:
+            png_mb = os.path.getsize(image.png_path) / (1024.0 * 1024.0)
+            tiff_mb = os.path.getsize(image.tiff_path) / (1024.0 * 1024.0)
+            self._status(
+                "%s | PNG %.2f MB | TIFF %.2f MB" % (message, png_mb, tiff_mb)
+            )
+        except OSError:
+            self._status(message)
 
     def _busy_begin(self) -> None:
         self._busy_count += 1
@@ -483,6 +545,7 @@ class MainWindow(Gtk.ApplicationWindow):
             % (available, len(registry.status), len(self.current_paths))
         )
         self.app.update_action_sensitivity()
+        self._update_toggle_labels()
 
     def action_open(self) -> None:
         dialog = Gtk.FileChooserDialog(
@@ -531,7 +594,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _on_image_ready(self, image: WorkingImage) -> None:
         self._busy_end()
         self.preview.load(image.png_path)
-        self._status("TIFF + PNG ready: %s" % os.path.basename(image.source))
+        self._status_image(image, "Ready: %s" % os.path.basename(image.source))
         self._log(
             "Workspace ready: TIFF=%s | PNG=%s"
             % (image.tiff_path, image.png_path)
@@ -627,23 +690,29 @@ class MainWindow(Gtk.ApplicationWindow):
             return
         image = self.current_images[-1]
         view_state = self._capture_view_state()
+        started = time.monotonic()
         self._busy_begin()
         self._status("%s via external CLI..." % description)
         self.workspace.transform(
             image,
             params,
-            on_ready=lambda final: self._on_transform_done(final, view_state),
+            on_ready=lambda final: self._on_transform_done(final, view_state, started),
             on_error=self._on_workspace_error,
             on_log=self._log,
         )
         self.app.update_action_sensitivity()
 
-    def _on_transform_done(self, image: WorkingImage, view_state: dict = None) -> None:
+    def _on_transform_done(
+        self, image: WorkingImage, view_state: dict = None, started: float = None
+    ) -> None:
         self._busy_end()
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
         self._log("TIFF transformed; preview PNG regenerated: %s" % image.png_path)
-        self._status("Transform applied (view unchanged)")
+        elapsed = time.monotonic() - started if started is not None else 0.0
+        self._status_image(
+            image, "Transform applied in %.1f s (view unchanged)" % elapsed
+        )
         self.app.update_action_sensitivity()
 
     def _ask_percentage(self) -> Optional[str]:
@@ -753,10 +822,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self._run_filter({"morphology": "Erode Disk:1"}, "Morphological erode")
 
     def action_filter_edge(self) -> None:
-        self._run_filter({"edge": True}, "Edge filter")
+        self._run_filter({"edge": "1"}, "Edge filter")
 
     def action_filter_emboss(self) -> None:
-        self._run_filter({"emboss": True}, "Emboss filter")
+        self._run_filter({"emboss": "1"}, "Emboss filter")
 
     def action_filter_star_reduction(self) -> None:
         self._run_filter({"morphology": "Erode Disk:1"}, "Star size reduction")
@@ -847,11 +916,16 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("CLI %s failed: %s" % (result.job_id, message))
         self.app.update_action_sensitivity()
 
+    def _on_panel_closed(self, panel) -> None:
+        panel.hide()
+        self._update_toggle_labels()
+
     def action_toggle_backends(self) -> None:
         if self.backends_panel.get_visible():
             self.backends_panel.hide()
         else:
             self.backends_panel.show()
+        self._update_toggle_labels()
 
     def action_toggle_terminal(self) -> None:
         if self.terminal_panel.get_visible():
@@ -859,6 +933,7 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self.terminal_panel.show()
             self.log_view.scroll_to_iter(self.log_buffer.get_end_iter(), 0.0, False, 0.0, 0.0)
+        self._update_toggle_labels()
 
     def action_close(self) -> None:
         if self.current_paths:
@@ -1081,6 +1156,23 @@ class MainWindow(Gtk.ApplicationWindow):
         self._log("CLI %s exit %d: %s" % (result.job_id, result.exit_code, text))
         self._show_info("Observatory survey cutout", text)
 
+    def action_about(self) -> None:
+        dialog = Gtk.AboutDialog()
+        dialog.set_transient_for(self)
+        dialog.set_modal(True)
+        dialog.set_program_name("Astro Studio")
+        dialog.set_version(__version__)
+        dialog.set_comments(
+            "Version %s | Build %s\n"
+            "Zero-processing GTK 3.24 front-end that orchestrates external "
+            "astronomical and photographic CLI backends."
+            % (__version__, BUILD_DATE)
+        )
+        dialog.set_license_type(Gtk.License.MIT_X11)
+        dialog.set_authors(["Astro Studio contributors"])
+        dialog.run()
+        dialog.destroy()
+
     def action_settings(self) -> None:
         dialog = Gtk.Dialog(
             title="Backend settings and preferences",
@@ -1147,6 +1239,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.settings.set("offline", offline.get_active())
             self.settings.set("threads", int(threads.get_value()))
             self.settings.save()
+            self._apply_theme()
             self.app.update_action_sensitivity()
             self._log("Preferences saved to %s" % self.settings.path)
             self._status("Preferences saved")
@@ -1180,7 +1273,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
         self._log("History applied to %s; preview refreshed" % image.key)
-        self._status("History applied (view unchanged)")
+        self._status_image(image, "History applied (view unchanged)")
         self.app.update_action_sensitivity()
 
     def action_zoom_in(self) -> None:

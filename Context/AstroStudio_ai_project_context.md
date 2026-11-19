@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (44 tests passing, including real-CLI FITS round-trip integration; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (46 tests passing, including real-CLI FITS round-trip integration; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -207,3 +207,14 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   2. Make the stretch an explicit per-image setting (`display_stretch` already exists on `WorkingImage`) and display raw vs displayed histograms side by side.
   3. Clicking/dragging on the histogram selects a stretch preset (gamma/black point), which is converted into an ImageMagick flag and triggers a fresh CLI preview job; the canvas and histogram refresh together.
   4. Cache histogram/preview results by content hash and keep scientific exports linear; later extend to backend-provided asinh/STF stretches when a TIFF-capable backend is available. See `Context/GUI-specifications.md` and the CLI-generated histogram roadmap item.
+
+---
+
+## 16. Theme, Toggle Labels, Filter Fixes and Resource Monitors
+
+* The persisted `theme` preference is now applied through `Gtk.Settings`: `dark` uses Yaru-dark/Adwaita-dark with `gtk-application-prefer-dark-theme=True`, `light` uses Yaru-light/Adwaita, and `system` restores the startup values. Verified in a GUI smoke (Yaru -> Yaru-dark -> Yaru-light -> Yaru).
+* View menu items for dock panels are stored as `Gio.MenuItem` objects and relabelled `Toggle <panel> On/Off` from panel visibility, including when the X button is used. Toolbar Undo/Redo buttons were added; both actions are already sensitivity-gated by workspace history.
+* Transform and export status lines include elapsed seconds; the status line always reports the active image's PNG and TIFF sizes in MB after open, transform and history operations.
+* Filter fixes: `CommandBuilder` formatters may expand one flag into several `argv` tokens, so `-morphology Erode Disk:1` is correct; `-edge` and `-emboss` now pass radius `1` (ImageMagick 6 requires an argument). Star-size reduction reuses the morphology operation. The duplicate Processing > Sharpen entry was removed (Sharpen remains in the Filter submenu).
+* Added Help > About with version, build date and project description via `Gtk.AboutDialog`.
+* CPU/RAM indicators analysis: `psutil` 5.8.0 is installed, so a small `Gtk.LevelBar` pair could read `psutil.cpu_percent()` and `psutil.virtual_memory().percent` once per second via `GLib.timeout_add()` with no new dependency; a `/proc/stat` + `/proc/meminfo` fallback keeps the app dependency-free. This reads system state only (no image pixels), so it does not breach the zero-processing mandate. Added as a low-difficulty roadmap item; not yet implemented.

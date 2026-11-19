@@ -34,7 +34,12 @@ first; the milestone tags are a reference for release planning only.
 - [x] Save As uses the original name with the chosen extension, adding `-1`, `-2`...
       only on collision; status bar reports size in MB and elapsed seconds.
 - [x] Filter menu reorganized into submenus with more than ten ImageMagick-backed
-      operations (blur, denoise, convolution, morphology, star-size reduction).
+      operations (blur, denoise, convolution, morphology, star-size reduction); fixed
+      multi-token flags and edge/emboss arguments.
+- [x] Theme preference actually applied via `Gtk.Settings`; View toggle labels show
+      On/Off state; toolbar Undo/Redo buttons added.
+- [x] Transform/export status reports elapsed seconds and active PNG/TIFF sizes in MB;
+      Help > About dialog added with version and build date.
 - [x] Test baseline and Git history on `main` (English commit messages).
 
 ## Pending backlog — ordered by difficulty (easiest first)
@@ -56,6 +61,9 @@ first; the milestone tags are a reference for release planning only.
        documented in `Context/AstroStudio_ai_project_context.md`: CLI text histogram,
        raw vs displayed stretch, clickable stretch presets converted to CLI flags.
 10. [ ] Localization of interface strings (EN/ES/DE/JA) (v0.2.0).
+11. [ ] Small CPU/RAM level indicators using `psutil` (installed) with a `/proc`
+       fallback, refreshed by `GLib.timeout_add()` in a dock or the status bar
+       (v0.2.0; analysis in `Context/AstroStudio_ai_project_context.md`).
 
 ### Medium difficulty
 

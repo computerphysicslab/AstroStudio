@@ -69,6 +69,20 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "8",
         "/tmp/job/preview.png",
     ]
+    assert adapter.build_argv(
+        ["/tmp/job/working.tiff"],
+        "/tmp/job/next.tiff",
+        {"morphology": "Erode Disk:1", "edge": "1"},
+    ) == [
+        "convert",
+        "-morphology",
+        "Erode",
+        "Disk:1",
+        "-edge",
+        "1",
+        "/tmp/job/working.tiff",
+        "/tmp/job/next.tiff",
+    ]
     assert adapter.build_export_argv("/tmp/job/working.tiff", "/tmp/out.tif") == [
         "convert",
         "/tmp/job/working.tiff",

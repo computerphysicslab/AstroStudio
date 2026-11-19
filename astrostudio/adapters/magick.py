@@ -35,7 +35,7 @@ class ImageMagickAdapter(CliAdapter):
                     ("-adaptive-blur", "adaptive-blur", None),
                     ("-sharpen", "sharpen", None),
                     ("-convolve", "convolve", None),
-                    ("-morphology", "morphology", None),
+                    ("-morphology", "morphology", lambda value: str(value).split()),
                     ("-edge", "edge", None),
                     ("-emboss", "emboss", None),
                 ),

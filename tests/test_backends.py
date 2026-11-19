@@ -71,6 +71,7 @@ def test_menu_actions_are_gated_by_backend_availability(monkeypatch):
     assert not registry.is_action_enabled("export")
     assert not registry.is_action_enabled("metadata")
     assert registry.is_action_enabled("open")
+    assert registry.is_action_enabled("about")
     assert registry.is_action_enabled("toggle-backends")
     assert registry.is_action_enabled("toggle-terminal")
 

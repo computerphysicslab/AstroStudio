@@ -98,6 +98,7 @@ ACTION_BACKENDS: Dict[str, Tuple[str, ...]] = {
     "plate-solve": ("SkyStacker",),
     "sky-map": ("SkyStacker",),
     "survey-cutout": ("SkyStacker",),
+    "about": (),
     "settings": (),
     "language": (),
 }
@@ -134,6 +135,7 @@ IMPLEMENTED_ACTIONS = frozenset(
         "plate-solve",
         "sky-map",
         "survey-cutout",
+        "about",
         "settings",
     }
 )

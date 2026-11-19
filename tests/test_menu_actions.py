@@ -56,6 +56,13 @@ def test_open_filter_covers_astronomical_formats():
     )
 
 
+def test_about_is_registered_and_processing_has_no_duplicate_sharpen():
+    actions = set(iter_menu_actions())
+    assert "about" in actions
+    processing = dict(MENU_LAYOUT)["Processing"]
+    assert all(item[0] != "Sharpen..." for item in processing)
+
+
 def test_astrometry_menu_is_registered():
     actions = set(iter_menu_actions())
     assert {"plate-solve", "sky-map", "survey-cutout"} <= actions

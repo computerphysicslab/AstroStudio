@@ -84,7 +84,9 @@ panel lists installed connectors first (alphabetically), then the missing ones, 
 View toggle stays enabled after closing the panel with X. FITS/RAW sources take the
 RGB HDUs are combined into one RGB TIFF and get a CLI display stretch for the PNG
 preview; exports stay linear. *Options > Backend Settings* persists enabled connectors,
-language, theme, offline mode and thread limit under `$XDG_CONFIG_HOME`.
+language, theme, offline mode and thread limit under `$XDG_CONFIG_HOME`; the theme is
+actually applied to GTK (Yaru/Adwaita light or dark). View-menu toggles show On/Off,
+and the status bar always shows the active PNG/TIFF sizes plus transform/export time.
 
 ## Astrometry (SkyStacker bridge)
 

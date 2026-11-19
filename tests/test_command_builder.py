@@ -64,6 +64,21 @@ def test_formatter_and_none_parameters_are_applied():
     ]
 
 
+def test_formatter_can_expand_one_flag_into_several_argv_tokens():
+    builder = CommandBuilder(
+        "convert",
+        flag_specs=(("-morphology", "morphology", lambda value: value.split()),),
+    )
+    assert builder.build(["in.tiff"], "out.tiff", {"morphology": "Erode Disk:1"}) == [
+        "convert",
+        "-morphology",
+        "Erode",
+        "Disk:1",
+        "in.tiff",
+        "out.tiff",
+    ]
+
+
 def test_nul_bytes_are_rejected():
     builder = CommandBuilder("tool", flag_specs=(("-x", "x", None),))
     with pytest.raises(ValueError):

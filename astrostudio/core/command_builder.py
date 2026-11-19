@@ -2,7 +2,7 @@
 
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-FlagSpec = Tuple[str, str, Optional[Callable[[Any], str]]]
+FlagSpec = Tuple[str, str, Optional[Callable[[Any], Any]]]
 
 
 class CommandBuilder:
@@ -45,9 +45,12 @@ class CommandBuilder:
                 argv.append(flag)
                 continue
             text = formatter(value) if formatter else str(value)
-            if "\x00" in text:
-                raise ValueError("argument values must not contain NUL bytes")
-            argv.extend((flag, text))
+            tokens = text if isinstance(text, (list, tuple)) else [text]
+            for token in tokens:
+                if "\x00" in token:
+                    raise ValueError("argument values must not contain NUL bytes")
+            argv.append(flag)
+            argv.extend(tokens)
 
         for path in inputs:
             if not path:
