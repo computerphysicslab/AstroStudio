@@ -21,13 +21,11 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 2. [x] Open metadata in a floating window with literal ExifTool output for PNG and TIFF
        and a close (X) button in its header. Acceptance: GUI smoke confirms the window,
        both tabs and literal `FileType` text.
-3. [ ] Verify the persistent operation log after a real open → filter → export cycle:
-       entries must include `cli_start`, `cli_end`, duration and exit code, survive an
-       application restart, and contain no image pixels. Effort: S.
-4. [ ] Add `input_bytes`/`output_bytes` to `cli_end` records so the later time/memory
-       estimator has file-size features. Effort: S.
-5. [ ] Confirm CPU/RAM bars update within one second and the timeout is removed on
-       window destruction. Effort: S.
+3. [x] Verified the persistent operation log after real cycles: `cli_start`/`cli_end`,
+       durations, exit codes and no pixel data; entries survive restarts.
+4. [x] `cli_end` records now include `input_bytes`/`output_bytes` from existing files.
+5. [x] CPU/RAM bars update every second via `GLib.timeout_add`, and the timeout is
+       removed on `destroy`.
 6. [ ] Fix `cleanup_job()` to use the same `job_id` sanitization as `job_dir()` and add a
        regression test. Effort: S (from the v0.2.3 audit).
 7. [ ] Add a UUID/timestamp fallback to `unique_export_path()` beyond 10000 collisions and

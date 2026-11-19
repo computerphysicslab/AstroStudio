@@ -8,6 +8,15 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.9 — 2026-11-19
+
+- Backend click now opens a single detail window with copyable install/upgrade command;
+  the apt-cache query message goes to the terminal log.
+- The whole bottom strip is the progress bar (36px) with status text inside; a stopped
+  job reports `Process stopped (OK)` instead of a workspace error.
+- Metadata window reduced to 560x380. `cli_end` records include input/output byte sizes.
+- Plate-solve failures confirmed as SkyStacker/backend limitations via direct CLI runs.
+
 ## 0.2.8 — 2026-11-19
 
 - Backends panel shows green/red status icons; clicking a connector queries

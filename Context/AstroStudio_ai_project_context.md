@@ -359,3 +359,25 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * `core/i18n.py` holds an extensible ES/DE/JA dictionary; menus, toolbar labels and key
   status messages switch immediately when Options > Backend Settings saves a new language.
 * Version bumped to `0.2.8` with a `CHANGELOG.md` entry.
+
+---
+
+## 26. v0.2.9 — Single Backend Dialog and Bottom Progress Strip
+
+* Clicking a backend now opens one dialog only. The `apt-cache` query is logged in the
+  Terminal Drawer; the detail window shows detected/installed/candidate versions and an
+  `Gtk.Entry` with the copyable `sudo apt install ...` command plus a Copy button using
+  `Gtk.Clipboard`. Metadata window reduced to 560x380.
+* The separate status bar was removed; the bottom strip **is** the `Gtk.ProgressBar`
+  (36px, full width, text inside). `_status()` writes into its text and the 100% linger
+  restores the last status message afterwards.
+* Cancellation is explicit: `ProcessHandle.cancelled` makes the engine report
+  `cancelled by user`, and `MainWindow._on_workspace_error()` answers with
+  `Process stopped (OK)` instead of an error dialog.
+* `cli_end` records now carry `input_bytes` and `output_bytes`. The three pending
+  audit-queue items (log validation, byte fields, CPU/RAM timer cleanup) are complete.
+* Plate solving diagnosis confirmed against the real log and direct CLI: the auto chain
+  has no seed, no local `solve-field`/ASTAP and no `AN_API_KEY`; seeded Gaia matching on
+  processed JPEGs yields `0 matched pairs`. This is a SkyStacker/backend limitation,
+  not a GUI argv bug; Astro Studio surfaces the exact backend error.
+* Version bumped to `0.2.9` with a `CHANGELOG.md` entry.

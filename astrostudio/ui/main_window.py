@@ -278,6 +278,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.settings = app.settings
         self.operation_log = app.operation_log
         self.estimator = app.estimator
+        self._last_status = ""
         self._progress_timer = None
         self._progress_reset_timer = None
         self._progress_started = None
@@ -382,14 +383,11 @@ class MainWindow(Gtk.ApplicationWindow):
         paned.pack2(right, False, True)
         root.pack_start(paned, True, True, 0)
 
-        self.status_bar = Gtk.Statusbar()
-        self.status_context = self.status_bar.get_context_id("astro-studio")
-        self._status(self.translator.tr("Astro Studio ready"))
-        root.pack_start(self.status_bar, False, False, 0)
         self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_size_request(-1, 40)
+        self.progress_bar.set_size_request(-1, 36)
         self.progress_bar.set_show_text(True)
-        self.progress_bar.set_text("")
+        self._last_status = self.translator.tr("Astro Studio ready")
+        self.progress_bar.set_text(self._last_status)
         root.pack_start(self.progress_bar, False, False, 0)
         self._rebuild_menu_bar()
 
@@ -519,11 +517,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 ["apt-cache", "policy", package],
                 on_done=lambda result: self._on_package_info(name, package, status, result),
             )
-            self._show_info(
-                name,
-                "Querying apt-cache for %s...\nInstall command: %s"
-                % (package, install_command(status.binary)),
-            )
+            self._log("Querying apt-cache for %s..." % package)
             return
         self._show_backend_info(name, status, package, info)
 
@@ -534,21 +528,59 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _show_backend_info(self, name: str, status, package: str, info) -> None:
         installed, candidate = info
-        lines = [
-            "Connector: %s" % name,
-            "Binary: %s" % status.binary,
-            "Detected version: %s" % (status.version or "unknown"),
-            "apt package: %s" % package,
-            "apt installed: %s" % (installed or "not installed"),
-            "apt candidate: %s" % (candidate or "unknown"),
-        ]
-        if not self.registry.installed(name):
-            lines.append("Install with: " + install_command(status.binary))
-        elif candidate and installed and candidate != installed:
-            lines.append("Upgrade available: " + install_command(status.binary))
-        else:
-            lines.append("No newer package version reported.")
-        self._show_info("%s details" % name, "\n".join(lines))
+        command = install_command(status.binary)
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title("%s details" % name)
+        window.set_transient_for(self)
+        window.set_modal(True)
+        window.set_default_size(520, 300)
+        header = Gtk.HeaderBar()
+        header.set_title("%s details" % name)
+        header.set_show_close_button(True)
+        window.set_titlebar(header)
+        make_draggable(window, header)
+
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_row_spacing(6)
+        grid.set_column_spacing(10)
+        facts = (
+            ("Connector", name),
+            ("Binary", status.binary),
+            ("Detected version", status.version or "unknown"),
+            ("apt package", package),
+            ("apt installed", installed or "not installed"),
+            ("apt candidate", candidate or "unknown"),
+            (
+                "Action",
+                "not installed" if not self.registry.installed(name)
+                else "upgrade available" if candidate and installed and candidate != installed
+                else "up to date",
+            ),
+        )
+        for row, (label, value) in enumerate(facts):
+            grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
+            grid.attach(Gtk.Label(label=value, xalign=0.0, selectable=True), 1, row, 1, 1)
+
+        command_entry = Gtk.Entry()
+        command_entry.set_text(command)
+        command_entry.set_editable(False)
+        command_entry.set_selectable(True)
+        copy_button = Gtk.Button(label="Copy command")
+        copy_button.connect(
+            "clicked",
+            lambda *_: Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(command, -1),
+        )
+        grid.attach(Gtk.Label(label="Shell command", xalign=0.0), 0, len(facts), 1, 1)
+        grid.attach(command_entry, 1, len(facts), 1, 1)
+        grid.attach(copy_button, 1, len(facts) + 1, 1, 1)
+        window.add(grid)
+        loop = GLib.MainLoop()
+        window.connect("delete-event", lambda *_: (loop.quit(), True)[1])
+        copy_button.connect("clicked", lambda *_: self._log("Copied: %s" % command))
+        window.show_all()
+        loop.run()
+        window.destroy()
 
     def _build_metadata_content(self) -> Gtk.Widget:
         notebook = Gtk.Notebook()
@@ -628,7 +660,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self.app.activate_action(action, None)
 
     def _status(self, text: str) -> None:
-        self.status_bar.push(self.status_context, text)
+        self._last_status = text
+        if self._progress_started is None and self._progress_timer is None:
+            self.progress_bar.set_text(text)
 
     @staticmethod
     def _megapixels(path: str) -> float:
@@ -686,7 +720,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _reset_progress(self) -> bool:
         self._progress_reset_timer = None
         self.progress_bar.set_fraction(0.0)
-        self.progress_bar.set_text("")
+        self.progress_bar.set_text(self._last_status)
         return False
 
     def _stop_progress(self) -> None:
@@ -903,6 +937,10 @@ class MainWindow(Gtk.ApplicationWindow):
     def _on_workspace_error(self, message: str) -> None:
         self._busy_end()
         self._stop_progress()
+        if "cancel" in message.lower():
+            self._status("Process stopped (OK)")
+            self._log("Process stopped by user (OK)")
+            return
         self._status("Workspace error")
         self._log(message)
         self._show_error(message)
@@ -1289,7 +1327,7 @@ class MainWindow(Gtk.ApplicationWindow):
         window.set_title("Metadata - Astro Studio")
         window.set_transient_for(self)
         window.set_modal(False)
-        window.set_default_size(760, 560)
+        window.set_default_size(560, 380)
         header = Gtk.HeaderBar()
         header.set_show_close_button(False)
         header.set_title("Metadata (ExifTool, literal output)")

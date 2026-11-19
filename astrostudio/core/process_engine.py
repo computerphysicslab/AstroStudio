@@ -1,5 +1,6 @@
 """Asynchronous CLI process execution on the GLib main context."""
 
+import os
 import signal
 import time
 from dataclasses import dataclass
@@ -43,6 +44,7 @@ class ProcessHandle:
         self.finished = False
         self.exit_code = -1
         self.error: Optional[str] = None
+        self.cancelled = False
         self.stdout_lines: List[str] = []
         self.stderr_lines: List[str] = []
         self.started = time.monotonic()
@@ -98,6 +100,18 @@ class ProcessEngine:
     def _record_end(self, handle: ProcessHandle) -> None:
         if self.operation_log is None:
             return
+        input_bytes = output_bytes = None
+        paths = [token for token in handle.argv[1:] if os.path.isfile(token)]
+        if paths:
+            try:
+                input_bytes = os.path.getsize(paths[0])
+            except OSError:
+                pass
+        if paths and len(paths) > 1:
+            try:
+                output_bytes = os.path.getsize(paths[-1])
+            except OSError:
+                pass
         self.operation_log.record(
             "cli_end",
             job_id=handle.job_id,
@@ -106,6 +120,8 @@ class ProcessEngine:
             exit_code=handle.exit_code,
             stdout_lines=len(handle.stdout_lines),
             stderr_lines=len(handle.stderr_lines),
+            input_bytes=input_bytes,
+            output_bytes=output_bytes,
             error=handle.error,
             stderr=handle.stderr_lines[0] if handle.stderr_lines else None,
         )
@@ -130,7 +146,7 @@ class ProcessEngine:
             line, length = stream.read_line_finish_utf8(result)
         except GLib.Error as exc:
             line, length = "", 0
-            handle.error = handle.error or str(exc)
+            handle.error = "cancelled by user" if handle.cancelled else (handle.error or str(exc))
         if length:
             target = handle.stdout_lines if name == "stdout" else handle.stderr_lines
             target.append(line)
@@ -145,7 +161,7 @@ class ProcessEngine:
         try:
             process.wait_finish(result)
         except GLib.Error as exc:
-            handle.error = handle.error or str(exc)
+            handle.error = "cancelled by user" if handle.cancelled else (handle.error or str(exc))
         handle.exit_code = process.get_exit_status() if process.get_if_exited() else -1
         handle.process_finished = True
         self._maybe_finish(handle)
@@ -175,6 +191,7 @@ class ProcessEngine:
         handle = self._active.get(job_id)
         if handle is None or handle.finished:
             return False
+        handle.cancelled = True
         handle.cancellable.cancel()
         if handle.process is not None:
             try:
