@@ -1,5 +1,6 @@
 """Persistent user preferences for Astro Studio."""
 
+import copy
 import json
 import os
 from typing import Any, Dict, Optional
@@ -33,7 +34,7 @@ class SettingsManager:
                 os.path.expanduser("~"), ".config"
             )
             self.path = os.path.join(config_home, "astro-studio", "settings.json")
-        self.data: Dict[str, Any] = dict(DEFAULTS)
+        self.data: Dict[str, Any] = copy.deepcopy(DEFAULTS)
         self.load()
 
     def load(self) -> None:

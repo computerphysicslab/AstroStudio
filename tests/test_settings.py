@@ -58,3 +58,11 @@ def test_disabled_backend_disables_its_actions():
     assert registry.installed("ImageMagick")
     assert not registry.available("ImageMagick")
     assert not registry.is_action_enabled("export")
+
+
+def test_corrupt_settings_file_falls_back_to_defaults(tmp_path):
+    path = tmp_path / "bad.json"
+    path.write_text("not json", encoding="utf-8")
+    settings = SettingsManager(str(path))
+    assert settings.get("language") == "en"
+    assert settings.is_backend_enabled("ExifTool")

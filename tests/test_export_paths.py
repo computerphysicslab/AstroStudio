@@ -34,3 +34,8 @@ def test_extension_is_normalised(tmp_path):
     assert unique_export_path(str(tmp_path), "M42", ".fits") == str(
         tmp_path / "M42.fits"
     )
+
+
+def test_unicode_stem_is_preserved(tmp_path):
+    result = unique_export_path(str(tmp_path), "Vía Láctea", "png")
+    assert result.endswith("Vía Láctea.png")

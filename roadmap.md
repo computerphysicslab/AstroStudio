@@ -99,14 +99,10 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        BigTIFF and FITS tile-compression adapters (v0.2.3).
 13. [x] `settings.threads` propagated to ImageMagick `-limit thread`.
 14. [x] Operation-log rotation by size and `input_bytes`/`output_bytes` in `cli_end`.
-15. [ ] Collapsible error dialog showing the relevant backend `stderr` in addition to the
-       terminal drawer (v0.2.5).
-16. [ ] Documentation: Mermaid architecture diagram, adapter `build_*_argv` contract
-       docstrings, a "how to add an adapter" checklist and a known-limitations page
-       (SkyStacker TIFF, FITS multi-HDU, display vs data stretch) (v0.2.5).
-17. [ ] Unit-test gaps: scratch sanitization vs cleanup, histogram malformed lines,
-       corrupt settings, Unicode/edge export names, process cancellation/timeouts and
-       multi-image undo/redo (v0.2.5).
+15. [x] Collapsible error dialog with backend `stderr` details.
+16. [x] Mermaid diagram, adapter contract docstrings, adapter checklist and known
+       limitations documented.
+17. [x] Unit-test gaps closed; corrupt-settings and malformed-histogram bugs fixed.
 
 ### Medium difficulty
 

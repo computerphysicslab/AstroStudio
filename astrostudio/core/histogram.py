@@ -28,9 +28,14 @@ def parse_histogram_text(text: str) -> List[Tuple[int, int]]:
         if not match:
             continue
         count = int(match.group(1))
-        components = [
-            int(float(component)) for component in match.group(2).split(",") if component.strip()
-        ]
+        try:
+            components = [
+                int(float(component))
+                for component in match.group(2).split(",")
+                if component.strip()
+            ]
+        except ValueError:
+            continue
         if not components:
             continue
         intensity = max(0, min(255, int(sum(components) / len(components))))

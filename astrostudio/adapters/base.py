@@ -8,6 +8,13 @@ from ..core.command_builder import CommandBuilder
 
 
 class CliAdapter:
+    """Base contract for a CLI connector.
+
+    Subclasses declare supported formats and implement ``build_*_argv`` methods that
+    return argv lists. Methods must never concatenate shell strings, must never modify
+    original inputs, and must always write products to a caller-provided scratch path.
+    """
+
     name = ""
     binary = ""
     description = ""
@@ -18,6 +25,7 @@ class CliAdapter:
         self.builder = builder
 
     def is_available(self) -> bool:
+        """Return whether the configured binary can be found on PATH."""
         return shutil.which(self.binary) is not None
 
     def build_argv(
@@ -26,6 +34,7 @@ class CliAdapter:
         output: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
+        """Serialize a transform into an argv list; override only when needed."""
         return self.builder.build(inputs, output, params)
 
     @staticmethod

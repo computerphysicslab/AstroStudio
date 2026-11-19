@@ -945,16 +945,38 @@ progressbar text {
         self.preview_scroll.get_vadjustment().set_value(state["y"])
 
     def _show_error(self, message: str) -> None:
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            modal=True,
-            message_type=Gtk.MessageType.ERROR,
-            buttons=Gtk.ButtonsType.OK,
-            text=message,
-        )
-        self._dialog_header(dialog, "Error")
-        dialog.run()
-        dialog.destroy()
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title(self.translator.tr("Error"))
+        window.set_transient_for(self)
+        window.set_modal(True)
+        window.set_default_size(520, 260)
+        header = Gtk.HeaderBar()
+        header.set_title(self.translator.tr("Error"))
+        header.set_show_close_button(True)
+        window.set_titlebar(header)
+        make_draggable(window, header)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        box.set_border_width(12)
+        summary = Gtk.Label(label=message.splitlines()[0][:160], xalign=0.0)
+        summary.set_line_wrap(True)
+        expander = Gtk.Expander(label=self.translator.tr("Details"))
+        details = Gtk.Label(label=message, xalign=0.0)
+        details.set_line_wrap(True)
+        details.set_selectable(True)
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_min_content_height(120)
+        scroll.add(details)
+        expander.add(scroll)
+        box.pack_start(summary, False, False, 0)
+        box.pack_start(expander, True, True, 0)
+        window.add(box)
+
+        loop = GLib.MainLoop()
+        window.connect("delete-event", lambda *_: (loop.quit(), True)[1])
+        window.show_all()
+        loop.run()
+        window.destroy()
 
     def _on_canvas_click(self, widget, event) -> bool:
         button = event.button

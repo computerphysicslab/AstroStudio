@@ -30,3 +30,8 @@ noise line
 
 def test_empty_text_is_safe():
     assert parse_histogram_text("") == []
+
+
+def test_malformed_histogram_lines_are_ignored():
+    text = "garbage\n  12: (not, numbers) #bad\n   7: ( 10, 20, 30) #0A141E srgb\n"
+    assert parse_histogram_text(text) == [(20, 7)]

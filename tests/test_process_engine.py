@@ -48,3 +48,14 @@ def test_successful_job_captures_stdout():
     assert results[0].ok
     assert "hello backend" in results[0].stdout
     assert results[0].exit_code == 0
+
+
+def test_cancel_reports_cancelled_state():
+    engine = ProcessEngine()
+    results = []
+    handle = engine.run("sleep", ["/bin/sleep", "10"], on_done=results.append)
+    assert engine.cancel("sleep")
+    _wait_for_callbacks()
+    assert len(results) == 1
+    assert results[0].error == "cancelled by user"
+    assert handle.finished

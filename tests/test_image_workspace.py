@@ -227,3 +227,23 @@ def test_failed_import_stops_before_preview(tmp_path, monkeypatch):
 
     assert len(engine.calls) == 1
     assert errors and "TIFF import failed" in errors[0]
+
+
+def test_undo_redo_are_isolated_per_image(tmp_path, monkeypatch):
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    first = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+    second = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+    before_first = Path(first.tiff_path).read_bytes()
+    before_second = Path(second.tiff_path).read_bytes()
+
+    workspace.transform(first, {"resize": "50%"}, lambda *_: None, lambda message: pytest.fail(message))
+    workspace.transform(second, {"blur": "0x2"}, lambda *_: None, lambda message: pytest.fail(message))
+    assert workspace.can_undo(first) and workspace.can_undo(second)
+
+    workspace.undo(first, lambda *_: None, lambda message: pytest.fail(message))
+    assert Path(first.tiff_path).read_bytes() == before_first
+    assert Path(second.tiff_path).read_bytes() != before_second
+    assert workspace.can_undo(second)

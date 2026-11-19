@@ -8,6 +8,12 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.19 — 2026-11-19
+
+- Error dialogs show a short summary and a collapsible expander with full backend stderr.
+- Mermaid architecture diagram, adapter docstrings, adapter checklist and known limitations added.
+- Tests for corrupt settings, malformed histograms, Unicode names, cancellation and per-image undo; fixed two bugs found by them.
+
 ## 0.2.18 — 2026-11-19
 
 - ImageMagick receives `-limit thread N` from the persisted thread setting.

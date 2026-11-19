@@ -54,6 +54,7 @@ class ImageMagickAdapter(CliAdapter):
         return self._with_threads(super().build_argv(inputs, output, params))
 
     def build_import_argv(self, source: str, tiff_path: str) -> Sequence[str]:
+        """Import a source file into the high-depth working TIFF."""
         lowered = source.lower()
         if lowered.endswith((".fits", ".fit", ".fts")):
             # ImageMagick writes RGB FITS as three grayscale HDUs; -combine

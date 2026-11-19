@@ -531,3 +531,35 @@ to force a UI redraw.
 * Roadmap items 7, 10, 13 and 14 are complete. Tests cover thread serialization, batch
   argv and rotation.
 * Version bumped to `0.2.18` with a `CHANGELOG.md` entry.
+---
+
+## 36. v0.2.19 — Error Details, Documentation and Robustness Tests
+
+* Error dialogs are now draggable `Gtk.Window`s with a short summary and a collapsible
+  `Gtk.Expander` containing the full backend `stderr`.
+* Added a Mermaid architecture diagram to `README.md`, adapter contract docstrings to
+  `adapters/base.py` and `adapters/magick.py`, and the checklist/limitations below.
+* Robustness tests added for corrupt settings, malformed histogram lines, Unicode export
+  names, process cancellation and per-image undo isolation. Two real bugs were fixed:
+  shallow-copied `DEFAULTS` leaked mutable state between `SettingsManager` instances, and
+  malformed histogram components raised `ValueError`.
+* Version bumped to `0.2.19`.
+
+### Adding an adapter — checklist
+
+1. Add a `BackendSpec` (binary, candidate alternatives, version args) in `core/backends.py`.
+2. Register the action in `ACTION_BACKENDS` and, when implemented, `IMPLEMENTED_ACTIONS`.
+3. Implement a `CliAdapter` subclass with `build_*_argv()` returning argv lists only.
+4. Add the menu/toolbar entry in `MENU_LAYOUT` and its translation keys in `core/i18n.py`.
+5. Add unit tests for argv serialization, ENOENT/nonzero exit and scratch cleanup.
+6. Register new image extensions in `IMAGE_EXTENSIONS`, `packaging/astro-studio.desktop`
+   and, for non-standard suffixes, `packaging/astro-studio-mime.xml`.
+
+### Known limitations
+
+- SkyStacker cannot decode TIFF, so TIFF-to-PNG previews are produced by ImageMagick.
+- RGB FITS may be stored as three HDUs; import uses `-combine`, unusual multi-extension
+  files may need manual handling.
+- Display stretch (`-evaluate`, `-level`) affects only the PNG preview; scientific exports
+  stay linear.
+- Native blind plate solving needs a Gaia quad catalog; `mag07` covers wide fields only.

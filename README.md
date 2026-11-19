@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.2.18**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.2.19**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -20,6 +20,21 @@ From the project root:
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-gdkpixbuf-2.0 imagemagick libimage-exiftool-perl
+```
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[File / Recent / Drag-drop] --> B[MainWindow actions]
+    B --> C[CommandBuilder / adapters]
+    C --> D[ProcessEngine via Gio.Subprocess]
+    D --> E[External CLI]
+    E --> F[Scratch: working.tiff + preview.png]
+    F --> G[GTK canvas, histogram, metadata]
+    D --> H[JSONL operation log]
+    H --> I[Analyzer + estimator]
+    I --> B
 ```
 
 ## Run
