@@ -716,3 +716,21 @@ to force a UI redraw.
   component above 255 by /257. A GUI smoke now reports 61 bins for both the PNG and the
   TIFF instead of 1.
 * `screenshots/` added to `.gitignore`. Version bumped to `0.2.30`.
+
+---
+
+## 48. v0.2.31 — Window Geometry Root Cause and Hardening
+
+* Detailed analysis with `wmctrl`/`xprop` showed `WM_NORMAL_HINTS` minimum size
+  **484x868** while the X screen is **1366x768**. GNOME refused to maximize/resize
+  because the minimum height exceeded the available height. The right dock stacked
+  fixed-minimum panels (backends, metadata, histogram, jobs, terminal).
+* Fix: right dock is now a `Gtk.ScrolledWindow` (`right_scroll`) with reduced child
+  minimum heights; measured minimum is now **484x258** and `wmctrl` maximization sets
+  `_NET_WM_STATE_MAXIMIZED_VERT/HORZ` correctly (window 1366x704).
+* Hardening: `MainWindow.validate_geometry()` logs minimum vs screen size at startup and
+  hides optional panels if a future change recreates an oversized minimum. Added unit
+  tests for the helper/preferred size and an opt-in X11 integration test
+  (`ASTROSTUDIO_WM_TEST=1`) that launches the app in a private D-Bus session and verifies
+  min size and maximization.
+* Version bumped to `0.2.31`.

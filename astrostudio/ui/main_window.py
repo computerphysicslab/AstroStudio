@@ -304,6 +304,17 @@ def log_segments(line: str):
     return segments
 
 
+def geometry_warning(min_height: int, screen_height: int):
+    if screen_height <= 0:
+        return None
+    if min_height >= screen_height - 40:
+        return "minimum height %d leaves no room on a %d px screen" % (
+            min_height,
+            screen_height,
+        )
+    return None
+
+
 ACCENT_COLORS = {
     "green": "#27ae60",
     "blue": "#2f80ed",
@@ -511,7 +522,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self.job_panel = JobPanel(self.app.job_manager, self._retry_job)
         right.pack_start(self.job_panel, False, False, 0)
         right.pack_start(self.terminal_panel, True, True, 0)
-        paned.pack2(right, False, True)
+        self.right_scroll = Gtk.ScrolledWindow()
+        right_scroll = self.right_scroll
+        right_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        right_scroll.set_min_content_width(320)
+        right_scroll.set_min_content_height(140)
+        right_scroll.add(right)
+        paned.pack2(right_scroll, False, True)
         root.pack_start(paned, True, True, 0)
 
         self._apply_progress_css()
@@ -636,7 +653,7 @@ class MainWindow(Gtk.ApplicationWindow):
             )
         view.connect("row-activated", self._on_backend_activated)
         scroll = Gtk.ScrolledWindow()
-        scroll.set_min_content_height(130)
+        scroll.set_min_content_height(90)
         scroll.add(view)
         return scroll
 
@@ -743,7 +760,7 @@ class MainWindow(Gtk.ApplicationWindow):
             view.override_font(Pango.FontDescription("monospace 10"))
             scroll = Gtk.ScrolledWindow()
             scroll.set_min_content_width(360)
-            scroll.set_min_content_height(140)
+            scroll.set_min_content_height(80)
             scroll.add(view)
             notebook.append_page(scroll, Gtk.Label(label=label))
             self.metadata_buffers[key] = buffer
@@ -766,6 +783,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.log_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         self.log_view.override_font(Pango.FontDescription("monospace 8"))
         scroll = Gtk.ScrolledWindow()
+        scroll.set_min_content_height(80)
         scroll.add(self.log_view)
         return scroll
 
@@ -812,6 +830,21 @@ progressbar text {
             return
         size = int(self.settings.get("font_size", 9))
         gtk_settings.set_property("gtk-font-name", "Sans %d" % max(7, min(18, size)))
+
+    def validate_geometry(self) -> None:
+        minimum, _natural = self.get_preferred_size()
+        screen = Gdk.Screen.get_default()
+        screen_height = screen.get_height() if screen else 0
+        warning = geometry_warning(minimum.height, screen_height)
+        self._log(
+            "Window minimum %dx%d | screen %dx%d"
+            % (minimum.width, minimum.height, screen.get_width() if screen else 0, screen_height)
+        )
+        if warning:
+            self._log("Geometry warning: %s; hiding optional panels" % warning)
+            self.job_panel.hide()
+            if self.metadata_panel.get_visible():
+                self.metadata_panel.hide()
 
     def _apply_language(self) -> None:
         self.translator = Translator(self.settings.get("language", "en"))

@@ -154,6 +154,7 @@ class AstroStudioApplication(Gtk.Application):
         if self.window is None:
             self.window = MainWindow(self, self.registry, self.scratch, self.engine)
             self.window.show_all()
+            self.window.validate_geometry()
             self.update_action_sensitivity()
             GLib.idle_add(self._discover_backends)
         for path in self.pending_paths:

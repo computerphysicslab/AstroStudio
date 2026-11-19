@@ -31,8 +31,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 8. [x] `Gio.DataInputStream` objects are closed in `ProcessEngine._maybe_finish()`.
 9. [x] Backend status icons and apt-cache detail/install dialog; all dialogs draggable;
        Stop button restored; 40px progress bar (v0.2.8).
-10. [x] Initial ES/DE/JA translation dictionary applied to menus, toolbar and key status
-       messages (v0.2.8).
+10. [x] Initial translation dictionary applied to menus, toolbar and key status messages.
+11. [x] Window geometry hardening: scrollable right dock, minimum size below screen and
+       startup validation so maximize/resize work (v0.2.31).
 
 ## Completed — v0.1.0 baseline
 

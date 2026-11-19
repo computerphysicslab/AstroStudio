@@ -19,7 +19,7 @@ class JobPanel(Gtk.Box):
             )
         self.view = view
         scroll = Gtk.ScrolledWindow()
-        scroll.set_min_content_height(110)
+        scroll.set_min_content_height(70)
         scroll.add(view)
         retry = Gtk.Button(label="Retry selected")
         retry.connect("clicked", lambda *_: self._retry(on_retry))

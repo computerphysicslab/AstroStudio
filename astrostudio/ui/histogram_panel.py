@@ -21,7 +21,7 @@ class HistogramWidget(Gtk.DrawingArea):
         self._apply_timer = None
         self._last_applied = (self.low, self.high)
         self.set_app_paintable(True)
-        self.set_size_request(320, 140)
+        self.set_size_request(240, 90)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
             | Gdk.EventMask.POINTER_MOTION_MASK

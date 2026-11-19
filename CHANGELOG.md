@@ -8,6 +8,12 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.31 — 2026-11-19
+
+- Root cause of non-maximizable window fixed: right dock was forcing a 868px minimum, taller than the 768px screen. Dock is now scrollable with reduced panel minimums (window minimum 258px).
+- Added startup geometry validation that logs min/screen sizes and hides optional panels if a future change reintroduces an oversized minimum.
+- Added unit and opt-in X11 integration tests for window geometry and maximization.
+
 ## 0.2.30 — 2026-11-19
 
 - Fixed 16-bit histogram collapse: CLI now emits 8-bit histogram data and the parser
