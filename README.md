@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.2.1**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.2.2**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -89,7 +89,22 @@ actually applied to GTK (Yaru/Adwaita light or dark). View-menu toggles show On/
 and the status bar always shows the active PNG/TIFF sizes plus transform/export time.
 CPU/RAM level bars in the right dock refresh once per second (`psutil`, `/proc` fallback).
 Every CLI job and GUI operation is appended to an incremental JSONL log under
-`$XDG_DATA_HOME/astro-studio/operations.jsonl` for later timing analysis.
+`$XDG_DATA_HOME/astro-studio/operations.jsonl`. The View > Histogram action opens a
+floating chart built from CLI histogram text (logarithmic count axis) for both the PNG
+preview and the working TIFF.
+
+## Benchmarks and time estimates
+
+```bash
+PYTHONPATH=. python3 tests/benchmark_operations.py
+PYTHONPATH=. python3 scripts/analyze_operations.py
+```
+
+The benchmark generates images up to 10 MP, opens them, applies filters and exports to
+several formats, appending timed events to the operation log. The analyzer writes
+`~/.local/share/astro-studio/operations.csv` and incrementally updates
+`estimates.json`; the GUI uses that model to show an estimated duration and a green
+progress bar in the status area before each operation.
 
 ## Astrometry (SkyStacker bridge)
 

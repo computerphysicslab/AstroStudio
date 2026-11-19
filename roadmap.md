@@ -59,6 +59,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
       On/Off state; toolbar Undo/Redo buttons added.
 - [x] Transform/export status reports elapsed seconds and active PNG/TIFF sizes in MB;
       Help > About dialog added with version and build date.
+- [x] CPU/RAM bars colour-coded at 75%, syntax-highlighted terminal drawer, opt-in
+      10 MP benchmark and analyzer producing CSV + incremental proportionality model;
+      the GUI shows estimated seconds and a green progress bar before operations.
 - [x] Test baseline and Git history on `main` (English commit messages).
 
 ## Pending backlog — ordered by difficulty (easiest first)
@@ -76,9 +79,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
 8. [ ] Crop / rotate / flip / mirror option dialogs with internally generated flags
        (v0.2.0).
-9. [ ] Histogram phase 1: CLI-generated histogram text into a dock, logarithmic Y axis,
-       raw vs displayed distributions and the active display stretch label; pixel line
-       profile via the same CLI text approach (v0.2.0).
+9. [x] Histogram phase 1: CLI-generated histogram text into a floating panel, logarithmic
+       Y axis, preview vs working-TIFF distributions; pixel line profile still pending
+       (v0.2.2).
 10. [ ] Localization of interface strings (EN/ES/DE/JA) (v0.2.0).
 11. [x] Small CPU/RAM level indicators using `psutil` with a `/proc` fallback, refreshed
        by `GLib.timeout_add()` in the right dock.

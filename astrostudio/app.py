@@ -12,6 +12,7 @@ from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
 from .core import (  # noqa: E402
     BackendRegistry,
+    Estimator,
     OperationLog,
     ProcessEngine,
     ScratchManager,
@@ -74,6 +75,7 @@ class AstroStudioApplication(Gtk.Application):
         self.registry = BackendRegistry(settings=self.settings)
         self.scratch = ScratchManager()
         self.operation_log = OperationLog()
+        self.estimator = Estimator()
         self.operation_log.record("session_start", application="astro-studio")
         self.engine = ProcessEngine(operation_log=self.operation_log)
         self.window = None
@@ -148,6 +150,8 @@ class AstroStudioApplication(Gtk.Application):
                 action.set_enabled(enabled)
 
     def do_shutdown(self) -> None:
+        if self.window is not None:
+            self.window._stop_progress()
         self.engine.cancel_all()
         self.scratch.cleanup_all()
         Gtk.Application.do_shutdown(self)

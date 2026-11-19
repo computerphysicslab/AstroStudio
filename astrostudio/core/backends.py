@@ -130,6 +130,7 @@ IMPLEMENTED_ACTIONS = frozenset(
         "filter-emboss",
         "filter-star-reduction",
         "metadata",
+        "histogram",
         "toggle-backends",
         "toggle-terminal",
         "plate-solve",

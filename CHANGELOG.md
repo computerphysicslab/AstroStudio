@@ -8,6 +8,17 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.2 — 2026-11-19
+
+- CPU/RAM bars turn green below 75% and red at/above 75%.
+- Terminal drawer uses a smaller monospace font and syntax-coloured tags for
+  timestamps, commands, arguments, responses and errors.
+- Histogram panel: CLI-generated distributions for the PNG preview and TIFF working
+  file, logarithmic count axis, floating window with close button.
+- Benchmark suite (opt-in) up to 10 MP appends timing data to the persistent operation
+  log; analyzer script exports CSV and an incrementally updated proportionality model.
+  The GUI shows estimated seconds and a green progress bar before each operation.
+
 ## 0.2.1 — 2026-11-19
 
 - Rebuilt the GTK menu bar on dock state changes so View toggles visibly show

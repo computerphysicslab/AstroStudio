@@ -14,7 +14,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, GdkPixbuf, Gio, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from ..adapters import ExifToolAdapter, ImageMagickAdapter, SkyStackerAdapter  # noqa: E402
 from ..core import (  # noqa: E402
@@ -25,8 +25,10 @@ from ..core import (  # noqa: E402
     find_output,
     unique_export_path,
     find_plate_solution,
+    parse_histogram_text,
     summarize_solution,
 )
+from .histogram_panel import HistogramWidget  # noqa: E402
 from .preview import PreviewPane  # noqa: E402
 from .resource_monitor import ResourceMonitor  # noqa: E402
 
@@ -211,6 +213,28 @@ TOOL_ITEMS = (
 )
 
 
+def log_segments(line: str):
+    """Split a terminal line into (text, tag) pairs for syntax highlighting."""
+    segments = []
+    if line.startswith("[") and "] " in line:
+        end = line.find("] ")
+        segments.append((line[: end + 2], "timestamp"))
+        line = line[end + 2 :]
+    lowered = line.lower()
+    if line.startswith("[stderr]") or "failed" in lowered or "error" in lowered:
+        segments.append((line, "error"))
+    elif line.startswith("CLI ") and ": " in line and " exit " not in line:
+        head, arguments = line.split(": ", 1)
+        segments.append((head + ": ", "command_label"))
+        for token in arguments.split(" "):
+            segments.append((token + " ", "argument" if token.startswith("-") else "program"))
+    elif line.startswith("CLI ") and " exit " in line:
+        segments.append((line, "ok" if "exit 0" in line else "error"))
+    else:
+        segments.append((line, "response"))
+    return segments
+
+
 TOGGLE_PANELS = {
     "toggle-backends": "Backends Viewer",
     "toggle-terminal": "Terminal Drawer",
@@ -242,6 +266,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self.app = app
         self.settings = app.settings
         self.operation_log = app.operation_log
+        self.estimator = app.estimator
+        self._progress_timer = None
+        self._progress_started = None
+        self._progress_estimate = None
         self.registry = registry
         self.scratch = scratch
         self.engine = engine
@@ -261,6 +289,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self._busy_count = 0
         self.metadata_pending = 0
         self.metadata_window = None
+        self.histogram_pending = 0
+        self.histogram_datasets = []
+        self.histogram_window = None
         self._menu_items: dict = {}
         self._view_menu = None
         gtk_settings = Gtk.Settings.get_default()
@@ -330,6 +361,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self.status_context = self.status_bar.get_context_id("astro-studio")
         self._status("Astro Studio ready")
         root.pack_start(self.status_bar, False, False, 0)
+        self.progress_bar = Gtk.ProgressBar()
+        self.progress_bar.set_size_request(-1, 8)
+        root.pack_start(self.progress_bar, False, False, 0)
         self._rebuild_menu_bar()
 
     def _dynamic_entries(self, entries):
@@ -435,10 +469,20 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _build_log_content(self) -> Gtk.Widget:
         self.log_buffer = Gtk.TextBuffer()
+        for name, properties in (
+            ("timestamp", {"foreground": "#7f8c8d"}),
+            ("command_label", {"foreground": "#5dade2", "weight": Pango.Weight.BOLD}),
+            ("program", {"foreground": "#9b59b6", "weight": Pango.Weight.BOLD}),
+            ("argument", {"foreground": "#f1c40f"}),
+            ("response", {"foreground": "#d5d8dc"}),
+            ("ok", {"foreground": "#2ecc71", "weight": Pango.Weight.BOLD}),
+            ("error", {"foreground": "#ff6b6b", "weight": Pango.Weight.BOLD}),
+        ):
+            self.log_buffer.create_tag(name, **properties)
         self.log_view = Gtk.TextView(buffer=self.log_buffer)
         self.log_view.set_editable(False)
         self.log_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self.log_view.override_font(Pango.FontDescription("monospace 10"))
+        self.log_view.override_font(Pango.FontDescription("monospace 8"))
         scroll = Gtk.ScrolledWindow()
         scroll.add(self.log_view)
         return scroll
@@ -475,6 +519,50 @@ class MainWindow(Gtk.ApplicationWindow):
     def _status(self, text: str) -> None:
         self.status_bar.push(self.status_context, text)
 
+    @staticmethod
+    def _megapixels(path: str) -> float:
+        try:
+            _format, width, height = GdkPixbuf.Pixbuf.get_file_info(path)
+            return width * height / 1_000_000.0
+        except (TypeError, ValueError):
+            return 1.0
+
+    def _current_megapixels(self) -> float:
+        if self.preview.pixbuf is not None:
+            return (
+                self.preview.pixbuf.get_width() * self.preview.pixbuf.get_height()
+            ) / 1_000_000.0
+        if self.current_paths:
+            return self._megapixels(self.current_paths[-1])
+        return 1.0
+
+    def _begin_estimate(self, stage: str, megapixels: float, message: str) -> None:
+        seconds = self.estimator.estimate(stage, megapixels)
+        if seconds is None:
+            self._status(message)
+            return
+        self._status("%s (est. %.1f s)" % (message, seconds))
+        self._stop_progress()
+        self._progress_started = time.monotonic()
+        self._progress_estimate = seconds
+        self.progress_bar.set_fraction(0.0)
+        self._progress_timer = GLib.timeout_add(100, self._tick_progress)
+
+    def _tick_progress(self) -> bool:
+        if self._progress_started is None or not self._progress_estimate:
+            return False
+        elapsed = time.monotonic() - self._progress_started
+        self.progress_bar.set_fraction(min(1.0, elapsed / self._progress_estimate))
+        return True
+
+    def _stop_progress(self) -> None:
+        if self._progress_timer is not None:
+            GLib.source_remove(self._progress_timer)
+            self._progress_timer = None
+        self._progress_started = None
+        self._progress_estimate = None
+        self.progress_bar.set_fraction(0.0)
+
     def _status_image(self, image: WorkingImage, message: str) -> None:
         try:
             png_mb = os.path.getsize(image.png_path) / (1024.0 * 1024.0)
@@ -506,8 +594,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _log(self, line: str) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
-        end = self.log_buffer.get_end_iter()
-        self.log_buffer.insert(end, "[%s] %s\n" % (timestamp, line))
+        segments = log_segments("[%s] %s" % (timestamp, line))
+        for index, (text, tag) in enumerate(segments):
+            suffix = "\n" if index == len(segments) - 1 else ""
+            self.log_buffer.insert_with_tags_by_name(
+                self.log_buffer.get_end_iter(), text + suffix, tag
+            )
         self.log_view.scroll_to_iter(self.log_buffer.get_end_iter(), 0.0, False, 0.0, 0.0)
 
     def _capture_view_state(self) -> dict:
@@ -635,10 +727,13 @@ class MainWindow(Gtk.ApplicationWindow):
             on_log=self._log,
         )
         self.current_images.append(image)
-        self._status("Preparing 16-bit TIFF + PNG preview for %s" % path)
+        self._begin_estimate(
+            "open", self._megapixels(path), "Preparing TIFF + PNG for %s" % path
+        )
 
     def _on_image_ready(self, image: WorkingImage) -> None:
         self._busy_end()
+        self._stop_progress()
         self.preview.load(image.png_path)
         self._status_image(image, "Ready: %s" % os.path.basename(image.source))
         self._log(
@@ -648,6 +743,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_workspace_error(self, message: str) -> None:
         self._busy_end()
+        self._stop_progress()
         self._status("Workspace error")
         self._log(message)
         self._show_error(message)
@@ -710,7 +806,11 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         started = time.monotonic()
         self._busy_begin()
-        self._status("Exporting as %s..." % selected_format.label)
+        self._begin_estimate(
+            "export-" + selected_format.extension,
+            self._current_megapixels(),
+            "Exporting as %s..." % selected_format.label,
+        )
         self.workspace.export(
             image,
             destination,
@@ -723,6 +823,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_export_ready(self, destination: str, started: float) -> None:
         self._busy_end()
+        self._stop_progress()
         size_mb = os.path.getsize(destination) / (1024.0 * 1024.0)
         elapsed = time.monotonic() - started
         self._log("Exported copy to %s" % destination)
@@ -744,7 +845,8 @@ class MainWindow(Gtk.ApplicationWindow):
         view_state = self._capture_view_state()
         started = time.monotonic()
         self._busy_begin()
-        self._status("%s via external CLI..." % description)
+        stage = next(iter(params), "transform")
+        self._begin_estimate(stage, self._current_megapixels(), "%s via CLI..." % description)
         self.workspace.transform(
             image,
             params,
@@ -758,6 +860,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self, image: WorkingImage, view_state: dict = None, started: float = None
     ) -> None:
         self._busy_end()
+        self._stop_progress()
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
         self._log("TIFF transformed; preview PNG regenerated: %s" % image.png_path)
@@ -1010,6 +1113,74 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_metadata_window_destroyed(self, _widget) -> None:
         self.metadata_window = None
+
+    def action_histogram(self) -> None:
+        if not self.current_images:
+            self._log("Open an image before requesting a histogram")
+            self._status("Open an image first")
+            return
+        if not self.registry.available("ImageMagick"):
+            self._show_error("ImageMagick is not installed; histograms are unavailable.")
+            return
+        image = self.current_images[-1]
+        self.histogram_pending = 2
+        self.histogram_datasets = []
+        self._busy_begin()
+        self._status("Computing histograms via external CLI...")
+        for key, path, label, colour in (
+            ("preview", image.png_path, "Displayed PNG", (0.30, 0.65, 1.0)),
+            ("working", image.tiff_path, "Working TIFF", (0.35, 0.85, 0.45)),
+        ):
+            argv = [self._magick_adapter.binary, path, "-format", "%c", "histogram:info:-"]
+            self._log("CLI histogram-%s: %s" % (key, " ".join(argv)))
+            self.job_counter += 1
+            job_id = "histogram-%s-%d" % (key, self.job_counter)
+            self.engine.run(
+                job_id,
+                argv,
+                on_done=lambda result, k=key, p=path, l=label, c=colour: self._on_histogram_done(
+                    result, k, p, l, c
+                ),
+            )
+
+    def _on_histogram_done(self, result, key: str, path: str, label: str, colour) -> None:
+        if result.ok:
+            points = parse_histogram_text(result.stdout)
+            self.histogram_datasets.append((label, colour, points))
+            self._log("CLI %s exit %d (%d bins)" % (result.job_id, result.exit_code, len(points)))
+        else:
+            self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
+        self.histogram_pending -= 1
+        if self.histogram_pending == 0:
+            self._busy_end()
+            self._show_histogram_window()
+
+    def _show_histogram_window(self) -> None:
+        if self.histogram_window is not None:
+            self.histogram_window.destroy()
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title("Histogram - Astro Studio")
+        window.set_transient_for(self)
+        window.set_default_size(720, 360)
+        header = Gtk.HeaderBar()
+        header.set_show_close_button(False)
+        header.set_title("Histogram (CLI data, logarithmic count axis)")
+        close_button = Gtk.Button.new_from_icon_name(
+            "window-close-symbolic", Gtk.IconSize.BUTTON
+        )
+        close_button.set_tooltip_text("Close histogram window")
+        close_button.connect("clicked", lambda *_: window.destroy())
+        header.pack_end(close_button)
+        window.set_titlebar(header)
+        chart = HistogramWidget()
+        chart.set_datasets(self.histogram_datasets)
+        window.add(chart)
+        window.connect("destroy", self._on_histogram_window_destroyed)
+        self.histogram_window = window
+        window.show_all()
+
+    def _on_histogram_window_destroyed(self, _widget) -> None:
+        self.histogram_window = None
 
     def _on_panel_closed(self, panel) -> None:
         panel.hide()

@@ -7,9 +7,10 @@ try:
 except ImportError:
     psutil = None
 
+gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
 
 
 def parse_meminfo(text: str) -> float:
@@ -37,6 +38,33 @@ def parse_proc_cpu(line: str):
     return idle, sum(numbers)
 
 
+_METER_CSS = b"""
+levelbar.astro-meter block {
+    background-color: #2ecc71;
+}
+levelbar.astro-meter.high block {
+    background-color: #e74c3c;
+}
+label.astro-meter-high {
+    color: #e74c3c;
+    font-weight: bold;
+}
+label.astro-meter-ok {
+    color: #2ecc71;
+}
+"""
+
+
+def apply_meter_css() -> None:
+    provider = Gtk.CssProvider()
+    provider.load_from_data(_METER_CSS)
+    screen = Gdk.Screen.get_default()
+    if screen is not None:
+        Gtk.StyleContext.add_provider_for_screen(
+            screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+
 def cpu_delta(previous, current) -> float:
     idle = current[0] - previous[0]
     total = current[1] - previous[1]
@@ -55,11 +83,15 @@ class ResourceMonitor(Gtk.Box):
         self.ram_label = Gtk.Label(label="RAM 0%", xalign=0.0)
         for label in (self.cpu_label, self.ram_label):
             label.override_font(Pango.FontDescription("monospace 9"))
+            label.get_style_context().add_class("astro-meter-ok")
         self.cpu_bar = Gtk.LevelBar()
         self.ram_bar = Gtk.LevelBar()
         for bar in (self.cpu_bar, self.ram_bar):
             bar.set_min_value(0.0)
             bar.set_max_value(100.0)
+            bar.add_offset_value(Gtk.LEVEL_BAR_OFFSET_HIGH, 75.0)
+            bar.get_style_context().add_class("astro-meter")
+        apply_meter_css()
         self.pack_start(self.cpu_label, False, False, 0)
         self.pack_start(self.cpu_bar, False, False, 0)
         self.pack_start(self.ram_label, False, False, 0)
@@ -96,8 +128,18 @@ class ResourceMonitor(Gtk.Box):
             cpu = cpu_delta(self._previous_cpu, current)
             self._previous_cpu = current
             ram = self._read_proc_memory()
-        self.cpu_bar.set_value(max(0.0, min(100.0, cpu)))
-        self.ram_bar.set_value(max(0.0, min(100.0, ram)))
+        cpu = max(0.0, min(100.0, cpu))
+        ram = max(0.0, min(100.0, ram))
+        self.cpu_bar.set_value(cpu)
+        self.ram_bar.set_value(ram)
+        for label, value in ((self.cpu_label, cpu), (self.ram_label, ram)):
+            context = label.get_style_context()
+            if value >= 75.0:
+                context.remove_class("astro-meter-ok")
+                context.add_class("astro-meter-high")
+            else:
+                context.remove_class("astro-meter-high")
+                context.add_class("astro-meter-ok")
         self.cpu_label.set_text("CPU %.0f%%" % cpu)
         self.ram_label.set_text("RAM %.0f%%" % ram)
         return True

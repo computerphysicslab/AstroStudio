@@ -123,7 +123,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * **Desktop integration:** `packaging/` holds the SVG icon, the `.desktop` template, the launcher script and a user-level `install.sh` that installs into `$XDG_DATA_HOME` (`~/.local/share`), refreshes caches and enables launching Astro Studio from the application menu (`gtk-launch astro-studio`). The desktop file was validated with `desktop-file-validate`.
 * **User documentation:** `README.md` at the project root documents requirements, how to run the app, the automated test commands and the manual verification steps (including the ImageMagick export prerequisite).
 * **Version control and planning:** the project is a Git repository; `roadmap.md` tracks milestones v0.1.0 through v1.0.0 with status tags matching the GUI specification. Commit each logical change, keep this context file and the roadmap updated in the same change, and never push or rewrite history without explicit user request.
-* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (52 tests passing, including real-CLI FITS round-trip integration; pytest autoload is broken by an unrelated Dash plugin in this environment).
+* **Verification:** `python3 -m compileall -q astrostudio tests` and `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/` (56 passed, 1 opt-in benchmark skipped; pytest autoload is broken by an unrelated Dash plugin in this environment).
 
 ---
 
@@ -236,3 +236,14 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 * GTK 3.24 does not repaint GMenu text after `Gio.MenuItem.set_label()`, so `MainWindow._rebuild_menu_bar()` now rebuilds the whole `Gtk.MenuBar` whenever a dock visibility changes. View entries read `Backends Viewer: On/Off` and `Terminal Drawer: On/Off`, verified in a GUI smoke after both the X button and the View action.
 * The (i) Metadata action now opens a floating `Gtk.Window` with a `Gtk.HeaderBar` close (X) button and a two-tab `Gtk.Notebook` showing the **literal** ExifTool output for the PNG preview and the working TIFF. The two CLI jobs are tracked with `metadata_pending`, and the window opens once both finish; the docked metadata panel remains as a secondary view.
 * Version bumped to `0.2.1` with a `CHANGELOG.md` entry, and `roadmap.md` gained a "Current execution queue (next 30 minutes)" section with acceptance criteria for the dock labels, metadata window, operation-log validation and resource-monitor checks.
+
+---
+
+## 19. v0.2.2 — Ergonomics, Histogram and Time Estimation
+
+* `ResourceMonitor` applies CSS so bars and labels are green below 75% usage and red at/above 75%, using `Gtk.LEVEL_BAR_OFFSET_HIGH`.
+* The Terminal Drawer uses monospace 8 and `Gtk.TextBuffer` tags: timestamp (grey), command label (blue), program (purple), arguments (yellow), responses (light grey), success (green) and errors (red). `log_segments()` is a pure, unit-tested classifier.
+* Histogram phase 1 is implemented: `parse_histogram_text()` reads ImageMagick `histogram:info:-` output, `HistogramWidget` draws two overlaid 0–255 distributions with a logarithmic count axis, and a floating closable window shows the displayed PNG and the working TIFF.
+* `tests/benchmark_operations.py` (opt-in, max 10 MP) opens, filters and exports images, appending timed events to the persistent log. `scripts/analyze_operations.py` exports `operations.csv` and incrementally updates `estimates.json` with sufficient statistics per stage (`seconds = slope * megapixels + intercept`). Both were executed: 648 new log entries, 11 modelled stages.
+* `Estimator` feeds the GUI: before open/transform/export the status bar shows the estimated seconds and a full-width green `Gtk.ProgressBar` fills over that duration. Verified with a GUI smoke using an injected model.
+* Version is now `0.2.2` with the corresponding `CHANGELOG.md` entry.

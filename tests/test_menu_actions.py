@@ -1,7 +1,12 @@
 """Menu structure and precise-scale action tests."""
 
 from astrostudio.app import iter_menu_actions
-from astrostudio.ui.main_window import IMAGE_EXTENSIONS, MENU_LAYOUT, toggle_label
+from astrostudio.ui.main_window import (
+    IMAGE_EXTENSIONS,
+    MENU_LAYOUT,
+    log_segments,
+    toggle_label,
+)
 
 
 def test_precise_scale_actions_are_registered():
@@ -19,6 +24,15 @@ def test_precise_scale_actions_are_registered():
         "zoom-1-1",
         "zoom-fit",
     } <= actions
+
+
+def test_log_segments_colourise_commands_and_errors():
+    segments = log_segments("[12:00:00] CLI j1: convert -blur 0x2 in.tiff out.tiff")
+    assert segments[0][1] == "timestamp"
+    assert segments[1][1] == "command_label"
+    assert any(text.strip() == "-blur" and tag == "argument" for text, tag in segments)
+    assert any(text.strip() == "convert" and tag == "program" for text, tag in segments)
+    assert log_segments("[12:00:01] [stderr] boom")[1][1] == "error"
 
 
 def test_toggle_label_reflects_panel_state():
