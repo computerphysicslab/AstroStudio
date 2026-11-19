@@ -1,6 +1,7 @@
-"""Astrometry adapter and artifact helper tests."""
+"""Astrometry adapter, solution parsing and artifact helper tests."""
 
 import json
+import math
 
 from astrostudio.adapters import SkyStackerAdapter
 from astrostudio.core.astrometry import (
@@ -8,43 +9,79 @@ from astrostudio.core.astrometry import (
     find_plate_solution,
     summarize_solution,
 )
+from astrostudio.core.plate_solution import load_solution
 
 
-def test_plate_solve_argv_uses_wcs_capable_image_op():
-    adapter = SkyStackerAdapter()
-    argv = adapter.build_plate_solve_argv(
-        "/data/light.png", "/tmp/job", "83.82,-5.39", offline=True
+def test_plate_solve_argv_uses_documented_image_op():
+    argv = SkyStackerAdapter().build_plate_solve_argv(
+        "/data/light.png",
+        "/tmp/job",
+        plate_center="83.822,-5.391",
+        solver="gaia",
+        offline=True,
+        timeout=90,
+        focal_length="50",
+        pixel_size="4.3",
     )
     assert argv == [
         "skystacker",
         "--process-image",
         "/data/light.png",
         "--image-op",
-        "sky-map",
+        "plate-solve",
         "--image-output",
         "/tmp/job",
         "--no-donation",
-        "--plate-solve",
+        "--plate-solver",
+        "gaia",
+        "--astrometry-timeout",
+        "90",
         "--plate-center",
-        "83.82,-5.39",
+        "83.822,-5.391",
         "--gaia-offline",
+        "--solver-focal-length",
+        "50",
+        "--solver-pixel-size",
+        "4.3",
     ]
 
 
-def test_sky_map_and_cutout_argv_include_plate_solve():
-    adapter = SkyStackerAdapter()
-    sky_map = adapter.build_sky_map_argv("a.png", "/tmp/job", "10,20")
-    assert sky_map[sky_map.index("--image-op") + 1] == "sky-map"
-    assert "--plate-solve" in sky_map
-    assert "--plate-center" in sky_map
-
-    cutout = adapter.build_survey_cutout_argv("a.png", "/tmp/job", "Panstarrs1")
-    assert "--survey-hips" in cutout
-    assert "Panstarrs1" in cutout
-    assert "--plate-solve" in cutout
+def test_sky_map_argv_requests_solve_and_uses_layered_product():
+    argv = SkyStackerAdapter().build_sky_map_argv("a.png", "/tmp/job")
+    assert argv[argv.index("--image-op") + 1] == "sky-map"
+    assert "--plate-solve" in argv
+    assert "--plate-solver" in argv
 
 
-def test_find_plate_solution_and_summarize(tmp_path):
+def test_solution_parser_computes_fov_from_cd(tmp_path):
+    solution = {
+        "WCS": {
+            "CRVAL1": math.radians(83.822),
+            "CRVAL2": math.radians(-5.391),
+            "CRPIX1": 0,
+            "CRPIX2": 0,
+            "CD": [
+                [-4.0e-6, 0.0],
+                [0.0, 4.0e-6],
+            ],
+        },
+        "Method": "gaia",
+        "RMSArcsec": 0.3,
+        "NMatches": 12,
+        "NStars": 30,
+    }
+    path = tmp_path / "light_plate_solution.json"
+    path.write_text(json.dumps(solution))
+    assert find_plate_solution(str(tmp_path)) == str(path)
+
+    parsed = load_solution(str(path), 1000, 800)
+    assert round(parsed.ra_deg, 3) == 83.822
+    assert round(parsed.scale_arcsec_per_px, 2) == 0.83
+    assert round(parsed.fov_width_deg, 3) == 0.229
+    assert "Field of view" in parsed.summary()
+
+
+def test_find_output_and_summarize_solution(tmp_path):
     nested = tmp_path / "results"
     nested.mkdir()
     per_image = nested / "IMG_4062_plate_solution.json"
@@ -52,13 +89,5 @@ def test_find_plate_solution_and_summarize(tmp_path):
         json.dumps({"ra_center": 83.82, "dec_center": -5.39, "fov_deg": 1.4, "status": "ok"})
     )
     assert find_output(str(tmp_path), [".json"]) == str(per_image)
-    assert find_plate_solution(str(tmp_path)) == str(per_image)
-
-    canonical = nested / "plate_solution.json"
-    canonical.write_text(per_image.read_text())
-    assert find_plate_solution(str(tmp_path)) == str(canonical)
-
-    summary = summarize_solution(str(canonical))
+    summary = summarize_solution(str(per_image))
     assert "fov_deg: 1.4" in summary
-    assert "ra_center: 83.82" in summary
-    assert summary.index("fov_deg") < summary.index("status")

@@ -201,6 +201,22 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 13. [ ] Scientific validation dashboard for compression artefacts (banding from lossy
        RAW/JPEG/MJPEG before stretch, clipping counters, FWHM/SNR) (v1.0.0).
 
+## Format coverage audit (reference)
+
+| Format | Status via CLI | Notes / next step |
+|---|---|---|
+| FITS `.fits/.fit/.fts` | supported | First HDU or `-combine` import; 16/32-bit export |
+| FITS tile compression `.fz`, GZIP_2 | planned | Needs `fpack`/`funpack` adapter (medium) |
+| TIFF / BigTIFF | supported / planned | ZIP/LZW exported; BigTIFF needs `-define tiff:bigtiff` |
+| XISF `.xisf` | planned | No installed CLI; research external reader/writer (high) |
+| RAW `.cr2/.cr3/.nef/.arw/.raf/.orf/.rw2` | partially supported | Import via ImageMagick; RAW developers pending (medium) |
+| DNG `.dng` | planned | RawTherapee/LibRaw adapter with linear vs Bayer warning |
+| SER `.ser` | planned | Siril/ffmpeg for 8/16-bit uncompressed sequences |
+| AVI `.avi` | planned | ffmpeg, uncompressed/lossless only |
+| PSD/PSB | supported | `-flatten` composite, flattened export |
+| PNG 8/16-bit | supported | 16-bit via `png:bit-depth=16` |
+| JPEG | supported | Quality presets; 4:4:4 control pending |
+
 ## Milestone mapping (reference only)
 
 - **v0.2.0** — conversion/inspection completeness, settings persistence, job manager.

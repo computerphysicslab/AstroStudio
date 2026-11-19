@@ -108,6 +108,9 @@ ACTION_BACKENDS: Dict[str, Tuple[str, ...]] = {
     "sky-map": ("SkyStacker",),
     "survey-cutout": ("SkyStacker",),
     "about": (),
+    "toggle-backends": (),
+    "toggle-histogram": (),
+    "toggle-terminal": (),
     "settings": (),
     "language": (),
 }
@@ -150,6 +153,7 @@ IMPLEMENTED_ACTIONS = frozenset(
         "metadata",
         "histogram",
         "toggle-backends",
+        "toggle-histogram",
         "toggle-terminal",
         "plate-solve",
         "sky-map",

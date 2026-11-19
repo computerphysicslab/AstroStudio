@@ -9,6 +9,7 @@ DEFAULTS: Dict[str, Any] = {
     "theme": "system",
     "offline": False,
     "threads": 0,
+    "font_size": 9,
     "enabled_backends": {},
 }
 

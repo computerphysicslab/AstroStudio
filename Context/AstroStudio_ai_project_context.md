@@ -315,3 +315,25 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   `estimate_result` events are appended to the persistent operation log for later
   accuracy analysis.
 * Version bumped to `0.2.6` with a `CHANGELOG.md` entry.
+
+---
+
+## 24. v0.2.7 — Current SkyStacker Contract and UI Fixes
+
+* Documentation reviewed from `SkyStacker/docs/` (plate-solving, astrometry-products,
+  integration, output-formats). Key corrections: use `--image-op plate-solve` (not
+  `measure-quality`), choose `--plate-solver auto|gaia|astrometry-local|astap|astrometry-web`,
+  pass `--astrometry-timeout`, optional `--solver-focal-length`/`--solver-pixel-size`,
+  and `--gaia-offline` from settings. Standalone products are
+  `<base>_plate_solution.json` and a layered `<base>_sky_map.svg`.
+* `astrostudio/core/plate_solution.py` converts WCS CRVAL (radians), CD determinant and
+  image dimensions into RA/Dec, arcsec/px and FOV degrees. The GUI shows this summary
+  after a successful solve. A direct CLI run reproduced the documented failure chain
+  (seeded Gaia 0 matches → no local solver → no API key), confirming the bridge reports
+  real backend results. The documented internal mock produced a 30-source layered SVG.
+* Histogram is computed automatically after each image is prepared; View > Toggle
+  Histogram Viewer shows/hides its dock with an On/Off label. The PNG metadata tab now
+  reads the generated preview PNG, Undo/Redo are at the right end of the toolbar, the
+  progress bar is 24px high, and a persisted `font_size` preference resizes the GTK UI.
+* Version bumped to `0.2.7` with a `CHANGELOG.md` entry; format coverage audit added to
+  the roadmap.

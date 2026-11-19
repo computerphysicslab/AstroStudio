@@ -27,6 +27,7 @@ from ..core import (  # noqa: E402
     find_plate_solution,
     histogram_argv,
     parse_histogram_text,
+    solution_for_directory,
     summarize_solution,
 )
 from .histogram_panel import HistogramWidget  # noqa: E402
@@ -164,6 +165,7 @@ MENU_LAYOUT = (
             ("Pixel Line Profile", "line-profile"),
             ("Metadata Viewer", "metadata"),
             ("Toggle Backends Viewer", "toggle-backends"),
+            ("Toggle Histogram Viewer", "toggle-histogram"),
             ("Toggle Terminal Drawer", "toggle-terminal"),
         ),
     ),
@@ -203,14 +205,14 @@ IMAGE_EXTENSIONS = (
 )
 
 TOOL_ITEMS = (
-    ("edit-undo", "Undo", "undo"),
-    ("edit-redo", "Redo", "redo"),
     ("document-open", "Open", "open"),
     ("document-save-as", "Export", "export"),
     ("dialog-information", "Metadata", "metadata"),
     ("zoom-in", "Zoom in", "zoom-in"),
     ("zoom-out", "Zoom out", "zoom-out"),
     ("zoom-fit-best", "Fit to window", "zoom-fit"),
+    ("edit-undo", "Undo", "undo"),
+    ("edit-redo", "Redo", "redo"),
 )
 
 
@@ -238,6 +240,7 @@ def log_segments(line: str):
 
 TOGGLE_PANELS = {
     "toggle-backends": "Backends Viewer",
+    "toggle-histogram": "Histogram Viewer",
     "toggle-terminal": "Terminal Drawer",
 }
 
@@ -288,10 +291,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.job_counter = 0
         self.plate_solutions: dict = {}
         self.plate_centers: dict = {}
+        self.plate_options: dict = {}
         self._busy_count = 0
         self.metadata_pending = 0
         self.metadata_window = None
         self.histogram_pending = 0
+        self.histogram_generation = 0
         self.histogram_datasets = []
         self.histogram_window = None
         self._menu_items: dict = {}
@@ -317,6 +322,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self._build_layout()
         self._apply_theme()
+        self._apply_font()
         self.connect("destroy", lambda *_widget: self.resource_monitor.stop())
         self.on_backends_updated(registry)
 
@@ -355,6 +361,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.histogram_panel = self._panel_with_close(
             "Histogram (CLI data, click handles to stretch)", self.histogram_widget
         )
+        self.histogram_panel.set_no_show_all(True)
         self.terminal_panel = self._panel_with_close(
             "Terminal Drawer", self._build_log_content()
         )
@@ -370,7 +377,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._status("Astro Studio ready")
         root.pack_start(self.status_bar, False, False, 0)
         self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_size_request(-1, 16)
+        self.progress_bar.set_size_request(-1, 24)
         self.progress_bar.set_show_text(True)
         self.progress_bar.set_text("")
         root.pack_start(self.progress_bar, False, False, 0)
@@ -386,9 +393,11 @@ class MainWindow(Gtk.ApplicationWindow):
             elif item[1] in TOGGLE_PANELS:
                 panel = getattr(
                     self,
-                    "backends_panel"
-                    if item[1] == "toggle-backends"
-                    else "terminal_panel",
+                    {
+                        "toggle-backends": "backends_panel",
+                        "toggle-histogram": "histogram_panel",
+                        "toggle-terminal": "terminal_panel",
+                    }[item[1]],
                     None,
                 )
                 visible = panel.get_visible() if panel is not None else True
@@ -502,6 +511,13 @@ class MainWindow(Gtk.ApplicationWindow):
         scroll = Gtk.ScrolledWindow()
         scroll.add(self.log_view)
         return scroll
+
+    def _apply_font(self) -> None:
+        gtk_settings = Gtk.Settings.get_default()
+        if gtk_settings is None:
+            return
+        size = int(self.settings.get("font_size", 9))
+        gtk_settings.set_property("gtk-font-name", "Sans %d" % max(7, min(18, size)))
 
     def _apply_theme(self) -> None:
         gtk_settings = Gtk.Settings.get_default()
@@ -798,6 +814,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "Workspace ready: TIFF=%s | PNG=%s"
             % (image.tiff_path, image.png_path)
         )
+        self._compute_histogram(image)
 
     def _on_workspace_error(self, message: str) -> None:
         self._busy_end()
@@ -1136,7 +1153,7 @@ class MainWindow(Gtk.ApplicationWindow):
             return
         image = self.current_images[-1]
         self.metadata_pending = 2
-        self._read_metadata(self.current_paths[-1], "png", "PNG preview")
+        self._read_metadata(image.png_path, "png", "PNG preview")
         self._read_metadata(image.tiff_path, "tiff", "TIFF working")
 
     def _read_metadata(self, path: str, buffer_key: str, label: str) -> None:
@@ -1223,14 +1240,20 @@ class MainWindow(Gtk.ApplicationWindow):
             self._log("Open an image before requesting a histogram")
             self._status("Open an image first")
             return
-        if not self.registry.available("ImageMagick"):
-            self._show_error("ImageMagick is not installed; histograms are unavailable.")
-            return
-        image = self.current_images[-1]
         self.histogram_panel.show()
+        self._update_toggle_labels()
+        self._compute_histogram(self.current_images[-1])
+
+    def _compute_histogram(self, image: WorkingImage) -> None:
+        if not self.registry.available("ImageMagick"):
+            self._log("ImageMagick unavailable; histogram skipped")
+            return
+        self.histogram_generation += 1
+        generation = self.histogram_generation
         self.histogram_widget.set_points(*(image.stretch_points or (0.0, 255.0)))
         self.histogram_pending = 2
         self.histogram_datasets = []
+        self.histogram_widget.set_datasets([])
         self._busy_begin()
         self._status("Computing histograms via external CLI...")
         for key, path, label, colour in (
@@ -1244,12 +1267,14 @@ class MainWindow(Gtk.ApplicationWindow):
             self.engine.run(
                 job_id,
                 argv,
-                on_done=lambda result, k=key, p=path, l=label, c=colour: self._on_histogram_done(
-                    result, k, p, l, c
+                on_done=lambda result, k=key, p=path, l=label, c=colour, g=generation: self._on_histogram_done(
+                    result, k, p, l, c, g
                 ),
             )
 
-    def _on_histogram_done(self, result, key: str, path: str, label: str, colour) -> None:
+    def _on_histogram_done(self, result, key: str, path: str, label: str, colour, generation: int = 0) -> None:
+        if generation != self.histogram_generation:
+            return
         if result.ok:
             points = parse_histogram_text(result.stdout)
             self.histogram_datasets.append((label, colour, points))
@@ -1290,6 +1315,13 @@ class MainWindow(Gtk.ApplicationWindow):
             self.backends_panel.hide()
         else:
             self.backends_panel.show()
+        self._update_toggle_labels()
+
+    def action_toggle_histogram(self) -> None:
+        if self.histogram_panel.get_visible():
+            self.histogram_panel.hide()
+        else:
+            self.histogram_panel.show()
         self._update_toggle_labels()
 
     def action_toggle_terminal(self) -> None:
@@ -1340,9 +1372,9 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.run()
         dialog.destroy()
 
-    def _ask_plate_center(self) -> Optional[str]:
+    def _ask_plate_solver_options(self) -> Optional[dict]:
         dialog = Gtk.Dialog(
-            title="Plate solving seed (optional)",
+            title="Plate solving options",
             parent=self,
             modal=True,
             buttons=(
@@ -1354,18 +1386,38 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         ra_entry = Gtk.Entry()
         dec_entry = Gtk.Entry()
-        ra_entry.set_placeholder_text("RA degrees (e.g. 83.82)")
-        dec_entry.set_placeholder_text("Dec degrees (e.g. -5.39)")
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        box.pack_start(Gtk.Label(label="Leave blank for FITS header seed / blind search"), False, False, 0)
-        box.pack_start(ra_entry, True, True, 0)
-        box.pack_start(dec_entry, True, True, 0)
-        dialog.get_content_area().pack_start(box, True, True, 6)
+        focal_entry = Gtk.Entry()
+        pixel_entry = Gtk.Entry()
+        solver_combo = Gtk.ComboBoxText()
+        for name in ("auto", "gaia", "astrometry-local", "astap", "astrometry-web"):
+            solver_combo.append_text(name)
+        solver_combo.set_active(0)
+        ra_entry.set_placeholder_text("RA degrees (e.g. 83.822)")
+        dec_entry.set_placeholder_text("Dec degrees (e.g. -5.391)")
+        focal_entry.set_placeholder_text("Focal length mm (optional scale hint)")
+        pixel_entry.set_placeholder_text("Pixel size um (optional scale hint)")
+        grid = Gtk.Grid()
+        grid.set_border_width(6)
+        grid.set_row_spacing(4)
+        grid.set_column_spacing(8)
+        for row, (label, widget) in enumerate(
+            (
+                ("RA (deg)", ra_entry),
+                ("Dec", dec_entry),
+                ("Solver", solver_combo),
+                ("Focal length (mm)", focal_entry),
+                ("Pixel size (um)", pixel_entry),
+            )
+        ):
+            grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
+            grid.attach(widget, 1, row, 1, 1)
+        dialog.get_content_area().pack_start(grid, True, True, 6)
         dialog.show_all()
-        center = None
+        options = None
         if dialog.run() == Gtk.ResponseType.OK:
             ra_text = ra_entry.get_text().strip()
             dec_text = dec_entry.get_text().strip()
+            center = None
             if ra_text or dec_text:
                 try:
                     float(ra_text)
@@ -1373,8 +1425,14 @@ class MainWindow(Gtk.ApplicationWindow):
                     center = "%s,%s" % (ra_text, dec_text)
                 except ValueError:
                     self._show_error("RA and Dec must be decimal degrees")
+            options = {
+                "center": center,
+                "solver": solver_combo.get_active_text() or "auto",
+                "focal": focal_entry.get_text().strip(),
+                "pixel": pixel_entry.get_text().strip(),
+            }
         dialog.destroy()
-        return center
+        return options
 
     def _run_astrometry(self, job_name: str, argv: List[str], output_dir: str, on_done) -> None:
         self.job_counter += 1
@@ -1409,12 +1467,23 @@ class MainWindow(Gtk.ApplicationWindow):
         if not self.registry.available("SkyStacker"):
             self._show_error("SkyStacker is not installed; plate solving is unavailable.")
             return
-        center = self._ask_plate_center()
+        options = self._ask_plate_solver_options()
+        if options is None:
+            return
         source = self.current_paths[-1]
-        self.plate_centers[source] = center
+        self.plate_options[source] = options
+        self.plate_centers[source] = options["center"]
         output_dir = self._astrometry_job_dir("plate-solve")
         adapter = self.adapters["SkyStacker"]
-        argv = adapter.build_plate_solve_argv(source, output_dir, center)
+        argv = adapter.build_plate_solve_argv(
+            source,
+            output_dir,
+            plate_center=options["center"],
+            solver=options["solver"],
+            offline=bool(self.settings.get("offline", False)),
+            focal_length=options["focal"],
+            pixel_size=options["pixel"],
+        )
         self._run_astrometry(
             "plate-solve",
             argv,
@@ -1435,10 +1504,15 @@ class MainWindow(Gtk.ApplicationWindow):
                     shutil.copyfile(solution, canonical)
                     solution = canonical
                 self.plate_solutions[self.current_paths[-1]] = solution
-            text = summarize_solution(solution) if solution else "No plate solution was written (check star field and seed)."
-            if not any(word in text.lower() for word in ("fov", "ra", "dec", "scale")):
-                text = "No field-of-view solution in the report (the field may lack stars):\n" + text
-            self._log("CLI %s exit %d; solution: %s" % (result.job_id, result.exit_code, text.splitlines()[0]))
+            width = self.preview.pixbuf.get_width() if self.preview.pixbuf else 0
+            height = self.preview.pixbuf.get_height() if self.preview.pixbuf else 0
+            parsed = solution_for_directory(output_dir, width, height)
+            if parsed is not None:
+                text = parsed.summary()
+            else:
+                text = summarize_solution(solution) if solution else "No plate_solution.json was written (check star field and seed)."
+                text = "Solution could not be parsed:\n" + text
+            self._log("CLI %s exit %d; %s" % (result.job_id, result.exit_code, text.splitlines()[0]))
             self._show_info("Plate solution / field of view", text)
         self.app.update_action_sensitivity()
 
@@ -1452,8 +1526,15 @@ class MainWindow(Gtk.ApplicationWindow):
         source = self.current_paths[-1]
         output_dir = self._astrometry_job_dir("sky-map")
         self._reuse_plate_solution(source, output_dir)
+        options = self.plate_options.get(source, {})
         argv = self.adapters["SkyStacker"].build_sky_map_argv(
-            source, output_dir, self.plate_centers.get(source)
+            source,
+            output_dir,
+            plate_center=options.get("center"),
+            solver=options.get("solver", "auto"),
+            offline=bool(self.settings.get("offline", False)),
+            focal_length=options.get("focal"),
+            pixel_size=options.get("pixel"),
         )
         self._run_astrometry(
             "sky-map",
@@ -1583,12 +1664,15 @@ class MainWindow(Gtk.ApplicationWindow):
         offline.set_active(bool(self.settings.get("offline", False)))
         threads = Gtk.SpinButton.new_with_range(0, 64, 1)
         threads.set_value(int(self.settings.get("threads", 0)))
+        font_size = Gtk.SpinButton.new_with_range(7, 18, 1)
+        font_size.set_value(int(self.settings.get("font_size", 9)))
 
         for label, widget in (
             ("Language", language),
             ("Theme", theme),
             ("Offline", offline),
             ("Max threads (0 = backend default)", threads),
+            ("Application font size", font_size),
         ):
             grid.attach(Gtk.Label(label=label, xalign=0.0), 0, row, 1, 1)
             grid.attach(widget, 1, row, 1, 1)
@@ -1603,8 +1687,10 @@ class MainWindow(Gtk.ApplicationWindow):
             self.settings.set("theme", theme.get_active_text())
             self.settings.set("offline", offline.get_active())
             self.settings.set("threads", int(threads.get_value()))
+            self.settings.set("font_size", int(font_size.get_value()))
             self.settings.save()
             self._apply_theme()
+            self._apply_font()
             self.app.update_action_sensitivity()
             self._log("Preferences saved to %s" % self.settings.path)
             self._status("Preferences saved")

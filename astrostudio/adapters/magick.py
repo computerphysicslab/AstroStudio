@@ -49,8 +49,8 @@ class ImageMagickAdapter(CliAdapter):
             # restores them to one RGB working TIFF.
             return [self.binary, source, "-combine", "-depth", "16", tiff_path]
         if lowered.endswith((".psd", ".psb")):
-            # Select the flattened composite instead of the first layer.
-            return [self.binary, source + "[0]", "-depth", "16", tiff_path]
+            # Flatten all layers into one composite frame before writing the TIFF.
+            return [self.binary, source, "-flatten", "-depth", "16", tiff_path]
         return [self.binary, source, "-depth", "16", tiff_path]
 
     def build_preview_argv(

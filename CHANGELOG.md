@@ -8,6 +8,18 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.7 — 2026-11-19
+
+- SkyStacker bridge follows the current docs: `--image-op plate-solve` with
+  `--plate-solver auto|gaia|astrometry-local|astap|astrometry-web`, scale hints,
+  timeout and offline mode; layered SVG sky maps generated with `--image-op sky-map`.
+- `plate_solution.json` is parsed into RA/Dec, pixel scale and FOV from WCS radians.
+  Verified with the documented internal mock, which produced a layered SVG.
+- Metadata PNG tab now reads the generated PNG (not the original file); Undo/Redo moved
+  to the right of the toolbar; progress bar thickened; persistent application font size.
+- Histogram computes automatically on open and View > Toggle Histogram Viewer controls
+  its dock visibility.
+
 ## 0.2.6 — 2026-11-19
 
 - Processing > Resize Image is now the scale submenu (10–1000% plus Custom Scale);
