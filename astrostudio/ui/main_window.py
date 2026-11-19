@@ -49,6 +49,7 @@ MENU_LAYOUT = (
             ("Open", "open"),
             ("Export / Save As", "export"),
             ("Export Pipeline...", "export-pipeline"),
+            ("Batch Convert...", "batch"),
             (None, None),
             ("Close", "close"),
             ("Close All", "close-all"),
@@ -313,6 +314,7 @@ class MainWindow(Gtk.ApplicationWindow):
         }
         from ..adapters.skystacker import discover_catalog_dir
 
+        self._magick_adapter.thread_limit = int(self.settings.get("threads", 0))
         self.adapters["SkyStacker"].cache_dir = self.settings.get("cache_dir") or None
         self.adapters["SkyStacker"].catalog_dir = (
             self.settings.get("blind_catalog_dir")
@@ -1109,6 +1111,69 @@ progressbar text {
         self._status(self.translator.tr("Workspace error"))
         self._log(message)
         self._show_error(message)
+
+    def action_batch(self) -> None:
+        if not self.registry.available("ImageMagick") or not shutil.which(
+            self._magick_adapter.batch_binary
+        ):
+            self._show_error("ImageMagick mogrify is required for batch conversion.")
+            return
+        chooser = Gtk.FileChooserDialog(
+            title="Select images to convert",
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        chooser.set_select_multiple(True)
+        response = chooser.run()
+        files = chooser.get_filenames() if response == Gtk.ResponseType.OK else []
+        chooser.destroy()
+        if not files:
+            return
+        export_format = self._choose_export_format()
+        if export_format is None:
+            return
+        folder_chooser = Gtk.FileChooserDialog(
+            title="Select output directory",
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        response = folder_chooser.run()
+        output_dir = folder_chooser.get_filename() if response == Gtk.ResponseType.OK else None
+        folder_chooser.destroy()
+        if not output_dir:
+            return
+        argv = self._magick_adapter.build_batch_argv(files, output_dir, export_format.extension)
+        self.job_counter += 1
+        job_id = "batch-%d" % self.job_counter
+        self._log("CLI %s: %s" % (job_id, " ".join(argv)))
+        self._busy_begin()
+        self.engine.run(
+            job_id,
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_batch_done(result, len(files), export_format.extension),
+        )
+
+    def _on_batch_done(self, result, count: int, extension: str) -> None:
+        self._busy_end()
+        if result.ok:
+            self._log("Batch converted %d image(s) to %s" % (count, extension))
+            self._status("Batch complete: %d image(s)" % count)
+        else:
+            self._log("Batch failed: %s" % (result.error or result.stderr))
+            self._show_error("Batch conversion failed: %s" % (result.error or result.stderr))
 
     def action_export_pipeline(self) -> None:
         dialog = Gtk.FileChooserDialog(
@@ -2159,6 +2224,7 @@ progressbar text {
             self.settings.set("cache_dir", cache_entry.get_text().strip())
             self.settings.set("offline", offline.get_active())
             self.settings.set("threads", int(threads.get_value()))
+            self._magick_adapter.thread_limit = int(self.settings.get("threads", 0))
             self.settings.save()
             self.adapters["SkyStacker"].cache_dir = (
                 self.settings.get("cache_dir") or None

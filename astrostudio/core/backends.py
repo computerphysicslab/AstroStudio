@@ -132,6 +132,7 @@ IMPLEMENTED_ACTIONS = frozenset(
         "redo",
         "export",
         "export-pipeline",
+        "batch",
         "resize-10",
         "resize-25",
         "resize-50",

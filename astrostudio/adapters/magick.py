@@ -1,7 +1,7 @@
 """ImageMagick connector: TIFF workspace and display-oriented operations."""
 
 import shutil
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, List, Sequence
 
 if TYPE_CHECKING:
     from ..core.export_formats import ExportFormat
@@ -20,6 +20,8 @@ class ImageMagickAdapter(CliAdapter):
         self.binary = binary or (
             "magick" if shutil.which("magick") else "convert"
         )
+        self.thread_limit = 0
+        self.batch_binary = "mogrify"
         super().__init__(
             CommandBuilder(
                 self.binary,
@@ -42,16 +44,25 @@ class ImageMagickAdapter(CliAdapter):
             )
         )
 
+    def _with_threads(self, argv: Sequence[str]) -> List[str]:
+        result = list(argv)
+        if self.thread_limit > 0:
+            result[1:1] = ["-limit", "thread", str(int(self.thread_limit))]
+        return result
+
+    def build_argv(self, inputs, output=None, params=None):
+        return self._with_threads(super().build_argv(inputs, output, params))
+
     def build_import_argv(self, source: str, tiff_path: str) -> Sequence[str]:
         lowered = source.lower()
         if lowered.endswith((".fits", ".fit", ".fts")):
             # ImageMagick writes RGB FITS as three grayscale HDUs; -combine
             # restores them to one RGB working TIFF.
-            return [self.binary, source, "-combine", "-depth", "16", tiff_path]
+            return self._with_threads([self.binary, source, "-combine", "-depth", "16", tiff_path])
         if lowered.endswith((".psd", ".psb")):
             # Flatten all layers into one composite frame before writing the TIFF.
             return [self.binary, source, "-flatten", "-depth", "16", tiff_path]
-        return [self.binary, source, "-depth", "16", tiff_path]
+        return self._with_threads([self.binary, source, "-depth", "16", tiff_path])
 
     def build_preview_argv(
         self,
@@ -72,7 +83,20 @@ class ImageMagickAdapter(CliAdapter):
                 )
             )
         argv.extend(("-depth", "8", png_path))
-        return argv
+        return self._with_threads(argv)
+
+    def build_batch_argv(
+        self, inputs: Sequence[str], output_dir: str, extension: str
+    ) -> List[str]:
+        argv = [
+            self.batch_binary,
+            "-format",
+            extension.lstrip("."),
+            "-path",
+            output_dir,
+        ]
+        argv.extend(inputs)
+        return self._with_threads(argv)
 
     def build_export_argv(
         self,
@@ -84,4 +108,4 @@ class ImageMagickAdapter(CliAdapter):
         if export_format:
             argv.extend(export_format.flags)
         argv.append(destination)
-        return argv
+        return self._with_threads(argv)

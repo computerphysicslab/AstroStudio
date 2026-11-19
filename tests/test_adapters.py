@@ -153,3 +153,23 @@ def test_imagemagick_adapter_falls_back_to_convert(monkeypatch):
 
     monkeypatch.setattr(magick.shutil, "which", lambda binary: "/usr/bin/convert" if binary == "convert" else None)
     assert ImageMagickAdapter().binary == "convert"
+
+
+def test_threads_limit_is_serialized():
+    from astrostudio.adapters import ImageMagickAdapter
+
+    adapter = ImageMagickAdapter(binary="convert")
+    adapter.thread_limit = 4
+    assert adapter.build_import_argv("in.png", "out.tiff")[1:4] == [
+        "-limit",
+        "thread",
+        "4",
+    ]
+    assert adapter.build_batch_argv(["a.png", "b.png"], "/tmp/out", "png")[:6] == [
+        "mogrify",
+        "-limit",
+        "thread",
+        "4",
+        "-format",
+        "png",
+    ]

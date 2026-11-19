@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.18 — 2026-11-19
+
+- ImageMagick receives `-limit thread N` from the persisted thread setting.
+- Operation log rotates by size with numbered JSONL backups.
+- Batch conversion via `mogrify` with format and output-directory dialogs.
+- Tests added for thread serialization, batch argv and log rotation.
+
 ## 0.2.17 — 2026-11-19
 
 - Configurable accent colour (green/blue/orange/purple) applied to GTK CSS.

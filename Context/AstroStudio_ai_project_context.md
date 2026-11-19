@@ -516,3 +516,18 @@ to force a UI redraw.
 * Roadmap low-difficulty items 4–6 complete; new tests cover pipeline quoting and the
   content-hash cache.
 * Version bumped to `0.2.17` with a `CHANGELOG.md` entry.
+
+---
+
+## 35. v0.2.18 — Threads, Log Rotation and Batch Conversion
+
+* `ImageMagickAdapter.thread_limit` inserts `-limit thread N` into import, preview,
+  export, transform and batch argv; it is initialised from `settings.threads` and updated
+  in Backend Settings.
+* `OperationLog` rotates the JSONL file when it exceeds `max_bytes`, keeping numbered
+  backups. `cli_end` already records `input_bytes`/`output_bytes`.
+* File > Batch Convert uses `mogrify -format <ext> -path <dir> ...` with file, format and
+  destination dialogs; results are logged in the Terminal Drawer.
+* Roadmap items 7, 10, 13 and 14 are complete. Tests cover thread serialization, batch
+  argv and rotation.
+* Version bumped to `0.2.18` with a `CHANGELOG.md` entry.

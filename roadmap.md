@@ -81,7 +81,7 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 4. [x] Dark/light themes and configurable accent colours applied through GTK CSS.
 5. [x] Export pipeline as shell script or Makefile from serialized `argv` (GUI + CLI).
 6. [x] Content-hash cache (input bytes + argv) reuses identical TIFF transforms.
-7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
+7. [x] Batch conversion adapter (`mogrify`) and dialog with format/destination selection.
 8. [x] Resize percentages moved into Processing > Resize Image as a CLI submenu with
        Custom Scale; view-only Precise Scale removed (v0.2.6). Select Area toolbar
        overlay added (v0.2.16); crop/rotate/flip/mirror CLI dialogs remain pending.
@@ -91,16 +91,14 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        Terminal, logarithmic Y axis, preview vs working-TIFF distributions and two
        clickable/draggable low/high cut-point handles that trigger a CLI `-level` preview
        regeneration; pixel line profile still pending (v0.2.3).
-10. [ ] Localization of interface strings (EN/ES/DE/JA) (v0.2.0).
+10. [x] Localization of interface strings (EN/ES/DE/JA/RU/ZH).
 11. [x] Small CPU/RAM level indicators using `psutil` with a `/proc` fallback, refreshed
        by `GLib.timeout_add()` in the right dock.
 12. [x] Initial extended export formats via ImageMagick: PNG 16-bit, TIFF 32-bit float,
        FITS 32-bit float and flattened PSD. Remaining: JPEG 4:4:4 control, TIFF PackBits,
        BigTIFF and FITS tile-compression adapters (v0.2.3).
-13. [ ] Propagate `settings.threads` to ImageMagick `-limit thread` and future adapters
-       (v0.2.5).
-14. [ ] Operation-log rotation/compaction by size/date plus `input_bytes`/`output_bytes`
-       in `cli_end` records (v0.2.5).
+13. [x] `settings.threads` propagated to ImageMagick `-limit thread`.
+14. [x] Operation-log rotation by size and `input_bytes`/`output_bytes` in `cli_end`.
 15. [ ] Collapsible error dialog showing the relevant backend `stderr` in addition to the
        terminal drawer (v0.2.5).
 16. [ ] Documentation: Mermaid architecture diagram, adapter `build_*_argv` contract
