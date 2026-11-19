@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.21 — 2026-11-19
+
+- Siril connector with calibration/stacking script generation and backend gating.
+- Bad-pixel-map automation via SkyStacker with a 0.1% sanity cap.
+- WCS values from plate solutions exported as `.wcs.json` sidecars beside FITS files.
+- Unit tests for all three modules.
+
 ## 0.2.20 — 2026-11-19
 
 - Visual job manager panel with per-job state, duration and retry using stored argv.

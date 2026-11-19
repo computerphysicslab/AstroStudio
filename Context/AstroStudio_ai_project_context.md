@@ -578,3 +578,17 @@ to force a UI redraw.
   Bias/Biases, Dark/Darks, Flat/Flats and Light/Lights, excluding non-image files, and
   reports counts in the log and an info dialog.
 * Roadmap medium-difficulty items 1–3 are complete. Version bumped to `0.2.20`.
+
+---
+
+## 38. v0.2.21 — Siril, BPM and WCS Sidecars
+
+* `adapters/siril.py` generates Siril `.ssf` scripts for calibration and stacking and
+  invokes `siril-cli -s <script>`; actions are disabled because `siril-cli` is not
+  installed here, so no results are fabricated.
+* `core/bpm.py` validates bad-pixel-map density against the 0.1% cap; SkyStacker
+  `--bpm-auto --bpm-auto-sigma` is exposed as a Processing action.
+* `core/wcs.py` converts SkyStacker's radian WCS/0-based CRPIX to FITS header values and
+  writes a `.wcs.json` sidecar next to exported FITS files. Installed tools (ExifTool)
+  cannot write arbitrary FITS keywords, so direct header rewriting is not attempted.
+* Roadmap medium-difficulty items 4–6 complete. Version bumped to `0.2.21`.

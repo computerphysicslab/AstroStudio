@@ -111,11 +111,11 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        background sigma) for open images.
 3. [x] Case-insensitive calibration folder discovery (Bias/Dark/Flat/Light) with
        light-frame exclusion.
-4. [ ] Siril adapter: master dark/flat/bias from real frames and basic stacking with
-       seeded alignment and affine guards (v0.3.0).
-5. [ ] Bad-pixel-map automation with the 0.1% sanity cap (v0.3.0).
-6. [ ] FITS/XISF header and WCS preservation on export where the backend supports it
-       (v0.4.0).
+4. [x] Siril adapter with calibration/stacking script generation, gated on siril-cli
+       availability (binary not installed in this environment).
+5. [x] BPM automation via SkyStacker `--bpm-auto` with 0.1% sanity-cap validation.
+6. [x] WCS values from plate_solution.json exported as a `.wcs.json` sidecar next to
+       FITS outputs (installed tools cannot edit FITS headers directly).
 7. [ ] Alternative plate solvers (ASTAP, `solve-field`) with explicit pointing seeds and
        blind-scan warnings; addresses the SkyStacker `0 matched pairs` failure (v0.4.0).
 7a. [x] Native wide-field blind solve with `--plate-solver native --blind-catalog mag07`

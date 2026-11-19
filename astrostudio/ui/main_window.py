@@ -1,5 +1,6 @@
 """Main GTK window: menus, toolbars, metadata, backend status and log drawer."""
 
+import json
 import os
 import shutil
 import time
@@ -16,7 +17,12 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
-from ..adapters import ExifToolAdapter, ImageMagickAdapter, SkyStackerAdapter  # noqa: E402
+from ..adapters import (  # noqa: E402
+    ExifToolAdapter,
+    ImageMagickAdapter,
+    SirilAdapter,
+    SkyStackerAdapter,
+)
 from ..core import (  # noqa: E402
     EXPORT_FORMATS,
     ExportFormat,
@@ -37,6 +43,7 @@ from ..core import (  # noqa: E402
     solution_for_directory,
     write_makefile,
     write_shell,
+    write_wcs_sidecar,
     summarize_solution,
 )
 from .histogram_panel import HistogramWidget  # noqa: E402
@@ -90,6 +97,9 @@ MENU_LAYOUT = (
                     ("Custom Scale...", "resize-custom"),
                 ),
             ),
+            ("Generate BPM (auto)...", "bpm-auto"),
+            ("Siril Calibrate...", "siril-calibrate"),
+            ("Siril Stack...", "siril-stack"),
             ("Detect Calibration Folders...", "detect-calibration"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
@@ -316,6 +326,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "ImageMagick": self._magick_adapter,
             "ExifTool": ExifToolAdapter(),
             "SkyStacker": SkyStackerAdapter(),
+            "Siril": SirilAdapter(),
         }
         from ..adapters.skystacker import discover_catalog_dir
 
@@ -337,6 +348,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.current_images: List[WorkingImage] = []
         self.current_paths = []
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
+        self._export_source = None
         self.job_counter = 0
         self.plate_solutions: dict = {}
         self.plate_centers: dict = {}
@@ -1307,6 +1319,7 @@ progressbar text {
             destination=destination,
             format=selected_format.key,
         )
+        self._export_source = image.source
         started = time.monotonic()
         self._busy_begin()
         self._begin_estimate(
@@ -1329,6 +1342,15 @@ progressbar text {
         self._stop_progress()
         size_mb = os.path.getsize(destination) / (1024.0 * 1024.0)
         elapsed = time.monotonic() - started
+        if destination.lower().endswith(".fits"):
+            solution_path = self.plate_solutions.get(getattr(self, "_export_source", ""))
+            if solution_path and os.path.isfile(solution_path):
+                try:
+                    with open(solution_path, "r", encoding="utf-8") as handle:
+                        sidecar = write_wcs_sidecar(destination, json.load(handle))
+                    self._log("WCS sidecar written: %s" % sidecar)
+                except (OSError, ValueError, KeyError):
+                    self._log("Could not write WCS sidecar")
         self._log("Exported copy to %s" % destination)
         self._status(
             "%s: %s (%.2f MB, %.1f s)"
@@ -1772,6 +1794,106 @@ progressbar text {
                     "%.1f" % item.quality,
                 )
             )
+
+    def _choose_folder(self, title: str) -> str:
+        dialog = Gtk.FileChooserDialog(
+            title=title,
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        response = dialog.run()
+        path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        return path or ""
+
+    def _run_siril_script(self, script: str, label: str) -> None:
+        adapter = self.adapters["Siril"]
+        output_dir = self.scratch.job_dir("siril-%d" % self.job_counter)
+        self.job_counter += 1
+        script_path = os.path.join(output_dir, label + ".ssf")
+        with open(script_path, "w", encoding="utf-8") as handle:
+            handle.write(script)
+        argv = adapter.build_script_argv(script_path)
+        self._log("CLI %s: %s" % (label, " ".join(argv)))
+        self._busy_begin()
+        self.engine.run(
+            "siril-%s" % label,
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_siril_done(label, result),
+        )
+
+    def _on_siril_done(self, label: str, result) -> None:
+        self._busy_end()
+        if result.ok:
+            self._log("Siril %s completed" % label)
+            self._status("Siril %s complete" % label)
+        else:
+            self._log("Siril %s failed: %s" % (label, result.error or result.stderr))
+            self._show_error("Siril %s failed" % label)
+
+    def action_siril_calibrate(self) -> None:
+        if not self.registry.available("Siril"):
+            self._show_error("siril-cli is not installed.")
+            return
+        root = self._choose_folder("Select session root")
+        if not root:
+            return
+        found = discover_calibration(root)
+        adapter = self.adapters["Siril"]
+        script = adapter.calibration_script(
+            root,
+            found["dark"][0] if found["dark"] else "",
+            found["flat"][0] if found["flat"] else "",
+            found["bias"][0] if found["bias"] else "",
+            root,
+        )
+        self._run_siril_script(script, "calibrate")
+
+    def action_siril_stack(self) -> None:
+        if not self.registry.available("Siril"):
+            self._show_error("siril-cli is not installed.")
+            return
+        root = self._choose_folder("Select lights folder")
+        if not root:
+            return
+        script = self.adapters["Siril"].stacking_script(root, root)
+        self._run_siril_script(script, "stack")
+
+    def action_bpm_auto(self) -> None:
+        if not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is required for automatic BPM generation.")
+            return
+        root = self._choose_folder("Select calibration folder")
+        if not root:
+            return
+        adapter = self.adapters["SkyStacker"]
+        output_dir = self.scratch.job_dir("bpm-%d" % self.job_counter)
+        self.job_counter += 1
+        argv = adapter.build_bpm_argv(root, output_dir)
+        self._log("CLI bpm: %s" % " ".join(argv))
+        self._busy_begin()
+        self.engine.run(
+            "bpm-auto",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_bpm_done(result, output_dir),
+        )
+
+    def _on_bpm_done(self, result, output_dir: str) -> None:
+        self._busy_end()
+        if result.ok:
+            self._log("BPM artifacts written to %s" % output_dir)
+            self._status("BPM generated")
+        else:
+            self._log("BPM failed: %s" % (result.error or result.stderr))
+            self._show_error("BPM generation failed")
 
     def action_detect_calibration(self) -> None:
         dialog = Gtk.FileChooserDialog(

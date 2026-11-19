@@ -163,6 +163,21 @@ class SkyStackerAdapter(CliAdapter):
         return argv
 
     @staticmethod
+    def build_bpm_argv(source_dir: str, output_dir: str, sigma: float = 5.0) -> List[str]:
+        return [
+            "skystacker",
+            source_dir,
+            "--output",
+            output_dir,
+            "--overwrite",
+            "--bpm-auto",
+            "--bpm-auto-sigma",
+            str(sigma),
+            "--stack-only",
+            "--no-donation",
+        ]
+
+    @staticmethod
     def build_raw_import_argv(source_dir: str, output_dir: str) -> List[str]:
         """Stack a single CR2 into a 32-bit float TIFF using the native decoder."""
         return [
