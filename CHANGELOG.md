@@ -8,6 +8,12 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.30 — 2026-11-19
+
+- Fixed 16-bit histogram collapse: CLI now emits 8-bit histogram data and the parser
+  scales 16-bit components, so the working TIFF shows a real distribution.
+- Screenshots directory ignored by Git.
+
 ## 0.2.29 — 2026-11-19
 
 - Status bar now shows the running version at startup (`Astro Studio vX.Y.Z ready`).

@@ -15,6 +15,8 @@ def histogram_argv(binary: str, path: str) -> list:
         "256x256!",
         "-colors",
         "256",
+        "-depth",
+        "8",
         "-format",
         "%c",
         "histogram:info:-",
@@ -38,6 +40,8 @@ def parse_histogram_text(text: str) -> List[Tuple[int, int]]:
             continue
         if not components:
             continue
+        if max(components) > 255:
+            components = [int(value / 257) for value in components]
         intensity = max(0, min(255, int(sum(components) / len(components))))
         values[intensity] = values.get(intensity, 0) + count
     return sorted(values.items())

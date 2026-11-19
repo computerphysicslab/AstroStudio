@@ -704,3 +704,15 @@ to force a UI redraw.
   install astrometry.net indexes or ASTAP, set `AN_API_KEY`, or use a linear frame with
   a precise RA/Dec seed when Gaia matching finds no consistent transform.
 * Version bumped to `0.2.29`.
+
+---
+
+## 47. v0.2.30 — 16-bit Histogram Fix
+
+* Screenshot inspection confirmed the new meters and maximize control were present; the
+  real remaining bug was the histogram: the working TIFF showed a single bin because
+  16-bit RGB components (e.g. 1185/2164/2516) were clamped to 255 by the parser.
+* `histogram_argv()` now adds `-depth 8` and `parse_histogram_text()` scales any
+  component above 255 by /257. A GUI smoke now reports 61 bins for both the PNG and the
+  TIFF instead of 1.
+* `screenshots/` added to `.gitignore`. Version bumped to `0.2.30`.

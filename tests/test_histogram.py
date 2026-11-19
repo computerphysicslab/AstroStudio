@@ -12,6 +12,8 @@ def test_histogram_argv_limits_output_size():
         "256x256!",
         "-colors",
         "256",
+        "-depth",
+        "8",
         "-format",
         "%c",
         "histogram:info:-",
@@ -35,3 +37,8 @@ def test_empty_text_is_safe():
 def test_malformed_histogram_lines_are_ignored():
     text = "garbage\n  12: (not, numbers) #bad\n   7: ( 10, 20, 30) #0A141E srgb\n"
     assert parse_histogram_text(text) == [(20, 7)]
+
+
+def test_16bit_components_are_scaled_to_8bit():
+    text = "  10: ( 1185, 2164, 2516) #x\n  20: (5319, 5287, 5265) #y\n"
+    assert parse_histogram_text(text) == [(7, 10), (20, 20)]
