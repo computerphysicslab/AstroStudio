@@ -64,7 +64,7 @@ class MeterWidget(Gtk.DrawingArea):
         self.history = []
         self.per_core = []
         self.set_app_paintable(True)
-        self.set_size_request(300, 118)
+        self.set_size_request(300, 60)
         self.connect("draw", self._on_draw)
 
     def update(self, value: float, per_core: list = None) -> None:
@@ -84,15 +84,15 @@ class MeterWidget(Gtk.DrawingArea):
         cr.set_source_rgb(0.08, 0.08, 0.10)
         cr.paint()
         cr.set_source_rgb(0.85, 0.85, 0.85)
-        cr.set_font_size(10)
-        cr.move_to(8, 14)
+        cr.set_font_size(9)
+        cr.move_to(6, 12)
         cr.show_text(self.title)
-        cr.set_font_size(18)
-        cr.move_to(30, 66)
+        cr.set_font_size(13)
+        cr.move_to(32, 38)
         cr.show_text("%.0f%%" % self.value)
 
-        cx, cy, radius = 56, 60, 34
-        cr.set_line_width(7)
+        cx, cy, radius = 22, 34, 17
+        cr.set_line_width(5)
         cr.set_source_rgb(0.22, 0.22, 0.26)
         cr.arc(cx, cy, radius, -math.pi / 2, 1.5 * math.pi)
         cr.stroke()
@@ -101,9 +101,9 @@ class MeterWidget(Gtk.DrawingArea):
         cr.arc(cx, cy, radius, -math.pi / 2, end)
         cr.stroke()
 
-        left, top = 108, 22
-        chart_w = max(10, width - left - 10)
-        chart_h = 48
+        left, top = 72, 6
+        chart_w = max(10, width - left - 8)
+        chart_h = 28
         cr.set_source_rgba(1.0, 1.0, 1.0, 0.12)
         cr.rectangle(left, top, chart_w, chart_h)
         cr.stroke()
@@ -119,15 +119,16 @@ class MeterWidget(Gtk.DrawingArea):
             cr.stroke()
 
         if self.per_core:
-            bar_y = 90
+            bar_y = 44
+            bar_h = 12
             bar_w = max(2, (width - 20) / len(self.per_core) - 2)
             for index, core in enumerate(self.per_core):
                 x = 10 + index * (bar_w + 2)
                 cr.set_source_rgb(0.22, 0.22, 0.26)
-                cr.rectangle(x, bar_y, bar_w, 16)
+                cr.rectangle(x, bar_y, bar_w, bar_h)
                 cr.fill()
                 cr.set_source_rgb(*self._colour(core))
-                cr.rectangle(x, bar_y + 16 - core / 100.0 * 16, bar_w, core / 100.0 * 16)
+                cr.rectangle(x, bar_y + bar_h - core / 100.0 * bar_h, bar_w, core / 100.0 * bar_h)
                 cr.fill()
         return False
 

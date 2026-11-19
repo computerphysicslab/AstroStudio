@@ -40,6 +40,12 @@ def test_toggle_label_reflects_panel_state():
     assert toggle_label("toggle-backends", "Backends Viewer", False) == "Backends Viewer: Off"
 
 
+def test_recent_file_actions_are_registered():
+    from astrostudio.app import ACTION_NAMES
+
+    assert {"open-recent-0", "open-recent-9"} <= ACTION_NAMES
+
+
 def test_dock_toggle_and_stop_action_are_available():
     from astrostudio.app import ACTION_NAMES
 

@@ -84,8 +84,8 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 6. [ ] Content-hash cache (input + parameters) to reuse prior artifacts (v0.2.0).
 7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
 8. [x] Resize percentages moved into Processing > Resize Image as a CLI submenu with
-       Custom Scale; view-only Precise Scale removed (v0.2.6). Crop / rotate / flip /
-       mirror option dialogs remain pending.
+       Custom Scale; view-only Precise Scale removed (v0.2.6). Select Area toolbar
+       overlay added (v0.2.16); crop/rotate/flip/mirror CLI dialogs remain pending.
 9. [x] Benchmark and estimator updated: p75 seconds/MP, separate resize-up/down,
        stretch-enabled preview timing and a visible lingering progress bar (v0.2.6).
 9. [x] Histogram phase 1: CLI-generated histogram text in a dock between CPU/RAM and

@@ -155,6 +155,7 @@ IMPLEMENTED_ACTIONS = frozenset(
         "filter-star-reduction",
         "metadata",
         "histogram",
+        "select-area",
         "toggle-backends",
         "toggle-histogram",
         "toggle-terminal",

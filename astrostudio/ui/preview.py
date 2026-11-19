@@ -9,6 +9,13 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
 
+def selection_rectangle(start, end):
+    """Return a normalised (x, y, width, height) rectangle from two points."""
+    x1, y1 = start
+    x2, y2 = end
+    return min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1)
+
+
 class PreviewPane(Gtk.DrawingArea):
     """Display-only canvas; image data is never modified here."""
 
@@ -23,6 +30,10 @@ class PreviewPane(Gtk.DrawingArea):
         self._dragging = False
         self._drag_x = 0.0
         self._drag_y = 0.0
+        self.select_mode = False
+        self.selection_start = None
+        self.selection_end = None
+        self.selection = None
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -52,6 +63,34 @@ class PreviewPane(Gtk.DrawingArea):
         self.pan_x = 0.0
         self.pan_y = 0.0
         self._dragging = False
+
+    def set_select_mode(self, enabled: bool) -> None:
+        self.select_mode = enabled
+        self.selection_start = None
+        self.selection_end = None
+        self.selection = None
+        self.queue_draw()
+
+    def start_selection(self, x: float, y: float) -> None:
+        self.selection_start = (x, y)
+        self.selection_end = (x, y)
+        self.queue_draw()
+
+    def update_selection(self, x: float, y: float) -> None:
+        if self.selection_start is None:
+            return
+        self.selection_end = (x, y)
+        self.selection = selection_rectangle(self.selection_start, self.selection_end)
+        self.queue_draw()
+
+    def finish_selection(self):
+        if self.selection_start is None:
+            return None
+        self.selection = selection_rectangle(self.selection_start, self.selection_end)
+        self.selection_start = None
+        self.selection_end = None
+        self.queue_draw()
+        return self.selection
 
     def start_pan(self, x: float, y: float) -> None:
         self._dragging = True
@@ -128,4 +167,16 @@ class PreviewPane(Gtk.DrawingArea):
         Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, 0)
         cr.paint()
         cr.restore()
+        rectangle = self.selection
+        if self.selection_start is not None and self.selection_end is not None:
+            rectangle = selection_rectangle(self.selection_start, self.selection_end)
+        if rectangle:
+            x, y, width, height = rectangle
+            cr.set_source_rgba(0.20, 0.75, 1.0, 0.25)
+            cr.rectangle(x, y, width, height)
+            cr.fill()
+            cr.set_source_rgb(0.20, 0.75, 1.0)
+            cr.set_line_width(2)
+            cr.rectangle(x, y, width, height)
+            cr.stroke()
         return False

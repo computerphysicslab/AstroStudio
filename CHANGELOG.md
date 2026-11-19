@@ -8,6 +8,15 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.16 — 2026-11-19
+
+- Main window is explicitly resizable/maximizable.
+- Select Area button added to the toolbar with drag-to-select overlay and normalised
+  rectangle helper.
+- CPU/RAM meters halved in height (60px) while keeping gauge, history and core bars.
+- Panel/toolbar labels now relabel live when the language changes; added unit and
+  integration tests for selection, i18n coverage and recent-file actions.
+
 ## 0.2.15 — 2026-11-19
 
 - Native wide-field blind plate solving via `--plate-solver native --blind-catalog mag07`,

@@ -216,6 +216,7 @@ TOOL_ITEMS = (
     ("zoom-in", "Zoom in", "zoom-in"),
     ("zoom-out", "Zoom out", "zoom-out"),
     ("zoom-fit-best", "Fit to window", "zoom-fit"),
+    ("edit-select-all", "Select Area", "select-area"),
     ("edit-undo", "Undo", "undo"),
     ("edit-redo", "Redo", "redo"),
     ("process-stop", "Stop job", "cancel"),
@@ -287,6 +288,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.scratch = scratch
         self.engine = engine
         self.translator = Translator(self.settings.get("language", "en"))
+        for index in range(10):
+            setattr(
+                self,
+                "action_open_recent_%d" % index,
+                lambda checked=False, position=index: self._open_recent(position),
+            )
         self._magick_adapter = ImageMagickAdapter()
         self.adapters = {
             "ImageMagick": self._magick_adapter,
@@ -311,6 +318,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self.plate_options: dict = {}
         self.package_info: dict = {}
         self.backend_rows: dict = {}
+        self.panel_labels: dict = {}
+        self.toolbar_buttons: dict = {}
+        self.toolbar_labels: dict = {}
         self._busy_count = 0
         self.metadata_pending = 0
         self.metadata_window = None
@@ -330,6 +340,7 @@ class MainWindow(Gtk.ApplicationWindow):
             ),
         )
         self.set_default_size(1100, 720)
+        self.set_resizable(True)
 
         self.preview = PreviewPane()
         self.preview.set_size_request(640, 480)
@@ -477,8 +488,10 @@ class MainWindow(Gtk.ApplicationWindow):
                 Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON),
                 self.translator.tr(label),
             )
-            button.set_tooltip_text(label)
+            button.set_tooltip_text(self.translator.tr(label))
             button.connect("clicked", lambda *_widget, name=action: self._activate(name))
+            self.toolbar_buttons[action] = button
+            self.toolbar_labels[action] = label
             toolbar.insert(button, -1)
         return toolbar
 
@@ -487,6 +500,7 @@ class MainWindow(Gtk.ApplicationWindow):
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         header.set_size_request(-1, 16)
         label = Gtk.Label(label=self.translator.tr(title), xalign=0.0)
+        self.panel_labels[title] = label
         label.set_hexpand(True)
         label.set_margin_top(0)
         label.set_margin_bottom(0)
@@ -688,6 +702,16 @@ progressbar text {
             return
         size = int(self.settings.get("font_size", 9))
         gtk_settings.set_property("gtk-font-name", "Sans %d" % max(7, min(18, size)))
+
+    def _apply_language(self) -> None:
+        self.translator = Translator(self.settings.get("language", "en"))
+        for title, label in self.panel_labels.items():
+            label.set_text(self.translator.tr(title))
+        for action, button in self.toolbar_buttons.items():
+            text = self.translator.tr(self.toolbar_labels[action])
+            button.set_label(text)
+            button.set_tooltip_text(text)
+        self._rebuild_menu_bar()
 
     def _apply_theme(self) -> None:
         gtk_settings = Gtk.Settings.get_default()
@@ -914,6 +938,9 @@ progressbar text {
         if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
             self.action_zoom_fit()
             return True
+        if self.preview.select_mode and button == 1:
+            self.preview.start_selection(event.x, event.y)
+            return True
         position = self.preview.image_coordinates(event.x, event.y)
         if position:
             self._status(
@@ -924,9 +951,18 @@ progressbar text {
         return True
 
     def _on_canvas_motion(self, widget, event) -> bool:
+        if self.preview.select_mode:
+            self.preview.update_selection(event.x, event.y)
+            return True
         return self.preview.update_pan(event.x, event.y)
 
     def _on_canvas_release(self, widget, event) -> bool:
+        if self.preview.select_mode:
+            rectangle = self.preview.finish_selection()
+            if rectangle:
+                self._log("Selected area: %s" % (rectangle,))
+                self._status("Selection: %dx%d" % (rectangle[2], rectangle[3]))
+            return True
         self.preview.end_pan()
         return False
 
@@ -1571,6 +1607,13 @@ progressbar text {
             self.backends_panel.show()
         self._update_toggle_labels()
 
+    def action_select_area(self) -> None:
+        enabled = not self.preview.select_mode
+        self.preview.set_select_mode(enabled)
+        self._status(
+            self.translator.tr("Select Area") + (": ON" if enabled else ": OFF")
+        )
+
     def action_cancel(self) -> None:
         jobs = self.engine.active_jobs
         for job_id in jobs:
@@ -1975,16 +2018,9 @@ progressbar text {
             )
             self.settings.save()
             self.app.apply_shortcuts()
-        self.translator = Translator(self.settings.get("language", "en"))
-        for index in range(10):
-            setattr(
-                self,
-                "action_open_recent_%d" % index,
-                lambda checked=False, position=index: self._open_recent(position),
-            )
+            self._apply_language()
             self._apply_theme()
             self._apply_font()
-            self._rebuild_menu_bar()
             self._status(self.translator.tr("Preferences saved"))
         dialog.destroy()
 

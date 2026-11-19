@@ -484,3 +484,19 @@ to force a UI redraw.
 * CPU/RAM meters follow the supplied reference: circular gauge, 60-sample sparkline and
   per-core bars, red at >=75% and green below.
 * Version bumped to `0.2.15` with a `CHANGELOG.md` entry.
+
+---
+
+## 33. v0.2.16 — Resizable Window, Selection and Live Relabelling
+
+* `set_resizable(True)` makes the main window resizable/maximizable; GUI smoke confirms it.
+* Toolbar Select Area button toggles a drag-to-select overlay on the preview. The pure
+  `selection_rectangle()` helper normalises reversed drags and is unit-tested; a GUI smoke
+  produced `(20,20,80,60)` for a simulated drag.
+* Meter widget height halved to 60px, keeping circular gauge, 60-sample sparkline and
+  per-core bars.
+* Panel titles and toolbar labels are stored and relabelled when Frontend Settings changes
+  the language; a smoke confirmed `Terminal Drawer` becomes `ターミナル` in Japanese.
+* Added integration-oriented tests: i18n key completeness across all five languages,
+  recent-file action registration and selection rectangle maths.
+* Version bumped to `0.2.16` with a `CHANGELOG.md` entry.
