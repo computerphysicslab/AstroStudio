@@ -506,7 +506,7 @@ class MainWindow(Gtk.ApplicationWindow):
         right.pack_start(self.backends_panel, False, False, 0)
         right.pack_start(self.metadata_panel, False, False, 0)
         right.pack_start(self.histogram_panel, False, False, 0)
-        self.job_panel = JobPanel(app.job_manager, self._retry_job)
+        self.job_panel = JobPanel(self.app.job_manager, self._retry_job)
         right.pack_start(self.job_panel, False, False, 0)
         right.pack_start(self.terminal_panel, True, True, 0)
         paned.pack2(right, False, True)

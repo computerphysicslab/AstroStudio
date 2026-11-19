@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.27 — 2026-11-19
+
+- Fixed startup crash: `JobPanel` referenced an undefined `app` variable in `_build_layout`.
+- Added a GUI smoke test that constructs `MainWindow` and verifies all dock panels.
+
 ## 0.2.26 — 2026-11-19
 
 - RAW/DNG inspection with lossy-compression and Bayer/linear-DNG warnings.

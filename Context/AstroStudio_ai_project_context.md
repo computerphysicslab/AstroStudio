@@ -661,3 +661,14 @@ to force a UI redraw.
 * AVI codecs are probed with `ffprobe` and validated against a lossless whitelist;
   MJPEG/DIVX/XVID/H264 are rejected before stretching, with a clear info dialog.
 * Roadmap medium-difficulty items 19–21 are complete. Version bumped to `0.2.26`.
+
+---
+
+## 44. v0.2.27 — Startup Crash Fix
+
+* The application failed to open its window because `_build_layout()` passed an undefined
+  `app` variable to `JobPanel`; changed to `self.app.job_manager`. A stale process held
+  the GTK application id, making later launches exit silently.
+* Added `tests/test_ui_startup.py` (skipped without DISPLAY) that constructs `MainWindow`
+  and asserts the Backends, Histogram and Jobs panels exist, preventing regressions.
+* Version bumped to `0.2.27`.
