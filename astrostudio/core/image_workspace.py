@@ -6,6 +6,8 @@ that TIFF and used only for on-screen rendering. Transformations replace the
 TIFF, then regenerate the PNG. No pixel processing happens in this module.
 """
 
+import hashlib
+import json
 import os
 import shutil
 from dataclasses import dataclass
@@ -46,6 +48,7 @@ class ImageWorkspace:
         scratch: ScratchManager,
         engine: ProcessEngine,
         adapter: "ImageMagickAdapter" = None,
+        cache_dir: str = None,
     ) -> None:
         if adapter is None:
             from ..adapters.magick import ImageMagickAdapter
@@ -54,6 +57,9 @@ class ImageWorkspace:
         self.scratch = scratch
         self.engine = engine
         self.adapter = adapter
+        self.cache_dir = cache_dir
+        if self.cache_dir:
+            os.makedirs(self.cache_dir, exist_ok=True)
         self.images: Dict[str, WorkingImage] = {}
         self._undo: Dict[str, List[Snapshot]] = {}
         self._redo: Dict[str, List[Snapshot]] = {}
@@ -227,10 +233,17 @@ class ImageWorkspace:
         on_error: ErrorCallback,
         on_log: Optional[LogCallback] = None,
     ) -> None:
-        self._snapshot(image, self._undo)
-        self._redo[image.key] = []
         next_tiff = os.path.join(image.directory, "working_next.tiff")
         argv = self.adapter.build_argv([image.tiff_path], next_tiff, params)
+        cached = self._cached_artifact(image.tiff_path, argv)
+        self._snapshot(image, self._undo)
+        self._redo[image.key] = []
+        if cached:
+            shutil.copyfile(cached, next_tiff)
+            if on_log:
+                on_log("Cache hit for transform: %s" % os.path.basename(cached))
+            self._finish_transform(image, next_tiff, on_ready, on_error, on_log)
+            return
         if on_log:
             on_log("CLI transform on TIFF: %s" % " ".join(argv))
         self.engine.run(
@@ -238,15 +251,43 @@ class ImageWorkspace:
             argv,
             on_log=on_log,
             on_done=lambda result: self._on_transform(
-                result, image, next_tiff, on_ready, on_error, on_log
+                result, image, next_tiff, argv, on_ready, on_error, on_log
             ),
         )
+
+    def _cache_path(self, source_tiff: str, argv: List[str]) -> str:
+        digest = hashlib.sha256()
+        with open(source_tiff, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        digest.update(json.dumps(argv, sort_keys=True).encode("utf-8"))
+        return os.path.join(self.cache_dir, digest.hexdigest() + ".tiff")
+
+    def _cached_artifact(self, source_tiff: str, argv: List[str]) -> str:
+        if not self.cache_dir or not os.path.isfile(source_tiff):
+            return ""
+        path = self._cache_path(source_tiff, argv)
+        return path if os.path.isfile(path) else ""
+
+    def _finish_transform(
+        self,
+        image: WorkingImage,
+        next_tiff: str,
+        on_ready: ReadyCallback,
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback],
+    ) -> None:
+        os.replace(next_tiff, image.tiff_path)
+        if on_log:
+            on_log("Replaced working TIFF: %s" % image.tiff_path)
+        self._make_preview(image, on_ready, on_error, on_log)
 
     def _on_transform(
         self,
         result: JobResult,
         image: WorkingImage,
         next_tiff: str,
+        argv: List[str],
         on_ready: ReadyCallback,
         on_error: ErrorCallback,
         on_log: Optional[LogCallback],
@@ -256,10 +297,12 @@ class ImageWorkspace:
             return
         if on_log:
             on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
-        os.replace(next_tiff, image.tiff_path)
-        if on_log:
-            on_log("Replaced working TIFF: %s" % image.tiff_path)
-        self._make_preview(image, on_ready, on_error, on_log)
+        if self.cache_dir and os.path.isfile(next_tiff):
+            try:
+                shutil.copyfile(next_tiff, self._cache_path(image.tiff_path, argv))
+            except OSError:
+                pass
+        self._finish_transform(image, next_tiff, on_ready, on_error, on_log)
 
     def export(
         self,

@@ -500,3 +500,19 @@ to force a UI redraw.
 * Added integration-oriented tests: i18n key completeness across all five languages,
   recent-file action registration and selection rectangle maths.
 * Version bumped to `0.2.16` with a `CHANGELOG.md` entry.
+
+---
+
+## 34. v0.2.17 — Accent, Pipeline Export and Transform Cache
+
+* Frontend Settings now offers an accent colour; `MainWindow._apply_progress_css()`
+  regenerates the GTK CSS provider with the chosen colour and removes the previous one.
+* `core/pipeline_export.py` converts `cli_start` operation-log entries into a reproducible
+  shell script or Makefile using `shlex.quote`. Available from File > Export Pipeline and
+  from `scripts/export_pipeline.py`.
+* `ImageWorkspace` caches transform results by SHA-256 of the input TIFF bytes plus the
+  serialized argv; identical jobs reuse the cached TIFF and skip the external CLI while
+  still regenerating the preview. Cache root comes from `settings.cache_dir` or XDG cache.
+* Roadmap low-difficulty items 4–6 complete; new tests cover pipeline quoting and the
+  content-hash cache.
+* Version bumped to `0.2.17` with a `CHANGELOG.md` entry.

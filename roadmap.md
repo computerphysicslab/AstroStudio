@@ -78,10 +78,9 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 2. [x] Default shortcuts for open/export/metadata/histogram/undo/redo/quit/fit plus
        persisted customization applied via `app.apply_shortcuts()` (v0.2.13).
 3. [x] Drag-and-drop of files and folders onto the preview canvas (v0.2.13).
-4. [ ] Dark theme CSS and configurable accent colours (v0.2.0).
-5. [ ] Export pipeline as a reproducible shell script / Makefile using the exact
-       serialized `argv` (v0.2.0).
-6. [ ] Content-hash cache (input + parameters) to reuse prior artifacts (v0.2.0).
+4. [x] Dark/light themes and configurable accent colours applied through GTK CSS.
+5. [x] Export pipeline as shell script or Makefile from serialized `argv` (GUI + CLI).
+6. [x] Content-hash cache (input bytes + argv) reuses identical TIFF transforms.
 7. [ ] Batch conversion adapter (`gm mogrify` / `magick mogrify`) and dialog (v0.2.0).
 8. [x] Resize percentages moved into Processing > Resize Image as a CLI submenu with
        Custom Scale; view-only Precise Scale removed (v0.2.6). Select Area toolbar

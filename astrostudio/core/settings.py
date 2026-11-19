@@ -10,6 +10,7 @@ DEFAULTS: Dict[str, Any] = {
     "offline": False,
     "threads": 0,
     "font_size": 9,
+    "accent_color": "green",
     "binary_overrides": {},
     "scratch_dir": "",
     "cache_dir": "",

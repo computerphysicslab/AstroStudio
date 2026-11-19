@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.17 — 2026-11-19
+
+- Configurable accent colour (green/blue/orange/purple) applied to GTK CSS.
+- File > Export Pipeline writes a shell script or Makefile with the exact recorded
+  `argv`; `scripts/export_pipeline.py` offers the same for automation.
+- Content-hash cache reuses TIFF transforms when input bytes and argv are unchanged.
+- Unit tests added for pipeline quoting and cache reuse.
+
 ## 0.2.16 — 2026-11-19
 
 - Main window is explicitly resizable/maximizable.

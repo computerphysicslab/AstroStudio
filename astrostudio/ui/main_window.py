@@ -27,11 +27,14 @@ from ..core import (  # noqa: E402
     unique_export_path,
     find_plate_solution,
     histogram_argv,
+    cli_entries,
     install_command,
     package_for_binary,
     parse_histogram_text,
     parse_policy,
     solution_for_directory,
+    write_makefile,
+    write_shell,
     summarize_solution,
 )
 from .histogram_panel import HistogramWidget  # noqa: E402
@@ -45,6 +48,7 @@ MENU_LAYOUT = (
         (
             ("Open", "open"),
             ("Export / Save As", "export"),
+            ("Export Pipeline...", "export-pipeline"),
             (None, None),
             ("Close", "close"),
             ("Close All", "close-all"),
@@ -245,6 +249,13 @@ def log_segments(line: str):
     return segments
 
 
+ACCENT_COLORS = {
+    "green": "#27ae60",
+    "blue": "#2f80ed",
+    "orange": "#e67e22",
+    "purple": "#8e44ad",
+}
+
 TOGGLE_PANELS = {
     "toggle-backends": "Backends Viewer",
     "toggle-histogram": "Histogram Viewer",
@@ -308,7 +319,14 @@ class MainWindow(Gtk.ApplicationWindow):
             or discover_catalog_dir()
             or None
         )
-        self.workspace = ImageWorkspace(scratch, engine, self._magick_adapter)
+        transform_cache = self.settings.get("cache_dir") or os.path.join(
+            os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
+            "astro-studio",
+            "transforms",
+        )
+        self.workspace = ImageWorkspace(
+            scratch, engine, self._magick_adapter, cache_dir=transform_cache
+        )
         self.current_images: List[WorkingImage] = []
         self.current_paths = []
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
@@ -321,6 +339,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.panel_labels: dict = {}
         self.toolbar_buttons: dict = {}
         self.toolbar_labels: dict = {}
+        self._accent_provider = None
         self._busy_count = 0
         self.metadata_pending = 0
         self.metadata_window = None
@@ -663,11 +682,11 @@ class MainWindow(Gtk.ApplicationWindow):
         scroll.add(self.log_view)
         return scroll
 
-    @staticmethod
-    def _apply_progress_css() -> None:
-        provider = Gtk.CssProvider()
-        provider.load_from_data(
-            b"""
+    def _apply_progress_css(self) -> None:
+        colour = ACCENT_COLORS.get(
+            self.settings.get("accent_color", "green"), ACCENT_COLORS["green"]
+        )
+        css = """
 progressbar {
     font-size: 13px;
     border: none;
@@ -682,19 +701,23 @@ progressbar trough {
     border: none;
 }
 progressbar progress {
-    background-color: #27ae60;
+    background-color: %s;
     border: none;
 }
 progressbar text {
     color: #ffffff;
 }
-"""
-        )
+""" % colour
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css.encode("utf-8"))
         screen = Gdk.Screen.get_default()
         if screen is not None:
+            if self._accent_provider is not None:
+                Gtk.StyleContext.remove_provider_for_screen(screen, self._accent_provider)
             Gtk.StyleContext.add_provider_for_screen(
                 screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
             )
+            self._accent_provider = provider
 
     def _apply_font(self) -> None:
         gtk_settings = Gtk.Settings.get_default()
@@ -1086,6 +1109,35 @@ progressbar text {
         self._status(self.translator.tr("Workspace error"))
         self._log(message)
         self._show_error(message)
+
+    def action_export_pipeline(self) -> None:
+        dialog = Gtk.FileChooserDialog(
+            title="Export pipeline",
+            parent=self,
+            action=Gtk.FileChooserAction.SAVE,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_SAVE,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        dialog.set_current_name("pipeline.sh")
+        dialog.set_do_overwrite_confirmation(True)
+        response = dialog.run()
+        path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not path:
+            return
+        jobs = cli_entries(self.operation_log.entries(), self.operation_log.session)
+        if path.endswith(".mk") or path.endswith("Makefile"):
+            write_makefile(jobs, path)
+        else:
+            if not path.endswith(".sh"):
+                path += ".sh"
+            write_shell(jobs, path)
+        self._log("Exported %d CLI jobs to %s" % (len(jobs), path))
+        self._status("Pipeline exported (%d jobs)" % len(jobs))
 
     def action_export(self) -> None:
         if not self.current_images:
@@ -1979,6 +2031,12 @@ progressbar text {
         for name in ("system", "dark", "light"):
             theme.append_text(name)
         theme.set_active(max(0, ("system", "dark", "light").index(self.settings.get("theme", "system"))))
+        accent = Gtk.ComboBoxText()
+        for name in ACCENT_COLORS:
+            accent.append_text(name)
+        accent.set_active(
+            max(0, list(ACCENT_COLORS).index(self.settings.get("accent_color", "green")))
+        )
         font_size = Gtk.SpinButton.new_with_range(7, 18, 1)
         font_size.set_value(int(self.settings.get("font_size", 9)))
 
@@ -1989,6 +2047,7 @@ progressbar text {
         items = [
             ("Language", language),
             ("Theme", theme),
+            ("Accent colour", accent),
             ("Application font size", font_size),
         ]
         for action, default in DEFAULT_SHORTCUTS.items():
@@ -2007,6 +2066,7 @@ progressbar text {
         if dialog.run() == Gtk.ResponseType.OK:
             self.settings.set("language", language.get_active_text())
             self.settings.set("theme", theme.get_active_text())
+            self.settings.set("accent_color", accent.get_active_text() or "green")
             self.settings.set("font_size", int(font_size.get_value()))
             self.settings.set(
                 "shortcuts",
@@ -2021,6 +2081,7 @@ progressbar text {
             self._apply_language()
             self._apply_theme()
             self._apply_font()
+            self._apply_progress_css()
             self._status(self.translator.tr("Preferences saved"))
         dialog.destroy()
 

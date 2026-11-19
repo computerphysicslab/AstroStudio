@@ -137,6 +137,26 @@ def test_update_preview_regenerates_png_with_stretch_points(tmp_path, monkeypatc
     assert "-resize" not in engine.calls[-1][1]
 
 
+def test_content_hash_cache_reuses_transform(tmp_path, monkeypatch):
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    workspace.cache_dir = str(tmp_path / "cache")
+    Path(workspace.cache_dir).mkdir()
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    image = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+    original = Path(image.tiff_path).read_bytes()
+
+    workspace.transform(image, {"resize": "50%"}, lambda *_: None, lambda message: pytest.fail(message))
+    first_count = len([c for c in engine.calls if "transform" in c[0]])
+    Path(image.tiff_path).write_bytes(original)
+
+    workspace.transform(image, {"resize": "50%"}, lambda *_: None, lambda message: pytest.fail(message))
+    second_count = len([c for c in engine.calls if "transform" in c[0]])
+    assert first_count == 1
+    assert second_count == 1
+
+
 def test_undo_and_redo_restore_both_artifacts(tmp_path, monkeypatch):
     engine = FakeEngine()
     workspace = _workspace(tmp_path, monkeypatch, engine)
