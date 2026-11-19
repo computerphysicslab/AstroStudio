@@ -106,12 +106,11 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 
 ### Medium difficulty
 
-1. [ ] Visual job manager: queue states, progress lines, retry, per-job timeouts and
-       resource limits (v0.2.0).
-2. [ ] Frame table with metadata and quality diagnostics (SNR, FWHM/HFR, eccentricity,
-       background sigma, footprint) for culling (v0.3.0).
-3. [ ] Case-insensitive calibration folder auto-detection and light-frame exclusion
-       (v0.3.0).
+1. [x] Visual job manager panel with states, durations and retry by original argv.
+2. [x] Frame table with SkyStacker quality diagnostics (SNR, HFR, eccentricity,
+       background sigma) for open images.
+3. [x] Case-insensitive calibration folder discovery (Bias/Dark/Flat/Light) with
+       light-frame exclusion.
 4. [ ] Siril adapter: master dark/flat/bias from real frames and basic stacking with
        seeded alignment and affine guards (v0.3.0).
 5. [ ] Bad-pixel-map automation with the 0.1% sanity cap (v0.3.0).

@@ -13,6 +13,7 @@ from gi.repository import Gio, GLib, Gtk  # noqa: E402
 from .core import (  # noqa: E402
     BackendRegistry,
     Estimator,
+    JobManager,
     OperationLog,
     ProcessEngine,
     ScratchManager,
@@ -94,7 +95,12 @@ class AstroStudioApplication(Gtk.Application):
         self.operation_log = OperationLog()
         self.estimator = Estimator()
         self.operation_log.record("session_start", application="astro-studio")
-        self.engine = ProcessEngine(operation_log=self.operation_log)
+        self.job_manager = JobManager()
+        self.engine = ProcessEngine(
+            operation_log=self.operation_log,
+            on_job_start=lambda job_id, argv: self._on_job_start(job_id, argv),
+            on_job_end=lambda job_id, result: self._on_job_end(job_id, result),
+        )
         self.window = None
         self.pending_paths: List[str] = []
 
@@ -104,6 +110,16 @@ class AstroStudioApplication(Gtk.Application):
             self.add_action(action)
 
         self.apply_shortcuts()
+
+    def _on_job_start(self, job_id: str, argv) -> None:
+        self.job_manager.start(job_id, list(argv))
+        if self.window is not None:
+            self.window.refresh_jobs()
+
+    def _on_job_end(self, job_id: str, result) -> None:
+        self.job_manager.finish(job_id, result)
+        if self.window is not None:
+            self.window.refresh_jobs()
 
     def apply_shortcuts(self) -> None:
         custom = self.settings.get("shortcuts", {}) or {}

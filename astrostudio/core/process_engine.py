@@ -53,9 +53,16 @@ class ProcessHandle:
 class ProcessEngine:
     """Spawn CLI backends without blocking the GTK main thread."""
 
-    def __init__(self, operation_log=None) -> None:
+    def __init__(
+        self,
+        operation_log=None,
+        on_job_start=None,
+        on_job_end=None,
+    ) -> None:
         self._active: Dict[str, ProcessHandle] = {}
         self.operation_log = operation_log
+        self.on_job_start = on_job_start
+        self.on_job_end = on_job_end
 
     def run(
         self,
@@ -69,6 +76,8 @@ class ProcessEngine:
         self._active[job_id] = handle
         if self._should_record(job_id):
             self.operation_log.record("cli_start", job_id=job_id, argv=argv_list)
+        if self.on_job_start:
+            self.on_job_start(job_id, argv_list)
 
         flags = Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         try:
@@ -77,6 +86,7 @@ class ProcessEngine:
             handle.error = str(exc)
             if self._should_record(job_id):
                 self._record_end(handle)
+            self._notify_job_end(handle)
             if on_done:
                 GLib.idle_add(on_done, self._result(handle))
             return handle
@@ -96,6 +106,11 @@ class ProcessEngine:
 
     def _should_record(self, job_id: str) -> bool:
         return self.operation_log is not None and not job_id.startswith("probe-")
+
+    def _notify_job_end(self, handle: ProcessHandle) -> None:
+        if self.on_job_end:
+            result = self._result(handle)
+            self.on_job_end(handle.job_id, result)
 
     def _record_end(self, handle: ProcessHandle) -> None:
         if self.operation_log is None:
@@ -170,6 +185,7 @@ class ProcessEngine:
         if handle.finished or handle.pending_streams or not handle.process_finished:
             return
         handle.finished = True
+        self._notify_job_end(handle)
         for stream in handle.streams:
             try:
                 stream.close()

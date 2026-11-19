@@ -2,16 +2,19 @@
 
 from .astrometry import find_output, find_plate_solution, summarize_solution
 from .backends import BackendRegistry, BackendSpec, BackendStatus
+from .calibration import discover_calibration
 from .command_builder import CommandBuilder
 from .operation_log import OperationLog
 from .package_info import install_command, package_for_binary, parse_policy
 from .pipeline_export import cli_entries, write_makefile, write_shell
 from .plate_solution import PlateSolution, load_solution, solution_for_directory
 from .estimator import Estimator, StageModel
+from .frame_quality import FrameDiagnostics, parse_measurements
 from .export_formats import EXPORT_FORMATS, ExportFormat, find_format
 from .export_paths import unique_export_path
 from .histogram import histogram_argv, parse_histogram_text
 from .i18n import Translator
+from .job_manager import JobManager, JobState
 from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
@@ -22,6 +25,9 @@ __all__ = [
     "BackendSpec",
     "BackendStatus",
     "CommandBuilder",
+    "discover_calibration",
+    "FrameDiagnostics",
+    "parse_measurements",
     "find_output",
     "find_plate_solution",
     "summarize_solution",
@@ -33,6 +39,8 @@ __all__ = [
     "histogram_argv",
     "parse_histogram_text",
     "Translator",
+    "JobManager",
+    "JobState",
     "unique_export_path",
     "ImageWorkspace",
     "OperationLog",

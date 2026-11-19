@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.20 — 2026-11-19
+
+- Visual job manager panel with per-job state, duration and retry using stored argv.
+- Frame Table dialog measuring SNR/HFR/eccentricity/background via SkyStacker CLI.
+- Case-insensitive calibration folder discovery (Bias/Dark/Flat/Light).
+- Unit tests for job manager lifecycle, quality parser and calibration discovery.
+
 ## 0.2.19 — 2026-11-19
 
 - Error dialogs show a short summary and a collapsible expander with full backend stderr.

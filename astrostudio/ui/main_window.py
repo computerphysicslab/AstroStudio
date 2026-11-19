@@ -28,9 +28,11 @@ from ..core import (  # noqa: E402
     find_plate_solution,
     histogram_argv,
     cli_entries,
+    discover_calibration,
     install_command,
     package_for_binary,
     parse_histogram_text,
+    parse_measurements,
     parse_policy,
     solution_for_directory,
     write_makefile,
@@ -38,6 +40,7 @@ from ..core import (  # noqa: E402
     summarize_solution,
 )
 from .histogram_panel import HistogramWidget  # noqa: E402
+from .job_panel import JobPanel  # noqa: E402
 from .preview import PreviewPane  # noqa: E402
 from .resource_monitor import ResourceMonitor  # noqa: E402
 from .window_utils import make_draggable  # noqa: E402
@@ -87,6 +90,7 @@ MENU_LAYOUT = (
                     ("Custom Scale...", "resize-custom"),
                 ),
             ),
+            ("Detect Calibration Folders...", "detect-calibration"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
             ("Image Geometry", "geometry"),
@@ -172,6 +176,7 @@ MENU_LAYOUT = (
             ("Fit to Window", "zoom-fit"),
             (None, None),
             ("Histogram", "histogram"),
+            ("Frame Table...", "frame-table"),
             ("Pixel Line Profile", "line-profile"),
             ("Metadata Viewer", "metadata"),
             ("Toggle Backends Viewer", "toggle-backends"),
@@ -425,6 +430,8 @@ class MainWindow(Gtk.ApplicationWindow):
         right.pack_start(self.backends_panel, False, False, 0)
         right.pack_start(self.metadata_panel, False, False, 0)
         right.pack_start(self.histogram_panel, False, False, 0)
+        self.job_panel = JobPanel(app.job_manager, self._retry_job)
+        right.pack_start(self.job_panel, False, False, 0)
         right.pack_start(self.terminal_panel, True, True, 0)
         paned.pack2(right, False, True)
         root.pack_start(paned, True, True, 0)
@@ -790,6 +797,24 @@ progressbar text {
             self._status("%s: %s" % (self.translator.tr("Action unavailable"), action))
             return
         self.app.activate_action(action, None)
+
+    def refresh_jobs(self) -> None:
+        if hasattr(self, "job_panel"):
+            self.job_panel.refresh()
+
+    def _retry_job(self, job_id: str) -> None:
+        argv = self.app.job_manager.argv_for(job_id)
+        self._log("Retrying %s" % job_id)
+        self._busy_begin()
+        self.engine.run(
+            job_id + "-retry",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: (
+                self._busy_end(),
+                self._log("Retry %s: %s" % (job_id, "OK" if result.ok else "failed")),
+            ),
+        )
 
     def _status(self, text: str) -> None:
         self._last_status = text
@@ -1663,6 +1688,114 @@ progressbar text {
 
     def _on_metadata_window_destroyed(self, _widget) -> None:
         self.metadata_window = None
+
+    def action_frame_table(self) -> None:
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title(self.translator.tr("Frame Table"))
+        window.set_transient_for(self)
+        window.set_default_size(760, 420)
+        header = Gtk.HeaderBar()
+        header.set_title(self.translator.tr("Frame Table"))
+        header.set_show_close_button(True)
+        window.set_titlebar(header)
+        make_draggable(window, header)
+        store = Gtk.ListStore(str, str, str, str, str, str)
+        view = Gtk.TreeView(model=store)
+        for index, title in enumerate(("File", "Size", "Stars", "HFR", "SNR", "Quality")):
+            view.append_column(Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=index))
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(view)
+        measure = Gtk.Button(label=self.translator.tr("Measure quality"))
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.set_border_width(8)
+        box.pack_start(scroll, True, True, 0)
+        box.pack_start(measure, False, False, 0)
+        window.add(box)
+        window.connect("delete-event", lambda *_: window.destroy())
+        measure.connect("clicked", lambda *_: self._measure_frames(store))
+        self.frame_window = window
+        window.show_all()
+
+    def _measure_frames(self, store: Gtk.ListStore) -> None:
+        if not self.current_paths:
+            self._log("Open images before measuring quality")
+            return
+        if not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is required for frame quality measurements.")
+            return
+        store.clear()
+        adapter = self.adapters["SkyStacker"]
+        for path in list(self.current_paths):
+            output_dir = self.scratch.job_dir("quality-%d" % self.job_counter)
+            self.job_counter += 1
+            argv = [
+                adapter.binary,
+                "--process-image",
+                path,
+                "--image-op",
+                "measure-quality",
+                "--image-output",
+                output_dir,
+                "--no-donation",
+            ]
+            self.job_counter += 1
+            job_id = "quality-%d" % self.job_counter
+            self.engine.run(
+                job_id,
+                argv,
+                on_log=self._log,
+                on_done=lambda result, directory=output_dir: self._on_quality_done(
+                    result, directory, store
+                ),
+            )
+
+    def _on_quality_done(self, result, output_dir: str, store: Gtk.ListStore) -> None:
+        if not result.ok:
+            self._log("Quality job failed: %s" % (result.error or result.stderr))
+            return
+        measurements_path = os.path.join(output_dir, "image_measurements.json")
+        try:
+            with open(measurements_path, "r", encoding="utf-8") as handle:
+                import json
+
+                data = json.load(handle)
+        except (OSError, ValueError):
+            return
+        for item in parse_measurements(json.dumps(data)):
+            store.append(
+                (
+                    item.file,
+                    "%dx%d" % (item.width, item.height),
+                    str(item.stars),
+                    "%.2f" % item.hfr,
+                    "%.1f" % item.snr,
+                    "%.1f" % item.quality,
+                )
+            )
+
+    def action_detect_calibration(self) -> None:
+        dialog = Gtk.FileChooserDialog(
+            title="Select session root",
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN,
+                Gtk.ResponseType.OK,
+            ),
+        )
+        response = dialog.run()
+        root = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not root:
+            return
+        found = discover_calibration(root)
+        lines = [
+            "%s: %d" % (category, len(paths)) for category, paths in found.items()
+        ]
+        self._log("Calibration scan: " + ", ".join(lines))
+        self._show_info("Calibration folders", "\n".join(lines))
 
     def action_histogram(self) -> None:
         if not self.current_images:

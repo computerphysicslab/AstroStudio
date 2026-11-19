@@ -563,3 +563,18 @@ to force a UI redraw.
 - Display stretch (`-evaluate`, `-level`) affects only the PNG preview; scientific exports
   stay linear.
 - Native blind plate solving needs a Gaia quad catalog; `mag07` covers wide fields only.
+
+---
+
+## 37. v0.2.20 — Job Manager, Frame Table and Calibration Discovery
+
+* `ProcessEngine` now emits `on_job_start`/`on_job_end` callbacks; `JobManager` stores
+  job id, argv, state, duration and exit code. The right dock shows a Jobs panel with a
+  Retry button that replays the original argv.
+* View > Frame Table opens a dialog whose Measure button runs SkyStacker
+  `--image-op measure-quality` per open image and parses `image_measurements.json`
+  into columns File/Size/Stars/HFR/SNR/Quality.
+* Processing > Detect Calibration Folders scans a session root case-insensitively for
+  Bias/Biases, Dark/Darks, Flat/Flats and Light/Lights, excluding non-image files, and
+  reports counts in the log and an info dialog.
+* Roadmap medium-difficulty items 1–3 are complete. Version bumped to `0.2.20`.
