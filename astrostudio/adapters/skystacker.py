@@ -51,6 +51,7 @@ class SkyStackerAdapter(CliAdapter):
         self.cache_dir = None
         self.catalog_dir = None
         self.gaia_nside = 64
+        self.blind_catalog = "mag07"
 
     @staticmethod
     def _base(source: str, image_op: str, output_dir: str) -> List[str]:
@@ -99,6 +100,11 @@ class SkyStackerAdapter(CliAdapter):
             )
         return flags
 
+    def _with_catalog_env(self, argv: List[str]) -> List[str]:
+        if not self.catalog_dir:
+            return argv
+        return ["/usr/bin/env", "SKYSTACKER_CATALOGS=" + self.catalog_dir] + argv
+
     def build_plate_solve_argv(
         self,
         source: str,
@@ -116,7 +122,9 @@ class SkyStackerAdapter(CliAdapter):
                 solver, plate_center, offline, timeout, focal_length, pixel_size
             )
         )
-        return argv
+        if self.catalog_dir and solver != "native":
+            argv.extend(("--blind-catalog", self.blind_catalog))
+        return self._with_catalog_env(argv)
 
     def build_sky_map_argv(
         self,
@@ -136,7 +144,9 @@ class SkyStackerAdapter(CliAdapter):
                 solver, plate_center, offline, timeout, focal_length, pixel_size
             )
         )
-        return argv
+        if self.catalog_dir and solver != "native":
+            argv.extend(("--blind-catalog", self.blind_catalog))
+        return self._with_catalog_env(argv)
 
     def build_blind_solve_argv(
         self,
@@ -217,4 +227,6 @@ class SkyStackerAdapter(CliAdapter):
         argv.extend(self._solver_flags(solver, plate_center, offline, timeout, None, None))
         if survey:
             argv.extend(("--survey-hips", survey))
-        return argv
+        if self.catalog_dir and solver != "native":
+            argv.extend(("--blind-catalog", self.blind_catalog))
+        return self._with_catalog_env(argv)

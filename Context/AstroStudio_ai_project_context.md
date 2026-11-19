@@ -672,3 +672,20 @@ to force a UI redraw.
 * Added `tests/test_ui_startup.py` (skipped without DISPLAY) that constructs `MainWindow`
   and asserts the Backends, Histogram and Jobs panels exist, preventing regressions.
 * Version bumped to `0.2.27`.
+
+---
+
+## 45. v0.2.28 — Meter Cleanup, Resize Control and Catalog Env
+
+* Resource meters now draw only a circular gauge with the percentage centered inside
+  plus a thin linear bar and optional per-core bars; the time-series sparkline was
+  removed and height reduced to 56px.
+* Added a Maximize/Restore toolbar action and lowered the preview minimum size to
+  320x240 so the main window can actually be resized even without WM decorations.
+* SkyStacker plate solve, sky map and survey cutout now wrap argv with
+  `SKYSTACKER_CATALOGS=<dir>` and pass `--blind-catalog mag07` for non-native solvers
+  whenever the catalog directory is discovered.
+* Direct CLI verification on the M42 JPEG still fails: no `solve-field`, no ASTAP, no
+  API key, and the native quad index finds 20 votes but no consistent transform. This
+  is a SkyStacker/backend limitation, not an AstroStudio argv bug.
+* Version bumped to `0.2.28`.

@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.28 — 2026-11-19
+
+- CPU/RAM meters reduced to 56px: circular gauge with the percentage inside plus a thin linear bar; history sparkline removed.
+- Toolbar Maximize/Restore button and smaller preview minimum size so the window can be resized.
+- SkyStacker solve/sky-map/cutout argv now always points to the published blind catalog when available.
+- Backend-only plate-solve failure confirmed by direct CLI: no local solvers and no consistent Gaia quad transform.
+
 ## 0.2.27 — 2026-11-19
 
 - Fixed startup crash: `JobPanel` referenced an undefined `app` variable in `_build_layout`.

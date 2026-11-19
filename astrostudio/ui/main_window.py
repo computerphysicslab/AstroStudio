@@ -278,6 +278,7 @@ TOOL_ITEMS = (
     ("edit-undo", "Undo", "undo"),
     ("edit-redo", "Redo", "redo"),
     ("process-stop", "Stop job", "cancel"),
+    ("view-fullscreen", "Maximize", "toggle-maximize"),
 )
 
 
@@ -374,6 +375,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._magick_adapter.thread_limit = int(self.settings.get("threads", 0))
         self.adapters["SkyStacker"].cache_dir = self.settings.get("cache_dir") or None
         self.adapters["SkyStacker"].gaia_nside = int(self.settings.get("gaia_nside", 64))
+        self.adapters["SkyStacker"].blind_catalog = self.settings.get("blind_catalog", "mag07")
         self.adapters["SkyStacker"].catalog_dir = (
             self.settings.get("blind_catalog_dir")
             or discover_catalog_dir()
@@ -426,7 +428,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.set_resizable(True)
 
         self.preview = PreviewPane()
-        self.preview.set_size_request(640, 480)
+        self.preview.set_size_request(320, 240)
         self.preview.add_events(Gdk.EventMask.SCROLL_MASK)
         self.preview.connect("button-press-event", self._on_canvas_click)
         self.preview.connect("motion-notify-event", self._on_canvas_motion)
@@ -2554,6 +2556,15 @@ progressbar text {
             self._status("%s %d" % (self.translator.tr("Stopped"), len(jobs)))
             self._stop_progress()
         self.app.update_action_sensitivity()
+
+    def action_toggle_maximize(self) -> None:
+        window = self.get_window()
+        if window is not None and window.get_state() & Gdk.WindowState.MAXIMIZED:
+            self.unmaximize()
+            self._status("Window restored")
+        else:
+            self.maximize()
+            self._status("Window maximized")
 
     def action_toggle_histogram(self) -> None:
         if self.histogram_panel.get_visible():

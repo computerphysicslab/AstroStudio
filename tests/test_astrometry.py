@@ -124,3 +124,12 @@ def test_find_output_and_summarize_solution(tmp_path):
     assert find_output(str(tmp_path), [".json"]) == str(per_image)
     summary = summarize_solution(str(per_image))
     assert "fov_deg: 1.4" in summary
+
+
+def test_auto_solve_uses_published_blind_catalog_when_available():
+    adapter = SkyStackerAdapter()
+    adapter.catalog_dir = "/tmp/catalogs"
+    argv = adapter.build_plate_solve_argv("a.jpg", "/tmp/out", solver="auto")
+    assert argv[:2] == ["/usr/bin/env", "SKYSTACKER_CATALOGS=/tmp/catalogs"]
+    assert "--blind-catalog" in argv
+    assert argv[argv.index("--blind-catalog") + 1] == "mag07"

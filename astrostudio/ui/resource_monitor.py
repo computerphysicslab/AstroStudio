@@ -64,13 +64,11 @@ class MeterWidget(Gtk.DrawingArea):
         self.history = []
         self.per_core = []
         self.set_app_paintable(True)
-        self.set_size_request(300, 60)
+        self.set_size_request(240, 56)
         self.connect("draw", self._on_draw)
 
     def update(self, value: float, per_core: list = None) -> None:
         self.value = max(0.0, min(100.0, value))
-        self.history.append(self.value)
-        self.history = self.history[-60:]
         self.per_core = per_core or []
         self.queue_draw()
 
@@ -83,16 +81,8 @@ class MeterWidget(Gtk.DrawingArea):
         height = self.get_allocated_height()
         cr.set_source_rgb(0.08, 0.08, 0.10)
         cr.paint()
-        cr.set_source_rgb(0.85, 0.85, 0.85)
-        cr.set_font_size(9)
-        cr.move_to(6, 12)
-        cr.show_text(self.title)
-        cr.set_font_size(13)
-        cr.move_to(32, 38)
-        cr.show_text("%.0f%%" % self.value)
-
-        cx, cy, radius = 22, 34, 17
-        cr.set_line_width(5)
+        cx, cy, radius = 28, 29, 22
+        cr.set_line_width(7)
         cr.set_source_rgb(0.22, 0.22, 0.26)
         cr.arc(cx, cy, radius, -math.pi / 2, 1.5 * math.pi)
         cr.stroke()
@@ -101,34 +91,37 @@ class MeterWidget(Gtk.DrawingArea):
         cr.arc(cx, cy, radius, -math.pi / 2, end)
         cr.stroke()
 
-        left, top = 72, 6
-        chart_w = max(10, width - left - 8)
-        chart_h = 28
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.12)
-        cr.rectangle(left, top, chart_w, chart_h)
-        cr.stroke()
-        if len(self.history) > 1:
-            cr.set_source_rgb(*self._colour(self.value))
-            for index, sample in enumerate(self.history):
-                x = left + index / 59.0 * chart_w
-                y = top + chart_h - sample / 100.0 * chart_h
-                if index == 0:
-                    cr.move_to(x, y)
-                else:
-                    cr.line_to(x, y)
-            cr.stroke()
+        cr.set_source_rgb(1.0, 1.0, 1.0)
+        cr.set_font_size(13)
+        text = "%.0f%%" % self.value
+        extents = cr.text_extents(text)
+        cr.move_to(cx - extents.width / 2.0, cy + extents.height / 2.0)
+        cr.show_text(text)
+
+        cr.set_source_rgb(0.85, 0.85, 0.85)
+        cr.set_font_size(11)
+        cr.move_to(64, 14)
+        cr.show_text(self.title)
+
+        bar_x, bar_y, bar_w, bar_h = 64, 22, max(10, width - 74), 12
+        cr.set_source_rgb(0.22, 0.22, 0.26)
+        cr.rectangle(bar_x, bar_y, bar_w, bar_h)
+        cr.fill()
+        cr.set_source_rgb(*self._colour(self.value))
+        cr.rectangle(bar_x, bar_y, bar_w * self.value / 100.0, bar_h)
+        cr.fill()
 
         if self.per_core:
-            bar_y = 44
-            bar_h = 12
-            bar_w = max(2, (width - 20) / len(self.per_core) - 2)
+            core_y = 40
+            core_h = 9
+            core_w = max(2, bar_w / len(self.per_core) - 2)
             for index, core in enumerate(self.per_core):
-                x = 10 + index * (bar_w + 2)
+                x = bar_x + index * (core_w + 2)
                 cr.set_source_rgb(0.22, 0.22, 0.26)
-                cr.rectangle(x, bar_y, bar_w, bar_h)
+                cr.rectangle(x, core_y, core_w, core_h)
                 cr.fill()
                 cr.set_source_rgb(*self._colour(core))
-                cr.rectangle(x, bar_y + bar_h - core / 100.0 * bar_h, bar_w, core / 100.0 * bar_h)
+                cr.rectangle(x, core_y, core_w * core / 100.0, core_h)
                 cr.fill()
         return False
 
