@@ -386,6 +386,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.progress_bar = Gtk.ProgressBar()
         self.progress_bar.set_size_request(-1, 18)
         self.progress_bar.set_show_text(True)
+        self.progress_bar.override_font(Pango.FontDescription("Sans 11"))
         self._last_status = self.translator.tr("Astro Studio ready")
         self.progress_bar.set_text(self._last_status)
         root.pack_start(self.progress_bar, False, False, 0)
@@ -565,7 +566,6 @@ class MainWindow(Gtk.ApplicationWindow):
         command_entry = Gtk.Entry()
         command_entry.set_text(command)
         command_entry.set_editable(False)
-        command_entry.set_selectable(True)
         copy_button = Gtk.Button(label="Copy command")
         copy_button.connect(
             "clicked",
@@ -628,15 +628,25 @@ class MainWindow(Gtk.ApplicationWindow):
         provider = Gtk.CssProvider()
         provider.load_from_data(
             b"""
+progressbar {
+    font-size: 13px;
+    border: none;
+    border-radius: 0;
+}
 progressbar, progressbar trough, progressbar progress {
     min-height: 18px;
+    border-radius: 0;
 }
 progressbar trough {
-    background-color: #1c1c1c;
+    background-color: #2b2b2b;
     border: none;
 }
 progressbar progress {
-    background-color: #2ecc71;
+    background-color: #27ae60;
+    border: none;
+}
+progressbar text {
+    color: #ffffff;
 }
 """
         )

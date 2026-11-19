@@ -8,6 +8,17 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.11 — 2026-11-19
+
+- Histogram handles now apply a throttled preview refresh after 1s of movement as well
+  as immediately on release, capped at one CLI request per second.
+- Fixed the backend detail window (Gtk.Entry has no `set_selectable()`), so a single
+  click now opens the version/install dialog.
+- Bottom progress strip CSS enlarged its text and removed borders so the status text
+  and green progress share the same full-height widget.
+- Roadmap format audit extended with Astro-TIFF, float planes, HDR formats, extended
+  camera RAW lists, planetary MP4/MOV and modern web formats.
+
 ## 0.2.10 — 2026-11-19
 
 - Histogram dock is visible from startup and filled automatically after open.

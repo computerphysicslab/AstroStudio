@@ -399,3 +399,20 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   `job_id` sanitization in `ScratchManager`, UUID fallback in `unique_export_path()`, and
   closing `Gio.DataInputStream` objects when a job finishes.
 * Version bumped to `0.2.10` with a `CHANGELOG.md` entry.
+
+---
+
+## 28. v0.2.11 — Throttled Stretch and Backend Dialog Fix
+
+* `HistogramWidget` debounces handle movement: a 1s `GLib.timeout_add` fires once after the
+  last movement, applying the low/high cut points if they changed since the last request;
+  release still applies immediately. This avoids saturating the CLI while giving live feedback.
+* Backend detail dialog bug fixed: `Gtk.Entry` has no `set_selectable()`, so the window
+  aborted before `show_all()`. A GUI smoke now confirms the single "ExifTool details"
+  window opens after one click and the apt query is logged in the Terminal Drawer.
+* Bottom strip CSS now sets `font-size: 13px`, zero border/radius, dark trough and full-height
+  green fill; the status text and progress share the same widget.
+* Roadmap format audit extended from current research: Astro-TIFF (FITS header in TIFF tag
+  270), `.f32raw/.f64raw`, OpenEXR/PFM/RGBE, Bayer dumps, extended camera RAW suffixes,
+  planetary MP4/MOV and WebP/JXL/JPEG2000.
+* Version bumped to `0.2.11` with a `CHANGELOG.md` entry.

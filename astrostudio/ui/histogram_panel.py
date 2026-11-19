@@ -5,7 +5,7 @@ import gi
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 
 class HistogramWidget(Gtk.DrawingArea):
@@ -18,6 +18,8 @@ class HistogramWidget(Gtk.DrawingArea):
         self.high = 255.0
         self.on_change = None
         self._drag = None
+        self._apply_timer = None
+        self._last_applied = (self.low, self.high)
         self.set_app_paintable(True)
         self.set_size_request(320, 140)
         self.add_events(
@@ -37,6 +39,7 @@ class HistogramWidget(Gtk.DrawingArea):
     def set_points(self, low: float, high: float) -> None:
         self.low = max(0.0, min(low, high - 5.0))
         self.high = max(self.low + 5.0, min(high, 255.0))
+        self._last_applied = (self.low, self.high)
         self.queue_draw()
 
     def _handle_x(self, value: float, width: int) -> float:
@@ -60,7 +63,31 @@ class HistogramWidget(Gtk.DrawingArea):
             new_high = max(value, self.low + 5.0)
             changed = new_high != self.high
             self.high = new_high
+        if changed:
+            self._schedule_apply()
         self.queue_draw()
+
+    def _schedule_apply(self) -> None:
+        if self._apply_timer is not None:
+            return
+        self._apply_timer = GLib.timeout_add(1000, self._debounced_apply)
+
+    def _debounced_apply(self) -> bool:
+        self._apply_timer = None
+        current = (self.low, self.high)
+        if self._drag is not None and current != self._last_applied and self.on_change:
+            self._last_applied = current
+            self.on_change(*current)
+        return False
+
+    def _apply_now(self) -> None:
+        if self._apply_timer is not None:
+            GLib.source_remove(self._apply_timer)
+            self._apply_timer = None
+        current = (self.low, self.high)
+        if current != self._last_applied and self.on_change is not None:
+            self._last_applied = current
+            self.on_change(*current)
 
     def _on_press(self, _widget, event) -> bool:
         width = self.get_allocated_width()
@@ -83,8 +110,8 @@ class HistogramWidget(Gtk.DrawingArea):
         return True
 
     def _on_release(self, _widget, _event) -> bool:
-        if self._drag is not None and self.on_change is not None:
-            self.on_change(self.low, self.high)
+        if self._drag is not None:
+            self._apply_now()
         self._drag = None
         return False
 

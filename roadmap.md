@@ -215,6 +215,13 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 | PSD/PSB | supported | `-flatten` composite, flattened export |
 | PNG 8/16-bit | supported | 16-bit via `png:bit-depth=16` |
 | JPEG | supported | Quality presets; 4:4:4 control pending |
+| Astro-TIFF (FITS header in TIFF tag 270) | planned | Read/write FITS keywords in ImageDescription; preserve orientation and BAYERPAT (medium) |
+| `.f32raw` / `.f64raw` float planes | planned | SkyStacker intermediate format for linear pipelines (medium) |
+| OpenEXR / PFM / RGBE HDR | planned | darktable/LibRaw interchange for 32-bit float HDR (medium) |
+| Bayer dumps `.bay` / `.raw` | planned | Mono sensor matrices without EXIF; need debayer backend (medium) |
+| Extended camera RAW (3FR, ARI, BMQ, CAP, CRW, ERF, IIQ, MEF, MOS, MRW, NRW, PEF, RDC, RW1, SR2, SRF, SRW, STI, X3F, CINE) | planned | darktable/LibRaw via adapter, with governed camera whitelist (medium-high) |
+| Planetary video MP4/MOV (H.264/HEVC) | planned | ffmpeg-based frame extraction/SER conversion; refuse fragmented/10-bit variants (high) |
+| WebP / JPEG XL / JPEG 2000 (JP2, J2K) | planned | Display/sharing formats via external CLI (low-medium) |
 
 ## Milestone mapping (reference only)
 
