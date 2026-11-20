@@ -63,6 +63,7 @@ from ..core import (  # noqa: E402
     SKY_FILTERS,
     SKY_FILTER_MENU,
     parse_star_catalog,
+    StructuredLogger,
     suggest_presets,
     validate_avi_codec,
     write_object_layer_svg,
@@ -377,6 +378,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self.app = app
         self.settings = app.settings
         self.operation_log = app.operation_log
+        self.structured_log = StructuredLogger(
+            app.operation_log, sink=self._append_log_line
+        )
         self.estimator = app.estimator
         self._last_status = ""
         self._progress_timer = None
@@ -1052,6 +1056,11 @@ toolbutton.inactive-action {
                 window.set_cursor(None)
 
     def _log(self, line: str) -> None:
+        self.structured_log.info(line)
+
+    def _append_log_line(self, line: str, level: str, fields: dict) -> None:
+        if not hasattr(self, "log_buffer"):
+            return
         timestamp = datetime.now().strftime("%H:%M:%S")
         segments = log_segments("[%s] %s" % (timestamp, line))
         for index, (text, tag) in enumerate(segments):

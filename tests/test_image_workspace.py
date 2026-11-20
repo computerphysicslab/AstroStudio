@@ -25,6 +25,10 @@ class FakeEngine:
         on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=0))
 
 
+def header_bytes(cards):
+    return "".join(card.ljust(80) for card in cards).encode("ascii").ljust(2880, b" ")
+
+
 def _workspace(tmp_path, monkeypatch, engine):
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))
     (tmp_path / "runtime").mkdir()
@@ -84,7 +88,16 @@ def test_fits_source_combines_hdus_and_uses_display_stretch(tmp_path, monkeypatc
     engine = FakeEngine()
     workspace = _workspace(tmp_path, monkeypatch, engine)
     source = tmp_path / "light.fits"
-    source.write_bytes(b"fits")
+    cards = [
+        "SIMPLE  =                    T",
+        "BITPIX  =                   16",
+        "NAXIS   =                    2",
+        "NAXIS1  =                   16",
+        "NAXIS2  =                   16",
+        "END",
+    ]
+    header = "".join(card.ljust(80) for card in cards).encode("ascii")
+    source.write_bytes(header.ljust(2880, b" "))
 
     image = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
 
@@ -289,3 +302,28 @@ def test_skystacker_filter_receives_working_tiff_directly(tmp_path, monkeypatch)
     assert sky_call[1][2] == image.tiff_path
     assert "--image-op" in sky_call[1]
     assert ready == [image]
+
+
+def test_unusual_fits_is_rejected_before_cli(tmp_path, monkeypatch):
+    from astrostudio.core.fits_hdus import inspect_fits
+
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    primary = header_bytes([
+        "SIMPLE  =                    T", "BITPIX  =                   16",
+        "NAXIS   =                    2", "NAXIS1  =                    4",
+        "NAXIS2  =                    4", "END",
+    ])
+    extension = header_bytes([
+        "XTENSION= 'IMAGE   '", "BITPIX  =                   16",
+        "NAXIS   =                    2", "NAXIS1  =                    4",
+        "NAXIS2  =                    4", "END",
+    ])
+    source = tmp_path / "multi.fits"
+    source.write_bytes(primary + b"\0" * 2880 + extension + b"\0" * 2880)
+    assert inspect_fits(str(source))["unusual"]
+
+    errors = []
+    workspace.prepare(str(source), lambda *_: None, errors.append)
+    assert errors and "single image HDU" in errors[0]
+    assert engine.calls == []

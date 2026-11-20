@@ -10,6 +10,7 @@ DEFAULTS: Dict[str, Any] = {
     "theme": "system",
     "offline": False,
     "threads": 0,
+    "job_timeout_s": 1800,
     "font_size": 9,
     "accent_color": "green",
     "show_thumbnails": False,

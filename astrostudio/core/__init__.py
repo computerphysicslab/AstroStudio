@@ -24,6 +24,7 @@ from .histogram import histogram_argv, parse_histogram_text
 from .i18n import Translator
 from .job_manager import JobManager, JobState
 from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
+from .fits_hdus import FitsHdu, inspect_fits
 from .catalog_hints import (
     Hint,
     extract_tokens,
@@ -40,6 +41,7 @@ from .object_classification import (
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
 from .session import load_session, save_session
+from .structured_log import CallbackHandler, StructuredLogger
 from .star_catalog import (
     StarDetection,
     parse_star_catalog,
@@ -94,6 +96,8 @@ __all__ = [
     "JobState",
     "unique_export_path",
     "ImageWorkspace",
+    "FitsHdu",
+    "inspect_fits",
     "Hint",
     "extract_tokens",
     "load_catalog",
@@ -125,6 +129,8 @@ __all__ = [
     "ScratchManager",
     "load_session",
     "save_session",
+    "StructuredLogger",
+    "CallbackHandler",
     "StarDetection",
     "parse_star_catalog",
     "star_display_radius",

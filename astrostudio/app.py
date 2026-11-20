@@ -100,6 +100,7 @@ class AstroStudioApplication(Gtk.Application):
             operation_log=self.operation_log,
             on_job_start=lambda job_id, argv: self._on_job_start(job_id, argv),
             on_job_end=lambda job_id, result: self._on_job_end(job_id, result),
+            job_timeout_s=float(self.settings.get("job_timeout_s", 1800)),
         )
         self.window = None
         self.pending_paths: List[str] = []

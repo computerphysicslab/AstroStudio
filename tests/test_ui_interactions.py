@@ -484,3 +484,13 @@ def test_plate_solve_filename_hint(monkeypatch):
     assert any("Catalog hint" in message for message in messages)
     assert window._filename_hint("M42-and-M31.png") is None
     window.destroy()
+
+
+def test_main_window_log_uses_structured_logger(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    seen = []
+    monkeypatch.setattr(window.structured_log, "info", seen.append)
+    window._log("hello terminal")
+    assert seen == ["hello terminal"]
+    window.destroy()

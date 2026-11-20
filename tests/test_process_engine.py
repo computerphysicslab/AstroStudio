@@ -59,3 +59,23 @@ def test_cancel_reports_cancelled_state():
     assert len(results) == 1
     assert results[0].error == "cancelled by user"
     assert handle.finished
+
+
+def test_job_timeout_escalates_and_reports(tmp_path):
+    from astrostudio.core.operation_log import OperationLog
+
+    log = OperationLog(str(tmp_path / "operations.jsonl"), session="timeout-test")
+    engine = ProcessEngine(
+        operation_log=log, job_timeout_s=0.2, kill_grace_s=0.1
+    )
+    results = []
+    engine.run(
+        "slow", ["/bin/sh", "-c", "trap '' TERM; sleep 10"], on_done=results.append
+    )
+    _wait_for_callbacks(5)
+    assert len(results) == 1
+    assert results[0].error is not None
+    assert "timeout" in results[0].error or "killed" in results[0].error
+    events = {entry["event"] for entry in log.entries()}
+    assert "job_timeout" in events
+    assert "job_killed" in events

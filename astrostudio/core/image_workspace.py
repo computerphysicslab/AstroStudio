@@ -101,6 +101,18 @@ class ImageWorkspace:
         )
         self.images[key] = image
 
+        if source.lower().endswith((".fits", ".fit", ".fts")):
+            from .fits_hdus import inspect_fits
+
+            layout = inspect_fits(source)
+            if layout["error"]:
+                self._fail(
+                    "FITS import rejected for %s: %s" % (os.path.basename(source), layout["error"]),
+                    on_error,
+                    on_log,
+                )
+                return image
+
         if source.lower().endswith(".cr2"):
             from ..adapters.skystacker import SkyStackerAdapter
 

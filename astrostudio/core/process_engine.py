@@ -45,6 +45,9 @@ class ProcessHandle:
         self.exit_code = -1
         self.error: Optional[str] = None
         self.cancelled = False
+        self.timed_out = False
+        self.timeout_source: Optional[int] = None
+        self.kill_source: Optional[int] = None
         self.stdout_lines: List[str] = []
         self.stderr_lines: List[str] = []
         self.started = time.monotonic()
@@ -58,11 +61,15 @@ class ProcessEngine:
         operation_log: Any = None,
         on_job_start: Optional[Callable[[str, Sequence[str]], None]] = None,
         on_job_end: Optional[Callable[[str, "JobResult"], None]] = None,
+        job_timeout_s: float = 0.0,
+        kill_grace_s: float = 5.0,
     ) -> None:
         self._active: Dict[str, ProcessHandle] = {}
         self.operation_log: Any = operation_log
         self.on_job_start = on_job_start
         self.on_job_end = on_job_end
+        self.job_timeout_s = float(job_timeout_s)
+        self.kill_grace_s = float(kill_grace_s)
 
     def run(
         self,
@@ -101,8 +108,53 @@ class ProcessEngine:
             handle.streams.append(stream)
             self._watch_stream(stream, handle, name, on_log)
 
+        if self.job_timeout_s > 0:
+            handle.timeout_source = GLib.timeout_add(
+                int(self.job_timeout_s * 1000), self._on_job_timeout, handle
+            )
         process.wait_async(handle.cancellable, self._on_wait, handle)
         return handle
+
+    def _clear_timers(self, handle: ProcessHandle) -> None:
+        for source_id in (handle.timeout_source, handle.kill_source):
+            if source_id is not None:
+                GLib.source_remove(source_id)
+        handle.timeout_source = None
+        handle.kill_source = None
+
+    def _on_job_timeout(self, handle: ProcessHandle) -> bool:
+        if handle.finished:
+            return False
+        handle.timed_out = True
+        handle.error = "job timeout after %.1f s" % self.job_timeout_s
+        if self.operation_log is not None:
+            self.operation_log.record(
+                "job_timeout", job_id=handle.job_id, timeout_s=self.job_timeout_s
+            )
+        if handle.process is not None:
+            try:
+                handle.process.send_signal(signal.SIGTERM)
+            except (GLib.Error, RuntimeError):
+                pass
+        handle.kill_source = GLib.timeout_add(
+            max(1, int(self.kill_grace_s * 1000)), self._force_kill, handle
+        )
+        handle.timeout_source = None
+        return False
+
+    def _force_kill(self, handle: ProcessHandle) -> bool:
+        if handle.finished or handle.process is None:
+            return False
+        try:
+            handle.process.send_signal(signal.SIGKILL)
+        except (GLib.Error, RuntimeError):
+            pass
+        handle.cancellable.cancel()
+        handle.error = "job killed after timeout"
+        if self.operation_log is not None:
+            self.operation_log.record("job_killed", job_id=handle.job_id)
+        handle.kill_source = None
+        return False
 
     def _should_record(self, job_id: str) -> bool:
         return self.operation_log is not None and not job_id.startswith("probe-")
@@ -163,7 +215,10 @@ class ProcessEngine:
             line, length = stream.read_line_finish_utf8(result)
         except GLib.Error as exc:
             line, length = "", 0
-            handle.error = "cancelled by user" if handle.cancelled else (handle.error or str(exc))
+            if not handle.timed_out:
+                handle.error = (
+                    "cancelled by user" if handle.cancelled else (handle.error or str(exc))
+                )
         if length:
             target = handle.stdout_lines if name == "stdout" else handle.stderr_lines
             target.append(line)
@@ -178,7 +233,10 @@ class ProcessEngine:
         try:
             process.wait_finish(result)
         except GLib.Error as exc:
-            handle.error = "cancelled by user" if handle.cancelled else (handle.error or str(exc))
+            if not handle.timed_out:
+                handle.error = (
+                    "cancelled by user" if handle.cancelled else (handle.error or str(exc))
+                )
         handle.exit_code = process.get_exit_status() if process.get_if_exited() else -1
         handle.process_finished = True
         self._maybe_finish(handle)
@@ -187,6 +245,7 @@ class ProcessEngine:
         if handle.finished or handle.pending_streams or not handle.process_finished:
             return
         handle.finished = True
+        self._clear_timers(handle)
         self._notify_job_end(handle)
         for stream in handle.streams:
             try:

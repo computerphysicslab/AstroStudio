@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.3.8**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.3.9**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -101,14 +101,18 @@ Scroll the mouse wheel over the preview to zoom; drag with the left mouse button
 when the image is larger than the window. Transforms and Undo/Redo keep the same zoom
 and pan position. A watch cursor is shown for the whole job lifecycle. The Backends
 panel lists installed connectors first (alphabetically), then the missing ones, and its
-View toggle stays enabled after closing the panel with X. FITS/RAW sources combine their RGB HDUs into one RGB TIFF and get a CLI display stretch for the PNG
-preview; exports stay linear. *Options > Backend Settings* persists enabled connectors,
+View toggle stays enabled after closing the panel with X. FITS/RAW sources combine their RGB HDUs into one RGB TIFF and get a CLI display stretch
+for the PNG preview; exports stay linear. FITS files with multiple image HDUs or
+BINTABLE extensions are rejected before import with an explicit message. *Options > Backend Settings* persists enabled connectors,
 language, theme, offline mode and thread limit under `$XDG_CONFIG_HOME`; the theme is
 actually applied to GTK (Yaru/Adwaita light or dark). View-menu toggles show On/Off,
 and the status bar always shows the active PNG/TIFF sizes plus transform/export time.
 CPU/RAM level bars in the right dock refresh once per second (`psutil`, `/proc` fallback).
 Every CLI job and GUI operation is appended to an incremental JSONL log under
-`$XDG_DATA_HOME/astro-studio/operations.jsonl`. View > Histogram fills the docked panel
+`$XDG_DATA_HOME/astro-studio/operations.jsonl`. Standard Python log records are mirrored
+there with their level and fields. Long-running jobs are terminated after
+`job_timeout_s` (default 1800, configurable in settings): SIGTERM first, then SIGKILL
+after a short grace period, with `job_timeout`/`job_killed` events recorded. View > Histogram fills the docked panel
 between CPU/RAM and the Terminal with CLI-generated distributions (bounded to 256 colours
 for speed). Drag its two handles to set low/high cut points: the CLI regenerates only the
 preview PNG with `-level`, leaving the high-depth TIFF untouched. The CPU bar shows both

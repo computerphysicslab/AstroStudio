@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.9 — 2026-11-20
+
+- Roadmap items 26-28 completed.
+- Configurable per-job timeout with SIGTERM then SIGKILL escalation; timeout/kill events are recorded in the operation log.
+- FITS HDU inspection before import now rejects multi-image and BINTABLE layouts with an explicit error instead of a silent `-combine` mistake.
+- Structured Python logging mirrors records with levels and fields into the terminal and the JSONL operation log.
+- Added unit and integration tests; 180 passed, 2 skipped, 90% coverage, mypy clean on 45 modules.
+
 ## 0.3.8 — 2026-11-20
 
 - Repository preparation for a public GitHub release: MIT `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, and `.gitignore` rules for local `Context/`, personal data, credentials, keys and runtime logs.

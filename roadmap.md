@@ -155,12 +155,12 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        `adapters/`) in a pre-commit/CI job with `desktop-file-validate` (v0.3.0).
 25. [x] UI smoke tests with `pytest-gtk` that start the window and verify menus, dock
        toggles and metadata/histogram panels (v0.3.0).
-26. [ ] SIGKILL escalation after a configurable per-job timeout to avoid zombie jobs
-       (v0.3.0).
-27. [ ] FITS multi-HDU detection with explicit errors instead of silent `-combine`
-       failure on unusual files (v0.3.0).
-28. [ ] Structured logging: standard Python logger mirrored into `OperationLog` instead
-       of ad-hoc `_log()` strings (v0.3.0).
+26. [x] SIGKILL escalation after a configurable per-job timeout to avoid zombie jobs
+       (v0.3.9).
+27. [x] FITS multi-HDU detection with explicit errors instead of silent `-combine`
+       failure on unusual files (v0.3.9).
+28. [x] Structured logging: standard Python logger mirrored into `OperationLog` instead
+       of ad-hoc `_log()` strings (v0.3.9).
 
 ### High difficulty
 
@@ -252,6 +252,7 @@ Acceptance remains as listed above; update this section whenever the order chang
 - **v0.3.6** — filename-driven catalog hints (roadmap 11).
 - **v0.3.7** — log review, time-model refresh and documentation audit.
 - **v0.3.8** — public repository preparation and CI/type-check hardening.
+- **v0.3.9** — job timeout/SIGKILL escalation, FITS HDU validation and structured logging.
 - **v0.4.0** — astrometry alternatives, WCS export and session resume.
 - **v0.5.0** — extended backends and scalable previews.
 - **v1.0.0** — full menu coverage, packaging and release.
@@ -287,3 +288,13 @@ license and CREDITS. `MainWindow._filename_hint()` prefills the Plate Solving di
 RA/Dec from an unambiguous filename match and logs ambiguous candidates instead of
 guessing. Tests cover token extraction, M42/NGC1976/name aliases, ambiguity and the
 bundled license files.
+
+
+### Items 26-28 completion note
+
+`ProcessEngine` now applies `settings.job_timeout_s` (default 1800 s): SIGTERM first, then
+SIGKILL after `kill_grace_s`, with `job_timeout`/`job_killed` events in the operation log.
+`core/fits_hdus.py` inspects headers before import and rejects multi-image or BINTABLE
+layouts with an explicit message instead of a silent `-combine` failure.
+`core/structured_log.py` mirrors standard Python log records into the terminal and the
+JSONL operation log; `MainWindow._log()` delegates to it.
