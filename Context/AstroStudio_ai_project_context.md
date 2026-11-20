@@ -786,3 +786,18 @@ to force a UI redraw.
 * Processing > Rotate Image offers 90 CW/CCW, a free angle dialog and rotation by a
   mouse-drawn segment (angle from `atan2(dy, dx)` serialized as `-rotate <degrees>`).
 * Version bumped to `0.2.34`.
+
+---
+
+## 52. v0.2.35 — Rotation Mode, Toolbar State and Meter Width
+
+* Rotation-by-segment was alternating with area selection because the two modes were not
+  mutually exclusive and rotation mode was never cleared after finishing. Now enabling
+  rotation disables selection, and a finished segment resets rotation mode; the next
+  toolbar press starts a new rotation instead of drawing a rectangle.
+* Undo/Redo toolbar buttons follow `Gio.SimpleAction` sensitivity: disabled buttons are
+  insensitive and styled with `.inactive-action` (greyed) at the end of the history chain.
+* CPU/RAM dock uses dynamic widths: CPU meter has `hexpand=True` and grows with the panel
+  (259px measured), RAM stays fixed at 84px around its circle.
+* Fullscreen canvas now measures the complete 1366x768 screen.
+* Version bumped to `0.2.35`.

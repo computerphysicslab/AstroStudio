@@ -860,6 +860,10 @@ progressbar progress {
 progressbar text {
     color: #ffffff;
 }
+toolbutton.inactive-action {
+    opacity: 0.35;
+    color: #888888;
+}
 """ % colour
         provider = Gtk.CssProvider()
         provider.load_from_data(css.encode("utf-8"))
@@ -960,6 +964,17 @@ progressbar text {
             self._status("%s: %s" % (self.translator.tr("Action unavailable"), action))
             return
         self.app.activate_action(action, None)
+
+    def update_toolbar_sensitivity(self) -> None:
+        for action, button in self.toolbar_buttons.items():
+            gio_action = self.app.lookup_action(action)
+            enabled = gio_action.get_enabled() if gio_action is not None else True
+            button.set_sensitive(enabled)
+            context = button.get_style_context()
+            if enabled:
+                context.remove_class("inactive-action")
+            else:
+                context.add_class("inactive-action")
 
     def refresh_jobs(self) -> None:
         if hasattr(self, "job_panel"):
@@ -1203,6 +1218,7 @@ progressbar text {
     def _on_canvas_release(self, widget, event) -> bool:
         if self.preview.rotation_mode:
             angle = self.preview.finish_rotation()
+            self.preview.set_rotation_mode(False)
             if angle is not None:
                 self._rotate_image(angle, "Rotate by segment")
             return True
@@ -1965,6 +1981,8 @@ progressbar text {
 
     def action_rotate_segment(self) -> None:
         enabled = not self.preview.rotation_mode
+        if enabled:
+            self.preview.set_select_mode(False)
         self.preview.set_rotation_mode(enabled)
         self._status("Rotation by segment: ON" if enabled else "Rotation by segment: OFF")
 
@@ -2813,6 +2831,8 @@ progressbar text {
 
     def action_select_area(self) -> None:
         enabled = not self.preview.select_mode
+        if enabled:
+            self.preview.set_rotation_mode(False)
         self.preview.set_select_mode(enabled)
         self._status(
             self.translator.tr("Select Area") + (": ON" if enabled else ": OFF")

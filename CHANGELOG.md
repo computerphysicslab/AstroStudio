@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.35 — 2026-11-19
+
+- Rotation-by-segment mode is mutually exclusive with area selection and resets after use, fixing the alternating rectangle bug.
+- Undo/Redo toolbar buttons become insensitive and greyed when history is empty or exhausted.
+- Resource meters expand dynamically: CPU takes all remaining dock width, RAM stays circle-sized.
+- Fullscreen canvas now uses the complete 1366x768 screen.
+- Added unit and UI tests for rotation lifecycle, toolbar sensitivity and meter layout.
+
 ## 0.2.34 — 2026-11-19
 
 - Fullscreen now gives the canvas 1366x744 of a 1366x768 screen by hiding the preview frame label and right dock container.

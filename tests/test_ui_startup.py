@@ -1,6 +1,7 @@
 """Startup and geometry regressions for MainWindow."""
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -41,4 +42,38 @@ def test_main_window_builds_with_small_minimum_size():
     file_menu = window.menu_bar.get_children()[0].get_submenu()
     labels = [item.get_label() for item in file_menu.get_children()]
     assert labels[:2] == ["Open", "Open Recent"]
+    window.destroy()
+
+
+def test_undo_redo_buttons_reflect_history():
+    app = AstroStudioApplication()
+    app.settings.set("show_thumbnails", False)
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    app.window = window
+    window.show_all()
+    app.update_action_sensitivity()
+    assert not window.toolbar_buttons["undo"].get_sensitive()
+    assert not window.toolbar_buttons["redo"].get_sensitive()
+    from astrostudio.core import WorkingImage
+
+    image = WorkingImage("img", "source.fits", "/tmp", "/tmp/w.tiff", "/tmp/p.png")
+    window.current_images.append(image)
+    Path("/tmp/w.tiff").write_bytes(b"tiff")
+    Path("/tmp/p.png").write_bytes(b"png")
+    window.workspace._snapshot(image, window.workspace._undo)
+    window.transform_history.append("resize-down")
+    app.update_action_sensitivity()
+    assert window.toolbar_buttons["undo"].get_sensitive()
+    assert not window.toolbar_buttons["redo"].get_sensitive()
+    window.destroy()
+
+
+def test_resource_meters_are_asymmetric():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    cpu = window.resource_monitor.cpu_meter
+    ram = window.resource_monitor.ram_meter
+    assert cpu.get_hexpand()
+    assert not ram.get_hexpand()
+    assert ram.show_bar is False
     window.destroy()

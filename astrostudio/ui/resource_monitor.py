@@ -65,7 +65,7 @@ class MeterWidget(Gtk.DrawingArea):
         self.history = []
         self.per_core = []
         self.set_app_paintable(True)
-        self.set_size_request(200 if title == "CPU" else 84, 56)
+        self.set_size_request(120 if title == "CPU" else 84, 56)
         self.connect("draw", self._on_draw)
 
     def update(self, value: float, per_core: list = None) -> None:
@@ -133,8 +133,9 @@ class ResourceMonitor(Gtk.Box):
     def __init__(self, interval_ms: int = 1000) -> None:
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         self.cpu_meter = MeterWidget("CPU")
+        self.cpu_meter.set_hexpand(True)
         self.ram_meter = MeterWidget("RAM", show_bar=False)
-        self.pack_start(self.cpu_meter, False, False, 0)
+        self.pack_start(self.cpu_meter, True, True, 0)
         self.pack_start(self.ram_meter, False, False, 0)
         self._previous_cpu = self._read_proc_cpu()
         if psutil is not None:

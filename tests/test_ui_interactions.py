@@ -82,3 +82,27 @@ def test_rotation_segment_angle():
     assert pane.segment_angle() == 90
     assert pane.finish_rotation() == 90
     assert pane.rotation_start is None
+
+
+def test_rotate_segment_is_exclusive_and_resets(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    angles = []
+    monkeypatch.setattr(window, "_rotate_image", lambda angle, label: angles.append(angle))
+
+    window.preview.set_select_mode(True)
+    window.action_rotate_segment()
+    assert window.preview.rotation_mode
+    assert not window.preview.select_mode
+
+    window.preview.start_rotation(10, 10)
+    window.preview.update_rotation(60, 10)
+    event = Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE)
+    window._on_canvas_release(window.preview, event)
+    assert angles == [0]
+    assert not window.preview.rotation_mode
+
+    window.action_rotate_segment()
+    assert window.preview.rotation_mode
+    assert not window.preview.select_mode
+    window.destroy()

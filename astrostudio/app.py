@@ -196,6 +196,8 @@ class AstroStudioApplication(Gtk.Application):
         cancel = self.lookup_action("cancel")
         if cancel is not None:
             cancel.set_enabled(bool(self.engine.active_jobs))
+        if self.window is not None:
+            self.window.update_toolbar_sensitivity()
 
     def do_shutdown(self) -> None:
         if self.window is not None:
