@@ -180,6 +180,19 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 9. [ ] Reproducible offline packaging (Flatpak/AppImage) with optional dependencies
        declared (v1.0.0).
 10. [ ] Gradual GTK 4 migration once the runtime is available (post-v1.0.0).
+11. [ ] Filename-driven catalog hints for plate solving (v0.4.0, research done
+       2026-11-20). Many captures are named `Orion-M42-Riofrio-2026-11-09.png`; a
+       tokenizer should extract `M42`, `NGC 1976`, `IC 434`, `Cxx` and common names,
+       resolve them against a bundled offline catalog, and feed a trusted J2000 seed to
+       SkyStacker as `--plate-center RA,DEC` (with existing focal-length/pixel-size
+       hints). Ambiguous or multiple matches must never be fabricated: report the
+       candidates and let the user choose or skip. Start with OpenNGC (NGC/IC/Messier/
+       Caldwell cross-IDs and J2000 positions, CC BY-SA 4.0) plus its addendum for M40/
+       M45; ship the license and attribution in the app. SIMBAD/CDS-derived extras are
+       ODbL 1.0 and need separate attribution; original Dreyer NGC data is public domain.
+       Avoid paywalled datasets. Acceptance: unit tests for filename parsing and
+       ambiguity, argv tests for the seeded solver, and an integration test proving a
+       named field no longer needs a blind solve.
 11. [ ] XISF native read/write through an external CLI/library with LZ4/LZ4HC/Zlib/Zstd
        block compression, byte shuffling and checksum blocks (v0.5.0; no installed CLI
        covers this yet, so research is required).

@@ -139,15 +139,6 @@ class PreviewPane(Gtk.DrawingArea):
         self.set_hover_target(None)
         return False
 
-    @staticmethod
-    def _point_segment_distance(px, py, ax, ay, bx, by):
-        dx, dy = bx - ax, by - ay
-        length_sq = dx * dx + dy * dy
-        if length_sq == 0:
-            return math.hypot(px - ax, py - ay)
-        position = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length_sq))
-        return math.hypot(px - (ax + position * dx), py - (ay + position * dy))
-
     def set_hover_target(self, target) -> None:
         if self.hover_target != target:
             self.hover_target = target
@@ -162,25 +153,22 @@ class PreviewPane(Gtk.DrawingArea):
             for rank, star in enumerate(self.star_layer[:500], start=1):
                 sx = offset_x + star.x * scale
                 sy = offset_y + star.y * scale
-                radius = star_display_radius(star.flux, top_flux) + 4
+                display_radius = star_display_radius(star.flux, top_flux)
+                radius = display_radius + 4
                 if (x - sx) ** 2 + (y - sy) ** 2 <= radius ** 2:
                     return (
                         "Star #%d  x=%.1f y=%.1f\n"
                         "flux=%.2f  size=%.0f  HFR=%.2f  ecc=%.2f"
                         % (rank, star.x, star.y, star.flux, star.size, star.hfr, star.eccentricity)
                     ), ("star", rank)
-                if rank <= 30:
-                    leader_x2 = sx + radius + 4
-                    leader_y2 = sy - radius - 2
-                    if self._point_segment_distance(
-                        x, y, sx + radius, sy, leader_x2, leader_y2
-                    ) <= 5:
-                        return (
-                            "Label leader for star #%d (rank printed on canvas).\n"
-                            "SkyStacker's catalog has no invariant-pattern field; "
-                            "flux=%.2f  HFR=%.2f"
-                            % (rank, star.flux, star.hfr)
-                        ), ("star-leader", rank)
+                label_x = sx + display_radius + 3
+                label_y = sy - display_radius - 2
+                if label_x <= x <= label_x + 14 and label_y - 9 <= y <= label_y + 2:
+                    return (
+                        "Star #%d rank label  x=%.1f y=%.1f\n"
+                        "flux=%.2f  HFR=%.2f  ecc=%.2f"
+                        % (rank, star.x, star.y, star.flux, star.hfr, star.eccentricity)
+                    ), ("star", rank)
         if self.object_layer and self.object_layer_visible:
             for obj in self.object_layer[:30]:
                 sx = offset_x + obj.x * scale
@@ -365,24 +353,22 @@ class PreviewPane(Gtk.DrawingArea):
                 if not (0 <= x <= allocation.width and 0 <= y <= allocation.height):
                     continue
                 radius = star_display_radius(star.flux, top_flux)
-                highlighted = self.hover_target in (("star", rank), ("star-leader", rank))
+                highlighted = self.hover_target == ("star", rank)
                 alpha = 1.0 if highlighted else 0.35 + star.flux / top_flux * 0.55
                 line_width = 2.6 if highlighted else 1.2
                 cr.set_source_rgba(1.0, 0.90 if highlighted else 0.80, 0.20, alpha)
                 cr.set_line_width(line_width)
+                cr.new_path()
                 cr.arc(x, y, radius + (1.5 if highlighted else 0), 0, 2 * math.pi)
                 cr.stroke()
-                if rank <= 30:
-                    label_x = x + radius + 4
-                    label_y = y - radius - 2
-                    cr.set_source_rgba(1.0, 0.90, 0.25, 0.9 if highlighted else 0.55)
-                    cr.set_line_width(line_width if highlighted else 0.8)
-                    cr.move_to(x + radius, y)
-                    cr.line_to(label_x - 1, label_y + 2)
-                    cr.stroke()
-                    cr.set_source_rgba(1.0, 0.92, 0.30, 1.0 if highlighted else 0.9)
-                    cr.move_to(label_x, label_y)
-                    cr.show_text(str(rank))
+                label_x = x + radius + 3
+                label_y = y - radius - 2
+                cr.set_font_size(10 if highlighted else 9)
+                cr.set_source_rgba(1.0, 0.95, 0.35, 1.0 if highlighted else 0.85)
+                cr.move_to(label_x, label_y)
+                cr.show_text(str(rank))
+                cr.new_path()
+                cr.set_font_size(9)
         if self.object_layer and self.object_layer_visible:
             cr.set_font_size(9)
             for obj in self.object_layer[:30]:
@@ -399,10 +385,12 @@ class PreviewPane(Gtk.DrawingArea):
                     1.0 if highlighted else 0.85,
                 )
                 cr.set_line_width(2.6 if highlighted else 1.4)
+                cr.new_path()
                 cr.arc(x, y, radius + (2 if highlighted else 0), 0, 2 * math.pi)
                 cr.stroke()
                 cr.move_to(x + radius + 2, y - radius - 2)
                 cr.show_text("%d %s" % (obj.id, obj.object_type))
+                cr.new_path()
         rectangle = self.selection
         if self.selection_start is not None and self.selection_end is not None:
             rectangle = selection_rectangle(self.selection_start, self.selection_end)

@@ -37,4 +37,4 @@
 
 ## Environment note
 
-`exiftool` and ImageMagick 6 as `convert` are installed (`magick` v7 is absent; adapters resolve either binary). `rawtherapee-cli`, `siril-cli`, etc. may be absent: adapters must report "backend unavailable" rather than crash or fall back to in-process processing. The installed `skystacker` CLI cannot decode TIFF, so do not use it for the TIFF-to-PNG step.
+`exiftool` and ImageMagick 6 as `convert` are installed (`magick` v7 is absent; adapters resolve either binary). `rawtherapee-cli`, `siril-cli`, etc. may be absent: adapters must report "backend unavailable" rather than crash or fall back to in-process processing. The installed `skystacker` CLI decodes TIFF through its first-party goTiff reader, so SkyStacker image-op jobs may consume the 16-bit working TIFF directly; ImageMagick remains the TIFF-to-PNG preview renderer.

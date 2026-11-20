@@ -382,7 +382,7 @@ def test_no_segment_reports_status_and_keeps_mode(monkeypatch):
     window.destroy()
 
 
-def test_leader_line_hover_target(monkeypatch):
+def test_rank_label_hover_target(monkeypatch):
     from types import SimpleNamespace
 
     from astrostudio.core.star_catalog import StarDetection
@@ -395,10 +395,9 @@ def test_leader_line_hover_target(monkeypatch):
         "_view_parameters",
         lambda: (SimpleNamespace(width=400, height=200), 1.0, 0.0, 0.0),
     )
-    text, target = pane._layer_hit(68, 26)
-    assert target == ("star-leader", 1)
-    assert "no invariant-pattern field" in text
-
+    text, target = pane._layer_hit(68, 30)
+    assert target == ("star", 1)
+    assert "Star #1 rank label" in text
 
 def test_hover_highlight_thickens_star_circle(monkeypatch):
     from types import SimpleNamespace
@@ -431,3 +430,40 @@ def test_hover_highlight_thickens_star_circle(monkeypatch):
     pane.set_hover_target(("star", 1))
     highlighted = count_yellow()
     assert highlighted > normal
+
+
+def test_star_labels_do_not_connect_with_lines(monkeypatch):
+    from types import SimpleNamespace
+
+    import cairo
+
+    from astrostudio.core.star_catalog import StarDetection
+
+    pane = PreviewPane()
+    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    monkeypatch.setattr(
+        pane,
+        "_view_parameters",
+        lambda: (SimpleNamespace(width=300, height=200), 1.0, 0.0, 0.0),
+    )
+
+    def render(stars):
+        pane.set_star_layer(stars)
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 300, 200)
+        pane._on_draw(None, cairo.Context(surface))
+        data = surface.get_data()
+        return sum(
+            1
+            for y in range(80, 120)
+            for x in range(100, 200)
+            if data[(y * 300 + x) * 4 + 2] > 240
+            and 150 < data[(y * 300 + x) * 4 + 1] < 230
+            and data[(y * 300 + x) * 4] < 90
+        )
+
+    baseline = render([])
+    with_stars = render([
+        StarDetection(40, 100, 50, 4, 0.2, 3),
+        StarDetection(240, 100, 50, 4, 0.2, 3),
+    ])
+    assert with_stars <= baseline

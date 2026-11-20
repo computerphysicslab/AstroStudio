@@ -86,11 +86,6 @@ def write_star_layer_svg(
         label_x = star.x + radius + 2
         label_y = star.y - radius - 1
         lines.append(
-            '<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#ffcc4d" '
-            'stroke-width="0.8" opacity="0.6" class="star-label-leader"/>'
-            % (star.x + radius, star.y, label_x - 1, label_y + 2)
-        )
-        lines.append(
             '<text x="%.1f" y="%.1f" fill="#ffcc4d" font-size="9">%d</text>'
             % (label_x, label_y, rank)
         )

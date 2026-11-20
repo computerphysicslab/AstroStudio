@@ -267,51 +267,17 @@ class ImageWorkspace:
         on_error: ErrorCallback,
         on_log: Optional[LogCallback] = None,
     ) -> None:
-        """Apply a SkyStacker image-op through CLI-only intermediate files.
+        """Apply a SkyStacker image-op directly to the working TIFF.
 
-        SkyStacker cannot decode TIFF, so ImageMagick renders the working TIFF to a
-        scratch PNG first; the image-op JPEG product is converted back to a 16-bit
-        TIFF before the standard commit/preview step.
+        SkyStacker decodes 8/16-bit and float TIFF through its first-party goTiff
+        reader, so no intermediate PNG is needed. The image-op JPEG product is
+        converted back to a 16-bit TIFF before the standard commit/preview step.
         """
-        intermediate_png = os.path.join(image.directory, "sky_input.png")
         output_dir = os.path.join(image.directory, "sky_" + image_op)
         next_tiff = os.path.join(image.directory, "working_next.tiff")
         self._snapshot(image, self._undo)
         self._redo[image.key] = []
-
-        prepare_argv = self.adapter.build_preview_argv(
-            image.tiff_path, intermediate_png, False, None, None
-        )
-        if on_log:
-            on_log("SkyStacker input PNG: %s" % " ".join(prepare_argv))
-        self.engine.run(
-            image.key + "-sky-input",
-            prepare_argv,
-            on_log=on_log,
-            on_done=lambda result: self._on_sky_input(
-                result, image, sky_adapter, image_op, flags, intermediate_png,
-                output_dir, next_tiff, on_ready, on_error, on_log
-            ),
-        )
-
-    def _on_sky_input(
-        self,
-        result: JobResult,
-        image: WorkingImage,
-        sky_adapter: "SkyStackerAdapter",
-        image_op: str,
-        flags: List[str],
-        intermediate_png: str,
-        output_dir: str,
-        next_tiff: str,
-        on_ready: ReadyCallback,
-        on_error: ErrorCallback,
-        on_log: Optional[LogCallback],
-    ) -> None:
-        if not result.ok:
-            self._fail("SkyStacker input PNG failed: %s" % (result.error or result.stderr), on_error, on_log)
-            return
-        argv = sky_adapter.build_image_op_argv(intermediate_png, output_dir, image_op, flags)
+        argv = sky_adapter.build_image_op_argv(image.tiff_path, output_dir, image_op, flags)
         if on_log:
             on_log("CLI SkyStacker image-op: %s" % " ".join(argv))
         self.engine.run(
@@ -341,7 +307,7 @@ class ImageWorkspace:
             return
         product = sky_adapter.find_image_product(output_dir, image_op)
         if not product:
-            self._fail("SkyStacker image-op produced no JPEG", on_error, on_log)
+            self._fail("SkyStacker image-op produced no image", on_error, on_log)
             return
         argv = self.adapter.build_import_argv(product, next_tiff)
         if on_log:

@@ -247,3 +247,45 @@ def test_undo_redo_are_isolated_per_image(tmp_path, monkeypatch):
     assert Path(first.tiff_path).read_bytes() == before_first
     assert Path(second.tiff_path).read_bytes() != before_second
     assert workspace.can_undo(second)
+
+
+def test_skystacker_filter_receives_working_tiff_directly(tmp_path, monkeypatch):
+    from astrostudio.adapters import SkyStackerAdapter
+
+    calls = []
+    product = tmp_path / "working_blur.jpg"
+    product.write_bytes(b"product")
+
+    def fake_run(job_id, argv, on_log=None, on_done=None):
+        calls.append((job_id, list(argv)))
+        if job_id.endswith("-sky-tiff"):
+            Path(argv[-1]).write_bytes(b"tiff")
+        if on_done is not None:
+            on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=0))
+
+    class LocalEngine:
+        def run(self, job_id, argv, on_log=None, on_done=None):
+            fake_run(job_id, argv, on_log, on_done)
+
+    monkeypatch.setattr(
+        SkyStackerAdapter, "find_image_product", lambda *args: str(product)
+    )
+    workspace = _workspace(tmp_path, monkeypatch, FakeEngine())
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    image = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+    workspace.engine = LocalEngine()
+    ready = []
+
+    workspace.transform_via_image_op(
+        image,
+        SkyStackerAdapter(),
+        "blur",
+        ["--denoise-radius", "4"],
+        ready.append,
+        lambda message: pytest.fail(message),
+    )
+    sky_call = [call for call in calls if call[0].endswith("-sky-blur")][0]
+    assert sky_call[1][2] == image.tiff_path
+    assert "--image-op" in sky_call[1]
+    assert ready == [image]

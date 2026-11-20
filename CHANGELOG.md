@@ -8,6 +8,24 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.5 — 2026-11-20
+
+- SkyStacker now decodes TIFF via its first-party goTiff module; `transform_via_image_op()` passes the 16-bit working TIFF directly instead of rendering an intermediate PNG.
+- Removed the obsolete "SkyStacker cannot decode TIFF" notes from AGENTS.md and project context.
+- Added roadmap item 11 (high difficulty): filename-driven catalog hints for plate solving, with OpenNGC CC BY-SA 4.0 as the proposed bundled offline catalog and license/attribution requirements documented.
+
+## 0.3.4 — 2026-11-20
+
+- Fixed the real source of the connecting lines: Cairo's current point left by `show_text()` was connected to the next star arc. `cr.new_path()` now clears the path after each label and before each circle.
+- Verified with a fresh process on `Rosetta.jpg`: the star overlay shows only circles and rank numbers, no graph lines.
+- Added a regression test that renders two distant stars and checks the empty area between them stays clean.
+
+## 0.3.3 — 2026-11-20
+
+- Removed the confusing label leader lines from the live overlay and SVG sidecar.
+- Every displayed star now shows its rank number immediately beside its circle.
+- Hovering or highlighting a star circle also brightens and enlarges its rank label; hovering the label selects the same star.
+
 ## 0.3.2 — 2026-11-20
 
 - Star-identification circles now scale logarithmically with flux; brighter stars get visibly larger rings in both the live overlay and the SVG sidecar.

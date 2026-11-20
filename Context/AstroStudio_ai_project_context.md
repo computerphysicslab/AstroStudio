@@ -131,7 +131,7 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
 
 * Every image opened by Astro Studio is stored in scratch as **two artifacts**: `working.tiff` (16-bit, maximum depth/colour, the sole input to external CLI transforms) and `preview.png` (8-bit display copy generated from the TIFF, the only file rendered by the GTK canvas).
 * `ImageWorkspace.prepare()` creates both artifacts via external CLI; `transform()` runs the backend on the TIFF, atomically replaces it with the new TIFF (`os.replace`), then regenerates the PNG before the GUI reloads the preview. `export()` copies the PNG for `.png` targets or invokes the CLI from the TIFF for other formats. Original inputs are never modified.
-* ImageMagick is accepted as `magick` (v7) or `convert` (v6); the adapter and the backend registry resolve either binary. The installed SkyStacker CLI cannot decode TIFF, so it is not used for the TIFF-to-PNG step in this baseline; the step is still performed by an external CLI, never in-process.
+* ImageMagick is accepted as `magick` (v7) or `convert` (v6); the adapter and the backend registry resolve either binary. SkyStacker now decodes TIFF through its first-party goTiff module and can be used directly on the 16-bit working TIFF for image-op jobs; the TIFF-to-PNG preview step remains an external ImageMagick CLI job, never in-process.
 * The Metadata panel is filled by ExifTool with canonical tags (`-ExposureTime`, `-ISO`, `-FNumber`, `-DateTimeOriginal`, etc.) only when the (i) action is triggered, in two tabs (rendered PNG and working TIFF). Startup discovery resolves installed state synchronously before version queries so actions are enabled from the first frame.
 * The preview canvas supports mouse-wheel zoom (read-only view transform).
 
@@ -558,7 +558,7 @@ to force a UI redraw.
 
 ### Known limitations
 
-- SkyStacker cannot decode TIFF, so TIFF-to-PNG previews are produced by ImageMagick.
+- SkyStacker now reads TIFF via goTiff; ImageMagick still produces the TIFF-to-PNG previews.
 - RGB FITS may be stored as three HDUs; import uses `-combine`, unusual multi-extension
   files may need manual handling.
 - Display stretch (`-evaluate`, `-level`) affects only the PNG preview; scientific exports
@@ -929,11 +929,10 @@ to force a UI redraw.
   Filter > SkyStacker Blur & Sharpen / Background / Stretch / Denoise / Deconvolution /
   Starless. Every new action is gated on the SkyStacker backend and translated in all
   supported UI languages.
-* SkyStacker cannot decode TIFF, so `ImageWorkspace.transform_via_image_op()` uses a
-  strictly CLI-owned chain: ImageMagick renders the working TIFF to a scratch PNG,
-  SkyStacker writes the image-op JPEG, and ImageMagick converts that product back to the
-  16-bit working TIFF before the normal preview regeneration. Undo/redo snapshots are
-  preserved.
+* SkyStacker now decodes TIFF through its first-party goTiff module, so
+  `ImageWorkspace.transform_via_image_op()` passes the 16-bit working TIFF directly.
+  The image-op JPEG product is converted back to a 16-bit TIFF by ImageMagick before the
+  normal preview regeneration. Undo/redo snapshots are preserved.
 * Background, deconvolution and starless presets still pass through the linear guard.
   Real-CLI integration verifies that the working TIFF and preview PNG both change.
 * Version bumped to `0.3.1`.
@@ -952,3 +951,50 @@ to force a UI redraw.
 * `PreviewPane.hover_target` tracks the hovered star, leader or diffuse object and redraws
   only that item with a brighter, thicker outline. Leaving the canvas clears the target.
 * Version bumped to `0.3.2`.
+
+
+---
+
+## 61. v0.3.3 — Rank Labels Without Leaders
+
+* Removed the SVG leader lines and the canvas leader strokes. Every rendered star keeps
+  its rank number directly beside its flux-scaled circle, in both the live overlay and
+  `star_layer.svg`.
+* `PreviewPane` hit-testing includes the small label box, so hovering the number selects
+  the same star as hovering the circle; the highlighted state now also enlarges and
+  brightens the label.
+* Version bumped to `0.3.3`.
+
+
+---
+
+## 62. v0.3.4 — Cairo Path Fix for Star Overlay Lines
+
+* The long yellow lines were not leader strokes: `cairo_show_text()` left a current point
+  and the next `cairo_arc()` connected it to the following star, forming a graph across
+  the whole canvas. `cr.new_path()` is now called after each rank label and before each
+  circle, so every arc is an isolated subpath.
+* Reproduced with a fresh GTK process (`Rosetta.jpg` + Export Star Catalog): the overlay
+  now contains only flux-scaled circles and their rank numbers.
+* The confusing screenshot came from a stale Astro Studio process; single-instance
+  forwarding kept the old Python module loaded. Always restart the app after code changes.
+* Version bumped to `0.3.4`.
+
+
+---
+
+## 63. v0.3.5 — Native TIFF Image Ops and Catalog-Hint Roadmap
+
+* Verified in SkyStacker 0.6.1 docs and CLI that goTiff decodes 8/16-bit and float TIFF,
+  classic and BigTIFF, including Astro-TIFF tag 270. A real `--process-image ...tiff
+  --image-op blur` run succeeded, so the old "cannot decode TIFF" limitation was removed
+  from `AGENTS.md` and the project context.
+* `ImageWorkspace.transform_via_image_op()` now sends the working TIFF directly to
+  SkyStacker; only the returned JPEG product still needs an ImageMagick conversion back
+  to 16-bit TIFF. Unit and real-CLI tests cover the new argv path.
+* Added high-difficulty roadmap item 11: derive plate-solving seeds from catalog
+  references in filenames (`M42`, `NGC 1976`, `IC 434`, `Cxx`, common names) using a
+  bundled offline OpenNGC dataset (CC BY-SA 4.0, with attribution and license shipped),
+  with ambiguity handling and no fabricated coordinates. SIMBAD/CDS-derived additions
+  are ODbL 1.0 and must stay separately attributed.
+* Version bumped to `0.3.5`.

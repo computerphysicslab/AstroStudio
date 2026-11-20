@@ -49,4 +49,4 @@ def test_flux_drives_circle_radius(tmp_path):
 
     objects = [StarDetection(10, 10, 90, 4, 0.2, 3)]
     write_star_layer_svg(str(path), objects, 100, 80)
-    assert "star-label-leader" in path.read_text(encoding="utf-8")
+    assert ">1</text>" in path.read_text(encoding="utf-8")
