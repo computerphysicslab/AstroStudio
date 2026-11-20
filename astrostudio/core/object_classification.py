@@ -2,7 +2,7 @@
 
 import json
 from dataclasses import dataclass
-from typing import List
+from typing import Any, Dict, List, Tuple
 
 
 @dataclass
@@ -21,7 +21,7 @@ class DiffuseObject:
     object_type: str
 
 
-def parse_classification(text: str):
+def parse_classification(text: str) -> Tuple[List[DiffuseObject], Dict[str, Any]]:
     try:
         data = json.loads(text)
     except (ValueError, TypeError):

@@ -1,10 +1,15 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.3.6**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.3.8**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
+
+## License
+
+Astro Studio code is MIT licensed (`LICENSE`). The bundled OpenNGC catalog projection is
+CC BY-SA 4.0 with its own attribution and license under `astrostudio/data/`.
 
 ## Requirements
 
@@ -96,8 +101,7 @@ Scroll the mouse wheel over the preview to zoom; drag with the left mouse button
 when the image is larger than the window. Transforms and Undo/Redo keep the same zoom
 and pan position. A watch cursor is shown for the whole job lifecycle. The Backends
 panel lists installed connectors first (alphabetically), then the missing ones, and its
-View toggle stays enabled after closing the panel with X. FITS/RAW sources take the
-RGB HDUs are combined into one RGB TIFF and get a CLI display stretch for the PNG
+View toggle stays enabled after closing the panel with X. FITS/RAW sources combine their RGB HDUs into one RGB TIFF and get a CLI display stretch for the PNG
 preview; exports stay linear. *Options > Backend Settings* persists enabled connectors,
 language, theme, offline mode and thread limit under `$XDG_CONFIG_HOME`; the theme is
 actually applied to GTK (Yaru/Adwaita light or dark). View-menu toggles show On/Off,
@@ -121,22 +125,31 @@ The benchmark generates images up to 20 MP, opens them, applies filters and expo
 several formats, appending timed events to the operation log. The analyzer writes
 `~/.local/share/astro-studio/operations.csv` and incrementally updates
 `estimates.json`; the GUI uses that model to show an estimated duration and a green
-progress bar in the status area before each operation.
+progress bar in the status area before each operation. The analyzer also derives
+megapixels from readable CLI inputs and separates `import`, `preview`, `transform`,
+`histogram`, `image-op-*`, `export-stars` and `classify-objects` stages.
 
 ## Astrometry (SkyStacker bridge)
 
 The **Astrometry** menu delegates to the installed SkyStacker CLI and writes all
 results to scratch:
 
-- **Plate Solve...** optionally asks for an RA/Dec seed (decimal degrees) and runs the
-  WCS-capable `--image-op sky-map --plate-solve` path. On success SkyStacker writes
-  `<base>_plate_solution.json`; Astro Studio normalises it to `plate_solution.json`,
-  caches it for the image and shows the reported field of view / centre.
+- **Plate Solve...** optionally asks for an RA/Dec seed (decimal degrees). When the
+  filename contains an unambiguous catalog reference such as `M42`, `NGC 1976`,
+  `IC 434` or a common name, the bundled offline OpenNGC projection prefills the seed;
+  ambiguity is reported instead of guessed. SkyStacker runs `--image-op plate-solve`
+  with `--plate-center RA,DEC`. On success it writes `<base>_plate_solution.json`;
+  Astro Studio normalises it to `plate_solution.json`, caches it for the image and shows
+  the reported field of view / centre.
 - **Gaia Sky Map...** reuses that cached solution (or solves again) and runs
   `--image-op sky-map` to produce a Gaia catalog SVG, converted to PNG by the external
   CLI and displayed.
 - **Survey Cutout...** likewise reuses the solution and runs `--image-op survey-cutout`
   to fetch a HiPS FITS cutout of the same sky area.
+- **Export Star Catalog... / Classify Objects...** are report-only jobs. Their overlays
+  show flux-scaled star circles with rank numbers and diffuse-object circles; hovering an
+  item shows its photometry or morphology. The generated SVG sidecars are written in
+  scratch and the original image is never modified.
 
 These need a real star field and, for catalog/survey data, Gaia/HiPS access (offline
 caching is supported by the backend). If star matching fails, the CLI error is shown

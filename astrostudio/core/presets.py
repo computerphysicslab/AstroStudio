@@ -1,7 +1,7 @@
 """Parameter suggestions derived from metadata and frame diagnostics."""
 
 import re
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 
 def parse_metadata_text(text: str) -> Dict[str, str]:
@@ -16,7 +16,7 @@ def parse_metadata_text(text: str) -> Dict[str, str]:
     return result
 
 
-def suggest_presets(metadata: Dict[str, str], quality=None) -> List[str]:
+def suggest_presets(metadata: Dict[str, str], quality: Optional[Any] = None) -> List[str]:
     suggestions = []
     iso = metadata.get("ISO", "")
     exposure = metadata.get("ExposureTime", "")

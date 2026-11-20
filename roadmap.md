@@ -246,7 +246,12 @@ Acceptance remains as listed above; update this section whenever the order chang
 ## Milestone mapping (reference only)
 
 - **v0.2.0** — conversion/inspection completeness, settings persistence, job manager.
-- **v0.3.0** — calibration, stacking and quality diagnostics.
+- **v0.3.0** — MainWindow refactor, strict typing/CI, UI smoke tests and layer toggles.
+- **v0.3.1-v0.3.4** — SkyStacker filter menu, overlay rendering fixes and Cairo path fix.
+- **v0.3.5** — native SkyStacker TIFF input and catalog-hint research.
+- **v0.3.6** — filename-driven catalog hints (roadmap 11).
+- **v0.3.7** — log review, time-model refresh and documentation audit.
+- **v0.3.8** — public repository preparation and CI/type-check hardening.
 - **v0.4.0** — astrometry alternatives, WCS export and session resume.
 - **v0.5.0** — extended backends and scalable previews.
 - **v1.0.0** — full menu coverage, packaging and release.

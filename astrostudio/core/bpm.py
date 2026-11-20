@@ -5,7 +5,7 @@ from typing import Tuple
 MAX_FRACTION = 0.001
 
 
-def validate_bpm_count(bad_pixels: int, total_pixels: int, max_fraction: float = MAX_FRACTION):
+def validate_bpm_count(bad_pixels: int, total_pixels: int, max_fraction: float = MAX_FRACTION) -> Tuple[bool, str]:
     """Return (accepted, message) for a bad-pixel map count."""
     if total_pixels <= 0:
         return False, "Unknown sensor size"

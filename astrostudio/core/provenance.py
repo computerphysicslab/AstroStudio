@@ -1,7 +1,7 @@
 """Derivation tree describing how the active image was produced."""
 
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Tuple
 
 
 @dataclass
@@ -11,7 +11,7 @@ class DerivationNode:
     children: List["DerivationNode"] = field(default_factory=list)
 
 
-def build_tree(source: str, operations: List[str], tiff_path: str, png_path: str):
+def build_tree(source: str, operations: List[str], tiff_path: str, png_path: str) -> DerivationNode:
     root = DerivationNode("Original", source)
     tiff = DerivationNode("Working TIFF", tiff_path)
     current = tiff
@@ -25,7 +25,7 @@ def build_tree(source: str, operations: List[str], tiff_path: str, png_path: str
     return root
 
 
-def flatten(node: DerivationNode, depth: int = 0):
+def flatten(node: DerivationNode, depth: int = 0) -> List[Tuple[str, str]]:
     rows = [("  " * depth + node.label, node.detail)]
     for child in node.children:
         rows.extend(flatten(child, depth + 1))

@@ -2,7 +2,7 @@
 
 import struct
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 LOSSLESS_AVI_CODECS = {"DIB ", "Y800", "RGB ", "I420", "YV12", "HFYU", "FFV1", "ULRG", "LAGS"}
 REJECTED_AVI_CODECS = {"MJPG", "DIVX", "XVID", "H264", "AVC1", "WMV1", "WMV2"}
@@ -31,7 +31,7 @@ def parse_ser_header(path: str) -> SerHeader:
     return SerHeader(width, height, depth, frames, pattern, camera)
 
 
-def validate_avi_codec(fourcc: str):
+def validate_avi_codec(fourcc: str) -> Tuple[bool, str]:
     code = fourcc.upper().strip()
     if code in REJECTED_AVI_CODECS:
         return False, "lossy codec %s rejected before stretching" % code

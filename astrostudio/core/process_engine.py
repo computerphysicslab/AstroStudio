@@ -4,7 +4,7 @@ import os
 import signal
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from gi.repository import Gio, GLib
 
@@ -55,12 +55,12 @@ class ProcessEngine:
 
     def __init__(
         self,
-        operation_log=None,
-        on_job_start=None,
-        on_job_end=None,
+        operation_log: Any = None,
+        on_job_start: Optional[Callable[[str, Sequence[str]], None]] = None,
+        on_job_end: Optional[Callable[[str, "JobResult"], None]] = None,
     ) -> None:
         self._active: Dict[str, ProcessHandle] = {}
-        self.operation_log = operation_log
+        self.operation_log: Any = operation_log
         self.on_job_start = on_job_start
         self.on_job_end = on_job_end
 
@@ -155,7 +155,9 @@ class ProcessEngine:
             (handle, name, on_log, stream),
         )
 
-    def _on_line(self, stream: Gio.DataInputStream, result, user_data) -> None:
+    def _on_line(
+        self, stream: Gio.DataInputStream, result: Any, user_data: Tuple[Any, str, Optional[LogCallback], Any]
+    ) -> None:
         handle, name, on_log, source = user_data
         try:
             line, length = stream.read_line_finish_utf8(result)
@@ -172,7 +174,7 @@ class ProcessEngine:
         handle.pending_streams -= 1
         self._maybe_finish(handle)
 
-    def _on_wait(self, process: Gio.Subprocess, result, handle: ProcessHandle) -> None:
+    def _on_wait(self, process: Gio.Subprocess, result: Any, handle: ProcessHandle) -> None:
         try:
             process.wait_finish(result)
         except GLib.Error as exc:

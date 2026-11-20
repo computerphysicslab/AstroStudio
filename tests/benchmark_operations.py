@@ -1,4 +1,4 @@
-"""Operational benchmark: open, transform and export images up to 10 MP.
+"""Operational benchmark: open, transform and export images up to 20 MP.
 
 Run explicitly with ``python3 tests/benchmark_operations.py`` or through pytest with
 ``ASTROSTUDIO_BENCHMARK=1``. Results are appended to the persistent operation log.
@@ -60,7 +60,7 @@ def _wait_for(flag, timeout_s=120):
 def _run_case(log, workspace, name, size, extensions, root):
     for extension in extensions:
         if size[0] * size[1] > MAX_PIXELS:
-            raise ValueError("benchmark case exceeds 10 megapixels")
+            raise ValueError("benchmark case exceeds 20 megapixels")
         source = _make_source(root, "%s_%s" % (name, extension), size, extension)
         ready = []
         started = time.monotonic()

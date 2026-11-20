@@ -1047,4 +1047,8 @@ class Translator:
         self.language = language if language in TRANSLATIONS else "en"
 
     def tr(self, text: str) -> str:
-        return TRANSLATIONS.get(self.language, {}).get(text, text)
+        table = TRANSLATIONS.get(self.language)
+        if not isinstance(table, dict):
+            return text
+        value = table.get(text, text)
+        return value if isinstance(value, str) else text

@@ -6,7 +6,7 @@ modified and all products stay in the requested output directory.
 """
 
 import os
-from typing import List
+from typing import List, Optional
 
 from ..core.command_builder import CommandBuilder
 from .base import CliAdapter
@@ -69,11 +69,11 @@ class SkyStackerAdapter(CliAdapter):
     def _solver_flags(
         self,
         solver: str,
-        plate_center: str,
+        plate_center: Optional[str],
         offline: bool,
         timeout: int,
-        focal_length: str,
-        pixel_size: str,
+        focal_length: Optional[str],
+        pixel_size: Optional[str],
     ) -> List[str]:
         flags = [
             "--plate-solver",

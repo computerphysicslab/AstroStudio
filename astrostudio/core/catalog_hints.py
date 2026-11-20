@@ -4,7 +4,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 DEFAULT_CATALOG = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "openngc_hints.json")
 
@@ -57,7 +57,7 @@ def load_catalog(path: str = None) -> List[CatalogObject]:
     return objects
 
 
-def extract_tokens(filename: str) -> List[tuple]:
+def extract_tokens(filename: str) -> Tuple[List[Tuple[str, str, str]], str]:
     base = os.path.basename(filename)
     tokens = []
     for prefix, pattern in CATALOG_PATTERNS:

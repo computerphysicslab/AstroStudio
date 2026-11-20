@@ -2,8 +2,9 @@
 
 import re
 import shutil
+from functools import partial
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from gi.repository import GLib
 
@@ -248,7 +249,7 @@ IMPLEMENTED_ACTIONS = frozenset(
 class BackendRegistry:
     """Holds installed/version status for every connector target."""
 
-    def __init__(self, specs: Sequence[BackendSpec] = BACKENDS, settings=None) -> None:
+    def __init__(self, specs: Sequence[BackendSpec] = BACKENDS, settings: Any = None) -> None:
         self.specs = tuple(specs)
         self.settings = settings
         self.status: Dict[str, BackendStatus] = {
@@ -292,9 +293,7 @@ class BackendRegistry:
             engine.run(
                 "probe-" + spec.name,
                 argv,
-                on_done=lambda result, target=status: self._on_probe(
-                    result, target, on_update
-                ),
+                on_done=partial(self._on_probe, status=status, on_update=on_update),
             )
 
     def _on_probe(

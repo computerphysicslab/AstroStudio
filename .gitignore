@@ -1,10 +1,36 @@
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .hypothesis/
+
+# Local context, private data and credentials
+Context/
+datasets/
+private/
+personal/
+*.local
+.env
+.env.*
+secrets.*
+credentials*
+*.key
+*.pem
+id_rsa*
+
+# Runtime logs, estimates and generated data
+*.jsonl
+.coverage*
+coverage.xml
+htmlcov/
+*.csv
+operations.*
+estimates.json
+
+# Scratch, backups and local media
 _work/
 assets/
+screenshots/
+cpu-meter.png
 *.bak
 *.zip
-cpu-meter.png
-screenshots/

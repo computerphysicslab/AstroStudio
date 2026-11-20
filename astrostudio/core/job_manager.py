@@ -2,7 +2,7 @@
 
 import time
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .process_engine import JobResult
 
@@ -15,7 +15,7 @@ class JobState:
     state: str = "running"
     duration_s: float = 0.0
     exit_code: int = -1
-    error: str = None
+    error: Optional[str] = None
 
 
 class JobManager:

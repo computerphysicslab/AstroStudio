@@ -8,6 +8,20 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.8 — 2026-11-20
+
+- Repository preparation for a public GitHub release: MIT `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, and `.gitignore` rules for local `Context/`, personal data, credentials, keys and runtime logs.
+- `Context/` is no longer tracked; it remains as local agent memory. Tests no longer depend on ignored personal `assets/`.
+- CI fixed: coverage runs with pytest-cov under `xvfb-run`; mypy strict baseline now passes with documented pragmatic exceptions for the PyGObject codebase.
+- Code annotations completed in core/adapters; 171 tests pass with 90% coverage.
+
+## 0.3.7 — 2026-11-20
+
+- Reviewed the persistent log: 4,126 entries, 1,370 CLI completions and 16 failures, all attributable to known backend plate-solve limitations, two cancelled jobs, the fixed rotate-TIFF bug or a mistyped test path.
+- Improved `scripts/analyze_operations.py` stage classification (`import`, `preview`, `transform`, `histogram`, `image-op-*`, `export-stars`, `classify-objects`) and megapixel derivation from readable CLI inputs.
+- Regenerated the time model: 22 stages over 1,684 CSV rows; `import` 0.164, `preview` 0.392, `histogram` 0.223 s/MP + 6.7 s, `export-stars` 0.144, `classify-objects` 0.506 s/MP.
+- Refreshed README, GUI specification, architecture/context baseline, milestone mapping and benchmark limits; suite remains 171 passed, 2 skipped.
+
 ## 0.3.6 — 2026-11-20
 
 - Completed roadmap item 11: filename-driven catalog hints for plate solving.

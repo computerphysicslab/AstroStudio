@@ -12,7 +12,7 @@ LINEAR_OPERATIONS = {
 NONLINEAR_OPERATIONS = {"stretch", "asinh", "mtf", "curves"}
 
 
-def check_linear_guard(operations: Iterable[str], allow_override: bool = False):
+def check_linear_guard(operations: Iterable[str], allow_override: bool = False) -> Tuple[bool, str]:
     """Return (allowed, reason) for a new linear operation in a pipeline."""
     history = list(operations)
     if any(name in NONLINEAR_OPERATIONS for name in history):

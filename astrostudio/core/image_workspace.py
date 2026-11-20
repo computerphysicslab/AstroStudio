@@ -11,7 +11,7 @@ import json
 import os
 import shutil
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 if TYPE_CHECKING:
     from ..adapters import ImageMagickAdapter, SkyStackerAdapter
@@ -39,8 +39,8 @@ class WorkingImage:
     tiff_path: str
     png_path: str
     display_stretch: bool = False
-    stretch_points: tuple = None
-    gamma: float = None
+    stretch_points: Optional[Tuple[float, float]] = None
+    gamma: Optional[float] = None
 
 
 class ImageWorkspace:
@@ -122,12 +122,12 @@ class ImageWorkspace:
             )
             return image
 
-        argv = self.adapter.build_import_argv(source, image.tiff_path)
+        import_argv = self.adapter.build_import_argv(source, image.tiff_path)
         if on_log:
-            on_log("Import to 16-bit TIFF: %s" % " ".join(argv))
+            on_log("Import to 16-bit TIFF: %s" % " ".join(import_argv))
         self.engine.run(
             key + "-import",
-            argv,
+            import_argv,
             on_log=on_log,
             on_done=lambda result: self._on_import(
                 result, image, on_ready, on_error, on_log
@@ -336,6 +336,8 @@ class ImageWorkspace:
         self._finish_transform(image, next_tiff, on_ready, on_error, on_log)
 
     def _cache_path(self, source_tiff: str, argv: List[str]) -> str:
+        if not self.cache_dir:
+            return ""
         digest = hashlib.sha256()
         with open(source_tiff, "rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):

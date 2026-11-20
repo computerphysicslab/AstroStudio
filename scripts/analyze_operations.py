@@ -36,6 +36,22 @@ def stage_from_argv(argv: List[str]) -> str:
         return "unknown"
     program = os.path.basename(argv[0])
     joined = " ".join(argv)
+    if "--export-stars" in argv:
+        return "export-stars"
+    if "--classify-objects" in argv:
+        return "classify-objects"
+    if "--image-op" in argv:
+        index = argv.index("--image-op")
+        if index + 1 < len(argv):
+            return "image-op-" + argv[index + 1]
+    if "histogram:info:-" in joined:
+        return "histogram"
+    if any(name.endswith("preview.png") for name in argv):
+        return "preview"
+    if any(name.endswith("working_next.tiff") for name in argv):
+        return "transform"
+    if any(name.endswith("working.tiff") for name in argv) and "-depth" in argv:
+        return "import"
     if "-resize" in argv:
         index = argv.index("-resize")
         if index + 1 < len(argv):
@@ -69,12 +85,33 @@ def stage_from_argv(argv: List[str]) -> str:
     return program
 
 
+def image_dimensions(argv: List[str]):
+    """Return (width, height) of the first readable image input in argv."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    extensions = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".fits", ".fit", ".bmp")
+    for token in argv:
+        if not token.lower().endswith(extensions) or not os.path.isfile(token):
+            continue
+        try:
+            with Image.open(token) as image:
+                return image.size
+        except OSError:
+            continue
+    return None
+
+
 def build_rows(entries: List[Dict]) -> List[Dict]:
     rows = []
     for entry in entries:
         event = entry.get("event")
         if event == "cli_end":
             argv = entry.get("argv") or []
+            dimensions = image_dimensions(argv)
+            width, height = dimensions if dimensions else ("", "")
+            megapixels = round(width * height / 1_000_000.0, 4) if dimensions else ""
             rows.append(
                 {
                     "timestamp": entry.get("timestamp", ""),
@@ -82,11 +119,11 @@ def build_rows(entries: List[Dict]) -> List[Dict]:
                     "stage": stage_from_argv(argv),
                     "program": os.path.basename(argv[0]) if argv else "",
                     "argv": " ".join(argv),
-                    "width": "",
-                    "height": "",
-                    "megapixels": "",
+                    "width": width,
+                    "height": height,
+                    "megapixels": megapixels,
                     "duration_s": entry.get("duration_s", ""),
-                    "output_bytes": "",
+                    "output_bytes": entry.get("output_bytes", ""),
                     "format": "",
                     "exit_code": entry.get("exit_code", ""),
                 }

@@ -21,6 +21,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _sample_pixbuf():
+    return GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 64, 48)
+
+
 def test_selection_hit_test_and_image_rectangle(monkeypatch, tmp_path):
     pane = PreviewPane()
     pane.selection = (10.0, 10.0, 40.0, 30.0)
@@ -235,7 +239,7 @@ def test_star_layer_draws_all_detections(monkeypatch):
     from astrostudio.core.star_catalog import StarDetection
 
     pane = PreviewPane()
-    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_pixbuf(_sample_pixbuf(), "sample")
     stars = [StarDetection(20 + i * 15, 20, 100 - i, 4, 0.1, 2) for i in range(12)]
     pane.set_star_layer(stars)
     monkeypatch.setattr(
@@ -260,7 +264,7 @@ def test_layer_hover_hit_test(monkeypatch):
     from astrostudio.core.star_catalog import StarDetection
 
     pane = PreviewPane()
-    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_pixbuf(_sample_pixbuf(), "sample")
     pane.set_star_layer([StarDetection(50, 40, 90, 4, 0.2, 3)])
     monkeypatch.setattr(
         pane,
@@ -388,7 +392,7 @@ def test_rank_label_hover_target(monkeypatch):
     from astrostudio.core.star_catalog import StarDetection
 
     pane = PreviewPane()
-    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_pixbuf(_sample_pixbuf(), "sample")
     pane.set_star_layer([StarDetection(50, 40, 90, 4, 0.2, 3)])
     monkeypatch.setattr(
         pane,
@@ -407,7 +411,7 @@ def test_hover_highlight_thickens_star_circle(monkeypatch):
     from astrostudio.core.star_catalog import StarDetection
 
     pane = PreviewPane()
-    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_pixbuf(_sample_pixbuf(), "sample")
     pane.set_star_layer([StarDetection(60, 60, 2, 4, 0.2, 3)])
     monkeypatch.setattr(
         pane,
@@ -440,7 +444,7 @@ def test_star_labels_do_not_connect_with_lines(monkeypatch):
     from astrostudio.core.star_catalog import StarDetection
 
     pane = PreviewPane()
-    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_pixbuf(_sample_pixbuf(), "sample")
     monkeypatch.setattr(
         pane,
         "_view_parameters",

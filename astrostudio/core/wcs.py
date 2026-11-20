@@ -8,10 +8,10 @@ directly, so a JSON sidecar is written next to exported FITS files.
 import json
 import math
 import os
-from typing import Dict
+from typing import Any, Dict, Tuple
 
 
-def wcs_cards(solution: Dict):
+def wcs_cards(solution: Dict[str, Any]) -> Dict[str, Any]:
     wcs = solution["WCS"]
     cd = wcs["CD"]
     return {
@@ -29,13 +29,13 @@ def wcs_cards(solution: Dict):
     }
 
 
-def overlay_center(solution: Dict):
+def overlay_center(solution: Dict[str, Any]) -> Tuple[float, float]:
     """Return canvas pixel coordinates from the plate solution's 0-based CRPIX."""
     wcs = solution["WCS"]
     return float(wcs["CRPIX1"]), float(wcs["CRPIX2"])
 
 
-def write_wcs_sidecar(fits_path: str, solution: Dict) -> str:
+def write_wcs_sidecar(fits_path: str, solution: Dict[str, Any]) -> str:
     path = os.path.splitext(fits_path)[0] + ".wcs.json"
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(wcs_cards(solution), handle, indent=2, sort_keys=True)

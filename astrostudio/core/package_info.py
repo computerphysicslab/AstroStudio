@@ -1,5 +1,7 @@
 """Map CLI binaries to apt packages and parse apt-cache policy output."""
 
+from typing import Optional, Tuple
+
 PACKAGE_MAP = {
     "exiftool": "libimage-exiftool-perl",
     "convert": "imagemagick",
@@ -22,7 +24,7 @@ def install_command(binary: str) -> str:
     return "sudo apt install %s" % package_for_binary(binary)
 
 
-def parse_policy(text: str):
+def parse_policy(text: str) -> Tuple[Optional[str], Optional[str]]:
     installed = None
     candidate = None
     for line in text.splitlines():
