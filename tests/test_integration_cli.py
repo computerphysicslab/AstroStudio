@@ -192,3 +192,51 @@ def test_workspace_rotation_end_to_end_regenerates_preview(tmp_path, monkeypatch
     assert after != before
     with Image.open(working.png_path) as preview:
         assert preview.size != (80, 60)
+
+
+def test_skystaker_filter_pipeline_updates_working_image(tmp_path, monkeypatch):
+    from gi.repository import GLib
+    from PIL import Image
+
+    from astrostudio.adapters import ImageMagickAdapter, SkyStackerAdapter
+    from astrostudio.core import ImageWorkspace, ProcessEngine, ScratchManager
+
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))
+    (tmp_path / "runtime").mkdir()
+    source = tmp_path / "starfield.png"
+    image = Image.new("RGB", (96, 72), "black")
+    for x in range(8, 88, 12):
+        for y in range(8, 64, 12):
+            image.putpixel((x, y), (255, 255, 255))
+    image.save(str(source))
+
+    engine = ProcessEngine()
+    workspace = ImageWorkspace(
+        ScratchManager("session"), engine, ImageMagickAdapter(binary="convert")
+    )
+    opened = []
+    workspace.prepare(str(source), opened.append, lambda m: pytest.fail(m))
+
+    def wait_until(predicate, seconds=60):
+        loop = GLib.MainLoop()
+        GLib.timeout_add(50, lambda: loop.quit() or False if predicate() else True)
+        GLib.timeout_add(seconds * 1000, loop.quit)
+        loop.run()
+
+    wait_until(lambda: bool(opened))
+    working = opened[0]
+    before_tiff = Path(working.tiff_path).read_bytes()
+    before_png = Path(working.png_path).read_bytes()
+    done = []
+    workspace.transform_via_image_op(
+        working,
+        SkyStackerAdapter(),
+        "blur",
+        ["--denoise-radius", "4"],
+        done.append,
+        lambda m: pytest.fail(m),
+    )
+    wait_until(lambda: bool(done))
+    assert done == [working]
+    assert Path(working.tiff_path).read_bytes() != before_tiff
+    assert Path(working.png_path).read_bytes() != before_png

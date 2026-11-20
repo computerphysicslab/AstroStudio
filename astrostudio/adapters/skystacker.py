@@ -205,6 +205,31 @@ class SkyStackerAdapter(CliAdapter):
         ]
 
     @staticmethod
+    def build_image_op_argv(
+        source: str,
+        output_dir: str,
+        image_op: str,
+        flags: List[str] = None,
+    ) -> List[str]:
+        """Build a single-image transform argv (no stacking, no original writes)."""
+        argv = SkyStackerAdapter._base(source, image_op, output_dir)
+        if flags:
+            argv.extend(flags)
+        return argv
+
+    @staticmethod
+    def find_image_product(output_dir: str, image_op: str) -> str:
+        """Locate the JPEG product written by an image-op job."""
+        if not os.path.isdir(output_dir):
+            return ""
+        matches = sorted(
+            name
+            for name in os.listdir(output_dir)
+            if name.lower().endswith((".jpg", ".jpeg", ".png")) and "_" + image_op in name
+        )
+        return os.path.join(output_dir, matches[0]) if matches else ""
+
+    @staticmethod
     def build_bpm_argv(source_dir: str, output_dir: str, sigma: float = 5.0) -> List[str]:
         return [
             "skystacker",

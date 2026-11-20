@@ -59,6 +59,8 @@ from ..core import (  # noqa: E402
     tile_count,
     parse_policy,
     save_session,
+    SKY_FILTERS,
+    SKY_FILTER_MENU,
     parse_star_catalog,
     suggest_presets,
     validate_avi_codec,
@@ -231,7 +233,8 @@ MENU_LAYOUT = (
                     ("Asinh Stretch", "filter-stretch"),
                 ),
             ),
-        ),
+        )
+        + SKY_FILTER_MENU
     ),
     (
         "View",
@@ -394,6 +397,14 @@ class MainWindow(Gtk.ApplicationWindow):
                 self,
                 "action_open_recent_%d" % index,
                 lambda checked=False, position=index: self._open_recent(position),
+            )
+        for action, (image_op, flags, label) in SKY_FILTERS.items():
+            setattr(
+                self,
+                "action_" + action.replace("-", "_"),
+                lambda checked=False, op=image_op, extra=flags, text=label: (
+                    self._run_sky_filter(op, extra, text)
+                ),
             )
         self._magick_adapter = ImageMagickAdapter()
         self.adapters = {
@@ -2036,6 +2047,44 @@ toolbutton.inactive-action {
 
     def _run_filter(self, params: dict, label: str) -> None:
         self._run_transform(params, label)
+
+    def _run_sky_filter(self, image_op: str, flags: list, label: str) -> None:
+        if not self.current_images:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        if not self.registry.available("SkyStacker"):
+            self._status("SkyStacker backend unavailable")
+            return
+        image = self.current_images[-1]
+        view_state = self._capture_view_state()
+        guard_stage = {
+            "background": "background",
+            "deconvolve": "deconvolution",
+            "starless": "starless",
+        }.get(image_op)
+        if guard_stage:
+            allowed, reason = check_linear_guard(
+                self.transform_history, bool(self.settings.get("linear_override", False))
+            )
+            if not allowed:
+                self._log("Linear guard: %s" % reason)
+                self._status("Linear guard blocked operation")
+                return
+        started = time.monotonic()
+        self.transform_history.append("sky-" + image_op)
+        self._record_recent(label, {"sky-filter": image_op, "flags": flags})
+        self._busy_begin()
+        self._begin_estimate("sky-" + image_op, self._current_megapixels(), "%s via CLI..." % label)
+        self.workspace.transform_via_image_op(
+            image,
+            self.adapters["SkyStacker"],
+            image_op,
+            list(flags),
+            on_ready=lambda final: self._on_transform_done(final, view_state, started),
+            on_error=self._on_workspace_error,
+            on_log=self._log,
+        )
+        self.app.update_action_sensitivity()
 
     def action_filter_sharpen(self) -> None:
         self._run_filter({"sharpen": "0x1"}, "Sharpen filter")

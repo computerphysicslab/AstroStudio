@@ -8,6 +8,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from gi.repository import GLib
 
 from .process_engine import JobResult, ProcessEngine
+from .sky_filters import SKY_FILTERS
 
 VERSION_RE = re.compile(r"\d+(?:\.\d+){1,3}")
 
@@ -132,6 +133,7 @@ ACTION_BACKENDS: Dict[str, Tuple[str, ...]] = {
     "filter-emboss": ("ImageMagick",),
     "filter-star-reduction": ("ImageMagick",),
     "filter-stretch": ("SkyStacker",),
+    **{action: ("SkyStacker",) for action in SKY_FILTERS},
     "plate-solve": ("SkyStacker",),
     "export-stars": ("SkyStacker",),
     "classify-objects": ("SkyStacker",),
@@ -201,6 +203,8 @@ IMPLEMENTED_ACTIONS = frozenset(
         "filter-edge",
         "filter-emboss",
         "filter-star-reduction",
+        "filter-stretch",
+        *SKY_FILTERS.keys(),
         "metadata",
         "histogram",
         "frame-table",

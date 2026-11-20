@@ -842,7 +842,7 @@ to force a UI redraw.
   display formats (JPEG/PNG/BMP) get gamma/level flags in the CLI export argv, while
   FITS/TIFF scientific exports stay linear.
 * Tests cover argv building, report parsing, SVG layers, real CLI reports, popup dispatch,
-  recent transforms and close-to-previous-image. Full suite: 157 passed, 2 skipped.
+  recent transforms and close-to-previous-image. Full suite: 160 passed, 2 skipped.
 * Version bumped to `0.2.37`.
 
 
@@ -919,3 +919,21 @@ to force a UI redraw.
   metadata/histogram coverage. Local environment lacks the optional dev tools, so they
   are pinned for CI.
 * Roadmap items 23-25 are now checked; version bumped to `0.3.0`.
+
+
+---
+
+## 59. v0.3.1 — SkyStacker Filter Menu
+
+* Added `core/sky_filters.py` with 24 single-image SkyStacker presets grouped under
+  Filter > SkyStacker Blur & Sharpen / Background / Stretch / Denoise / Deconvolution /
+  Starless. Every new action is gated on the SkyStacker backend and translated in all
+  supported UI languages.
+* SkyStacker cannot decode TIFF, so `ImageWorkspace.transform_via_image_op()` uses a
+  strictly CLI-owned chain: ImageMagick renders the working TIFF to a scratch PNG,
+  SkyStacker writes the image-op JPEG, and ImageMagick converts that product back to the
+  16-bit working TIFF before the normal preview regeneration. Undo/redo snapshots are
+  preserved.
+* Background, deconvolution and starless presets still pass through the linear guard.
+  Real-CLI integration verifies that the working TIFF and preview PNG both change.
+* Version bumped to `0.3.1`.

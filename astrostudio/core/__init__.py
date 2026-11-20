@@ -40,6 +40,7 @@ from .video import (
     validate_avi_codec,
 )
 from .settings import SettingsManager
+from .sky_filters import SKY_FILTERS, SKY_FILTER_MENU
 
 __all__ = [
     "BackendRegistry",
@@ -109,4 +110,6 @@ __all__ = [
     "parse_star_catalog",
     "write_star_layer_svg",
     "SettingsManager",
+    "SKY_FILTERS",
+    "SKY_FILTER_MENU",
 ]

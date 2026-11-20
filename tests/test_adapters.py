@@ -193,3 +193,16 @@ def test_display_export_includes_gamma_and_level():
     assert "-evaluate" in argv and "1.250" in argv
     assert "-level" in argv and "9.8%,78.4%" in argv
     assert "-quality" in argv and "90" in argv
+
+
+def test_skystacker_image_op_argv_and_product():
+    from astrostudio.adapters import SkyStackerAdapter
+
+    argv = SkyStackerAdapter.build_image_op_argv(
+        "in.png", "/tmp/out", "denoise", ["--wavelets", "--wavelet-scales", "4"]
+    )
+    assert argv[:7] == [
+        "skystacker", "--process-image", "in.png", "--image-op", "denoise",
+        "--image-output", "/tmp/out",
+    ]
+    assert argv[-3:] == ["--wavelets", "--wavelet-scales", "4"]

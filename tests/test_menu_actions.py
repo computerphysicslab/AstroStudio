@@ -119,3 +119,10 @@ def test_panels_submenu_and_toggles():
     labels = [label for label, _action in panels[2]]
     assert {"Backends Viewer", "Histogram Viewer", "Terminal Drawer", "Resources", "Jobs"} <= set(labels)
     assert {"toggle-resources", "toggle-jobs", "rotate-cw", "rotate-ccw", "rotate-custom", "rotate-segment"} <= ACTION_NAMES
+
+
+def test_all_skystacker_filters_registered():
+    from astrostudio.app import ACTION_NAMES
+    from astrostudio.core.sky_filters import SKY_FILTERS
+
+    assert set(SKY_FILTERS).issubset(ACTION_NAMES)

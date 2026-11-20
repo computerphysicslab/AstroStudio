@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.1 — 2026-11-20
+
+- Filter menu expanded with 24 SkyStacker single-image presets: blur, unsharp/wavelet sharpen, polynomial/masked/multiscale/asymmetric/RBF background, STF variants, guided/wavelet/adaptive denoise, Richardson-Lucy/Wiener/grid deconvolution and three starless modes.
+- Added a CLI-only intermediate pipeline (TIFF -> PNG -> SkyStacker image-op -> JPEG -> 16-bit TIFF -> preview) because SkyStacker cannot decode TIFF.
+- Linear guard still applies to background, deconvolution and starless filters; backend gating marks new actions SkyStacker-only.
+- Added argv, registration and real-CLI integration tests; suite is 160 passed, 2 skipped.
+
 ## 0.3.0 — 2026-11-20
 
 - Roadmap milestone: first `MainWindow` refactor extracted `MenuBuilder`, `ActionRegistry`, `DockManager` and `DialogFactory` while preserving behaviour.
