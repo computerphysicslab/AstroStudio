@@ -80,3 +80,20 @@ def test_preview_stretch_flag_is_serialised():
         "8",
         "out.png",
     ]
+
+
+def test_arbitrary_rotation_writes_tiff_with_repage(tmp_path):
+    adapter = ImageMagickAdapter(binary="convert")
+    source = tmp_path / "wide.png"
+    Image.fromarray(
+        np.full((60, 100, 3), 120, dtype="uint8"), "RGB"
+    ).save(str(source))
+    tiff = tmp_path / "working.tiff"
+    rotated = tmp_path / "rotated.tiff"
+    subprocess.run(adapter.build_import_argv(str(source), str(tiff)), check=True)
+
+    argv = adapter.build_argv([str(tiff)], str(rotated), {"rotate": "55.7496"})
+    assert "+repage" in argv
+    subprocess.run(argv, check=True)
+    with Image.open(str(rotated)) as image:
+        assert image.size != (100, 60)

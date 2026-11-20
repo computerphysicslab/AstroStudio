@@ -28,7 +28,7 @@ class ImageMagickAdapter(CliAdapter):
                 flag_specs=(
                     ("-crop", "crop", None),
                     ("-resize", "resize", None),
-                    ("-rotate", "rotate", None),
+                    ("-rotate", "rotate", lambda value: [str(value), "+repage"]),
                     ("-unsharp", "unsharp", None),
                     ("-blur", "blur", None),
                     ("-gaussian-blur", "gaussian-blur", None),

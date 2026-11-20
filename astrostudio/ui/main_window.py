@@ -1979,12 +1979,18 @@ toolbutton.inactive-action {
         if angle is not None:
             self._rotate_image(angle, "Free rotation")
 
+    def _dismiss_popups(self) -> None:
+        for popup in (self._context_popup, self._app_popup):
+            if popup is not None:
+                popup.popdown()
+        self._context_popup = None
+        self._app_popup = None
+
     def action_rotate_segment(self) -> None:
-        enabled = not self.preview.rotation_mode
-        if enabled:
-            self.preview.set_select_mode(False)
-        self.preview.set_rotation_mode(enabled)
-        self._status("Rotation by segment: ON" if enabled else "Rotation by segment: OFF")
+        self._dismiss_popups()
+        self.preview.set_select_mode(False)
+        self.preview.set_rotation_mode(True)
+        self._status("Rotation by segment: ON (draw a line)")
 
     def _ask_unsharp(self) -> Optional[str]:
         presets = (
@@ -2247,7 +2253,8 @@ toolbutton.inactive-action {
     def _on_before_after_done(self, result, output: str) -> None:
         self._busy_end()
         if result.ok:
-            self._show_image("Before / After", output)
+            self._open_file(output)
+            self._log("Before/after difference loaded as a new image in the canvas")
         else:
             self._log("Before/after failed: %s" % (result.error or result.stderr))
             self._show_error("Before/after comparison failed")

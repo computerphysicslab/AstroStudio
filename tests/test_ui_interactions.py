@@ -106,3 +106,15 @@ def test_rotate_segment_is_exclusive_and_resets(monkeypatch):
     assert window.preview.rotation_mode
     assert not window.preview.select_mode
     window.destroy()
+
+
+def test_before_after_loads_image_into_canvas(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    opened = []
+    monkeypatch.setattr(window, "_open_file", opened.append)
+    output = str(tmp_path / "before_after.png")
+    result = type("Result", (), {"ok": True})()
+    window._on_before_after_done(result, output)
+    assert opened == [output]
+    window.destroy()

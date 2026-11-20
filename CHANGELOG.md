@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.36 — 2026-11-19
+
+- Rotation argv now includes `+repage`, fixing ImageMagick 6 "negative image positions unsupported" when writing rotated TIFFs.
+- Rotate-by-segment is idempotent and dismisses open popups before activating, fixing the first-attempt failure.
+- Before / After result is loaded as a new image in the canvas instead of a separate window.
+- Unit and real-CLI integration tests for rotation and before/after loading.
+
 ## 0.2.35 — 2026-11-19
 
 - Rotation-by-segment mode is mutually exclusive with area selection and resets after use, fixing the alternating rectangle bug.

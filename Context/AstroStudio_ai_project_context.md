@@ -801,3 +801,18 @@ to force a UI redraw.
   (259px measured), RAM stays fixed at 84px around its circle.
 * Fullscreen canvas now measures the complete 1366x768 screen.
 * Version bumped to `0.2.35`.
+
+---
+
+## 53. v0.2.36 — Rotation Failure and Before/After Canvas
+
+* Log analysis showed `convert -rotate 55.7496 ...` exiting 1 with
+  "TIFF: negative image positions unsupported". ImageMagick rotation creates canvas
+  offsets that IM6 cannot store in TIFF; `-rotate <angle> +repage` fixes it. Verified with
+  a real CLI integration test producing a rotated TIFF.
+* Rotate-by-segment is now idempotent (always enables the mode) and calls `popdown()` on
+  open context/app menus before activating, which fixes the first-attempt failure in
+  fullscreen where a lingering popup swallowed the first left-click.
+* Before / After now opens the generated difference map through `_open_file()` so it is
+  a new image in the canvas/workspace instead of a separate viewer window.
+* Version bumped to `0.2.36`.
