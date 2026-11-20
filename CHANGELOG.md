@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.6 — 2026-11-20
+
+- Completed roadmap item 11: filename-driven catalog hints for plate solving.
+- Bundled a compact offline OpenNGC projection (13,643 objects) with Messier/NGC/IC/Caldwell aliases, J2000 coordinates and common names, plus CC BY-SA 4.0 license and attribution files.
+- The Plate Solving dialog now prefills RA/Dec from an unambiguous filename match (`Orion-M42-...`, `NGC1976-...`, `Orion Nebula`); ambiguous matches are logged and never used.
+- Added unit and UI tests for parsing, aliases, ambiguity, argv hints and bundled license files; suite is 171 passed, 2 skipped.
+
 ## 0.3.5 — 2026-11-20
 
 - SkyStacker now decodes TIFF via its first-party goTiff module; `transform_via_image_op()` passes the 16-bit working TIFF directly instead of rendering an intermediate PNG.

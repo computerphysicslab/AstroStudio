@@ -50,6 +50,7 @@ from ..core import (  # noqa: E402
     load_session,
     overlay_center,
     parse_classification,
+    resolve_filename,
     raw_warnings,
     parse_metadata_text,
     parse_ser_header,
@@ -3002,7 +3003,28 @@ toolbutton.inactive-action {
         dialog.run()
         dialog.destroy()
 
-    def _ask_plate_solver_options(self) -> Optional[dict]:
+    def _filename_hint(self, source: str) -> Optional[str]:
+        hints = resolve_filename(source)
+        coordinates = {
+            (round(item.obj.ra, 4), round(item.obj.dec, 4)) for item in hints
+        }
+        if len(coordinates) == 1:
+            item = hints[0]
+            center = "%.6f,%.6f" % (item.obj.ra, item.obj.dec)
+            self._log(
+                "Catalog hint from filename: %s (%s) -> %s"
+                % (os.path.basename(source), item.token, center)
+            )
+            self._status("Catalog hint: %s" % item.obj.label)
+            return center
+        if coordinates:
+            labels = ", ".join(
+                sorted({item.obj.label for item in hints})
+            )
+            self._log("Ambiguous filename catalog hints: %s" % labels)
+        return None
+
+    def _ask_plate_solver_options(self, source: str = None) -> Optional[dict]:
         dialog = Gtk.Dialog(
             title="Plate solving options",
             parent=self,
@@ -3017,6 +3039,12 @@ toolbutton.inactive-action {
         self._dialog_header(dialog, "Plate solving options")
         ra_entry = Gtk.Entry()
         dec_entry = Gtk.Entry()
+        if source:
+            hint_center = self._filename_hint(source)
+            if hint_center:
+                ra_text, dec_text = hint_center.split(",", 1)
+                ra_entry.set_text(ra_text)
+                dec_entry.set_text(dec_text)
         focal_entry = Gtk.Entry()
         pixel_entry = Gtk.Entry()
         catalog_entry = Gtk.Entry()
@@ -3163,10 +3191,10 @@ toolbutton.inactive-action {
         if not self.registry.available("SkyStacker"):
             self._show_error("SkyStacker is not installed; plate solving is unavailable.")
             return
-        options = self._ask_plate_solver_options()
+        source = self.current_paths[-1]
+        options = self._ask_plate_solver_options(source)
         if options is None:
             return
-        source = self.current_paths[-1]
         self.plate_options[source] = options
         self.plate_centers[source] = options["center"]
         output_dir = self._astrometry_job_dir("plate-solve")

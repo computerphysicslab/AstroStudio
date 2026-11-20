@@ -998,3 +998,20 @@ to force a UI redraw.
   with ambiguity handling and no fabricated coordinates. SIMBAD/CDS-derived additions
   are ODbL 1.0 and must stay separately attributed.
 * Version bumped to `0.3.5`.
+
+
+---
+
+## 64. v0.3.6 — Filename Catalog Hints (Roadmap 11)
+
+* Added `core/catalog_hints.py` and a compact bundled OpenNGC projection at
+  `data/openngc_hints.json` (13,643 entries: J2000 RA/Dec, Messier/NGC/IC/Caldwell
+  aliases and common names). `data/CREDITS.md` and
+  `data/LICENSES/OpenNGC-CC-BY-SA-4.0.txt` ship the required attribution and license.
+* `MainWindow._filename_hint()` parses the active image basename, resolves unambiguous
+  matches and prefills RA/Dec in the Plate Solving dialog; the existing
+  `--plate-center RA,DEC` argv path is reused. Multiple different objects in a filename
+  are reported in the terminal and no seed is guessed.
+* Verified `Orion-M42-Riofrio-2026-11-09.png` resolves to M42 at 83.818667,-5.389667 and
+  `Orion-Nebula`/`NGC1976` resolve to the same coordinates.
+* Version bumped to `0.3.6`.

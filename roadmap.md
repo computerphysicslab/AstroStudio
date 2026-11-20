@@ -180,8 +180,7 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 9. [ ] Reproducible offline packaging (Flatpak/AppImage) with optional dependencies
        declared (v1.0.0).
 10. [ ] Gradual GTK 4 migration once the runtime is available (post-v1.0.0).
-11. [ ] Filename-driven catalog hints for plate solving (v0.4.0, research done
-       2026-11-20). Many captures are named `Orion-M42-Riofrio-2026-11-09.png`; a
+11. [x] Filename-driven catalog hints for plate solving (v0.3.6, completed 2026-11-20). Many captures are named `Orion-M42-Riofrio-2026-11-09.png`; a
        tokenizer should extract `M42`, `NGC 1976`, `IC 434`, `Cxx` and common names,
        resolve them against a bundled offline catalog, and feed a trusted J2000 seed to
        SkyStacker as `--plate-center RA,DEC` (with existing focal-length/pixel-size
@@ -193,11 +192,11 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        Avoid paywalled datasets. Acceptance: unit tests for filename parsing and
        ambiguity, argv tests for the seeded solver, and an integration test proving a
        named field no longer needs a blind solve.
-11. [ ] XISF native read/write through an external CLI/library with LZ4/LZ4HC/Zlib/Zstd
+12. [ ] XISF native read/write through an external CLI/library with LZ4/LZ4HC/Zlib/Zstd
        block compression, byte shuffling and checksum blocks (v0.5.0; no installed CLI
        covers this yet, so research is required).
-12. [ ] BigTIFF (>4 GB) and Astro-TIFF keyword/WCS preservation end-to-end (v0.5.0).
-13. [ ] Scientific validation dashboard for compression artefacts (banding from lossy
+13. [ ] BigTIFF (>4 GB) and Astro-TIFF keyword/WCS preservation end-to-end (v0.5.0).
+14. [ ] Scientific validation dashboard for compression artefacts (banding from lossy
        RAW/JPEG/MJPEG before stretch, clipping counters, FWHM/SNR) (v1.0.0).
 
 ## Format coverage audit (reference)
@@ -273,3 +272,13 @@ strict core/adapters typing, 70% coverage and `desktop-file-validate`; GUI smoke
 cover the window, menus, dock toggles and metadata/histogram panels. The local
 environment lacks `mypy`, `pytest-cov` and `pytest-gtk`, so those checks run in CI with
 the pinned dev requirements.
+
+
+### Item 11 completion note
+
+Implemented `core/catalog_hints.py` with a compact bundled OpenNGC projection (13,643
+entries) including Messier/NGC/IC/Caldwell aliases and common names, plus CC BY-SA 4.0
+license and CREDITS. `MainWindow._filename_hint()` prefills the Plate Solving dialog's
+RA/Dec from an unambiguous filename match and logs ambiguous candidates instead of
+guessing. Tests cover token extraction, M42/NGC1976/name aliases, ambiguity and the
+bundled license files.

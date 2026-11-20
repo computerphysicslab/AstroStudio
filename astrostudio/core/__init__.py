@@ -24,6 +24,14 @@ from .histogram import histogram_argv, parse_histogram_text
 from .i18n import Translator
 from .job_manager import JobManager, JobState
 from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
+from .catalog_hints import (
+    Hint,
+    extract_tokens,
+    load_catalog,
+    plate_center_argv,
+    resolve_filename,
+    unique_hint,
+)
 from .object_classification import (
     DiffuseObject,
     parse_classification,
@@ -86,6 +94,12 @@ __all__ = [
     "JobState",
     "unique_export_path",
     "ImageWorkspace",
+    "Hint",
+    "extract_tokens",
+    "load_catalog",
+    "plate_center_argv",
+    "resolve_filename",
+    "unique_hint",
     "OperationLog",
     "DiffuseObject",
     "parse_classification",

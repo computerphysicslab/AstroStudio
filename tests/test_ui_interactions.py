@@ -467,3 +467,16 @@ def test_star_labels_do_not_connect_with_lines(monkeypatch):
         StarDetection(240, 100, 50, 4, 0.2, 3),
     ])
     assert with_stars <= baseline
+
+
+def test_plate_solve_filename_hint(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    messages = []
+    monkeypatch.setattr(window, "_log", messages.append)
+    center = window._filename_hint("Orion-M42-Riofrio-2026-11-09.png")
+    assert center is not None
+    assert "83." in center and ",-5." in center
+    assert any("Catalog hint" in message for message in messages)
+    assert window._filename_hint("M42-and-M31.png") is None
+    window.destroy()
