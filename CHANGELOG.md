@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.10 — 2026-11-20
+
+- Fixed CI dependency installation: removed unpublished `pytest-gtk==0.7`, pinned `pytest==6.0.1` and `pre-commit==3.5.0`, and clarified that UI smoke tests use PyGObject fixtures under `xvfb`.
+- Documentation and roadmap wording updated to match the real CI setup.
+
 ## 0.3.9 — 2026-11-20
 
 - Roadmap items 26-28 completed.

@@ -153,7 +153,7 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
        `DockManager` and reusable dialogs; keep behaviour identical (v0.3.0).
 24. [x] `mypy` strict on the core plus `pytest-cov` threshold (70% in `core/` and
        `adapters/`) in a pre-commit/CI job with `desktop-file-validate` (v0.3.0).
-25. [x] UI smoke tests with `pytest-gtk` that start the window and verify menus, dock
+25. [x] UI smoke tests with PyGObject fixtures and `xvfb` that start the window and verify menus, dock
        toggles and metadata/histogram panels (v0.3.0).
 26. [x] SIGKILL escalation after a configurable per-job timeout to avoid zombie jobs
        (v0.3.9).
@@ -236,9 +236,9 @@ quality items, in this order:
    refactor the core/adapters have stable boundaries. Add config and CI checks with 70%
    coverage in `core/` and `adapters/`; this protects the argv-only/zero-processing
    invariants and catches regressions in new report parsers.
-3. **#25 `pytest-gtk` UI smoke tests** — current UI tests are hand-written and already
-   cover popups, docks and close/undo behaviour, but formal `pytest-gtk` fixtures will
-   make menus, dock toggles and metadata/histogram panels repeatable in a real session.
+3. **#25 PyGObject UI smoke tests** — current UI tests are hand-written and already
+   cover popups, docks and close/undo behaviour under `xvfb` in CI; they do not need
+   an unavailable `pytest-gtk` package.
    Do this after #23 so tests target the extracted components instead of the God Object.
 
 Acceptance remains as listed above; update this section whenever the order changes.
@@ -276,7 +276,7 @@ and `DialogFactory` were extracted from `MainWindow`; `mypy.ini`,
 `requirements-dev.txt`, `.pre-commit-config.yaml` and `.github/workflows/ci.yml` enforce
 strict core/adapters typing, 70% coverage and `desktop-file-validate`; GUI smoke tests
 cover the window, menus, dock toggles and metadata/histogram panels. The local
-environment lacks `mypy`, `pytest-cov` and `pytest-gtk`, so those checks run in CI with
+environment lacks `mypy` and `pytest-cov`, so those checks run in CI with
 the pinned dev requirements.
 
 
@@ -298,3 +298,11 @@ SIGKILL after `kill_grace_s`, with `job_timeout`/`job_killed` events in the oper
 layouts with an explicit message instead of a silent `-combine` failure.
 `core/structured_log.py` mirrors standard Python log records into the terminal and the
 JSONL operation log; `MainWindow._log()` delegates to it.
+
+
+### CI dependency fix
+
+`pytest-gtk==0.7` is not published on PyPI, so `pip install -r requirements-dev.txt`
+failed before any check ran. UI smoke tests use plain PyGObject fixtures under
+`xvfb-run`; the unused dependency was removed and `pytest==6.0.1` pinned to match the
+validated local environment.
