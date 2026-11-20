@@ -58,6 +58,8 @@ class PreviewPane(Gtk.DrawingArea):
         self.path = path
         self.fit = True
         self.zoom = 1.0
+        self.star_layer = []
+        self.object_layer = []
         self.reset_pan()
         self.queue_draw()
 
@@ -237,17 +239,21 @@ class PreviewPane(Gtk.DrawingArea):
         cr.restore()
         if self.star_layer:
             cr.set_font_size(9)
-            for rank, star in enumerate(self.star_layer[:40], start=1):
+            top_flux = max((star.flux for star in self.star_layer), default=1.0) or 1.0
+            for rank, star in enumerate(self.star_layer[:500], start=1):
                 x = offset_x + star.x * scale
                 y = offset_y + star.y * scale
                 if not (0 <= x <= allocation.width and 0 <= y <= allocation.height):
                     continue
-                cr.set_source_rgba(1.0, 0.80, 0.20, 0.9)
+                intensity = star.flux / top_flux
+                radius = max(2.5, 6.0 - intensity * 2.0)
+                cr.set_source_rgba(1.0, 0.80, 0.20, 0.35 + intensity * 0.6)
                 cr.set_line_width(1.2)
-                cr.arc(x, y, 6, 0, 2 * math.pi)
+                cr.arc(x, y, radius, 0, 2 * math.pi)
                 cr.stroke()
-                cr.move_to(x + 8, y - 6)
-                cr.fill_text(str(rank))
+                if rank <= 30:
+                    cr.move_to(x + radius + 2, y - radius)
+                    cr.show_text(str(rank))
         if self.object_layer:
             cr.set_font_size(9)
             for obj in self.object_layer[:30]:
@@ -261,7 +267,7 @@ class PreviewPane(Gtk.DrawingArea):
                 cr.arc(x, y, radius, 0, 2 * math.pi)
                 cr.stroke()
                 cr.move_to(x + radius + 2, y - radius - 2)
-                cr.fill_text("%d %s" % (obj.id, obj.object_type))
+                cr.show_text("%d %s" % (obj.id, obj.object_type))
         rectangle = self.selection
         if self.selection_start is not None and self.selection_end is not None:
             rectangle = selection_rectangle(self.selection_start, self.selection_end)

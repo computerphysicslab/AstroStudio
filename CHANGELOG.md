@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.38 — 2026-11-20
+
+- Fixed rotate-by-segment being cancelled by a stray button-release delivered when the popup closes; a release without an active segment no longer disables rotation mode.
+- Fixed the star/object overlay renderer: pycairo uses `show_text`, not `fill_text`; the old call aborted drawing after the first circle. All up to 500 detections are now drawn, with labels on the 30 brightest.
+- Star catalog terminal log now reports detection count, preview dimensions and top flux; overlays are cleared when a different image is loaded.
+- Added regression tests for stray releases and complete star-layer rendering; suite is 144 passed, 2 skipped.
+
 ## 0.2.37 — 2026-11-20
 
 - Added SkyStacker `--export-stars` and `--classify-objects` report-only jobs, with JSON parsers, numbered canvas overlays and SVG sidecars.

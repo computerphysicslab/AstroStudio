@@ -162,6 +162,15 @@ def test_app_popup_menu_triggers_rotate_segment(monkeypatch):
     )
     segment.activate()
     assert window.preview.rotation_mode
+    press = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    press.button, press.x, press.y = 1, 100, 100
+    window._on_canvas_click(window.preview, press)
+    motion = Gdk.Event.new(Gdk.EventType.MOTION_NOTIFY)
+    motion.x, motion.y = 180, 100
+    window._on_canvas_motion(window.preview, motion)
+    release = Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE)
+    window._on_canvas_release(window.preview, release)
+    assert not window.preview.rotation_mode
     window.destroy()
 
 
@@ -188,3 +197,48 @@ def test_redo_accelerator_includes_ctrl_y(monkeypatch):
     monkeypatch.setattr(app.settings, "get", custom_get)
     app.apply_shortcuts()
     assert any("y" in accel for accel in app.get_accels_for_action("app.redo"))
+
+
+def test_rotation_survives_release_before_segment(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    angles = []
+    monkeypatch.setattr(window, "_rotate_image", lambda angle, label: angles.append(angle))
+    window.action_rotate_segment()
+    stray_release = Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE)
+    window._on_canvas_release(window.preview, stray_release)
+    assert window.preview.rotation_mode
+    assert angles == []
+    window.preview.start_rotation(10, 10)
+    window.preview.update_rotation(60, 10)
+    window._on_canvas_release(window.preview, Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE))
+    assert angles == [0]
+    assert not window.preview.rotation_mode
+    window.destroy()
+
+
+def test_star_layer_draws_all_detections(monkeypatch):
+    from types import SimpleNamespace
+
+    import cairo
+
+    from astrostudio.core.star_catalog import StarDetection
+
+    pane = PreviewPane()
+    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    stars = [StarDetection(20 + i * 15, 20, 100 - i, 4, 0.1, 2) for i in range(12)]
+    pane.set_star_layer(stars)
+    monkeypatch.setattr(
+        pane,
+        "_view_parameters",
+        lambda: (SimpleNamespace(width=400, height=200), 1.0, 0.0, 0.0),
+    )
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 400, 200)
+    pane._on_draw(None, cairo.Context(surface))
+    data = surface.get_data()
+    marked = 0
+    for offset in range(0, len(data), 4):
+        blue, green, red, alpha = data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
+        if red > 180 and green > 120 and blue < 120 and alpha > 0:
+            marked += 1
+    assert marked > 200

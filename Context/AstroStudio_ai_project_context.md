@@ -842,5 +842,23 @@ to force a UI redraw.
   display formats (JPEG/PNG/BMP) get gamma/level flags in the CLI export argv, while
   FITS/TIFF scientific exports stay linear.
 * Tests cover argv building, report parsing, SVG layers, real CLI reports, popup dispatch,
-  recent transforms and close-to-previous-image. Full suite: 142 passed, 2 skipped.
+  recent transforms and close-to-previous-image. Full suite: 144 passed, 2 skipped.
 * Version bumped to `0.2.37`.
+
+
+---
+
+## 55. v0.2.38 — Segment Rotation and Star Overlay Rendering
+
+* A stray `button-release-event` delivered while the popup menu closed was interpreted as
+  the end of a rotate-by-segment gesture, disabling rotation mode before the real drag.
+  `_on_canvas_release()` now ignores releases when no segment has been started, so the
+  first drag draws the segment as intended.
+* Debugged the M42 star overlay with the persistent operation log: the CLI produced a
+  76,755-byte catalog with 500 detections. Only one circle was visible because
+  `PreviewPane._on_draw()` called `cr.fill_text()`, which does not exist in pycairo 1.16,
+  aborting the draw loop after the first star. Replaced with `cr.show_text()`; up to 500
+  detections are rendered, with rank labels on the 30 brightest.
+* `set_pixbuf()` clears star/object layers when loading another image, preventing stale
+  overlays. The terminal log now records detection count, preview size and top flux.
+* Version bumped to `0.2.38`.

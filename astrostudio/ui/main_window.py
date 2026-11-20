@@ -1226,6 +1226,8 @@ toolbutton.inactive-action {
 
     def _on_canvas_release(self, widget, event) -> bool:
         if self.preview.rotation_mode:
+            if self.preview.rotation_start is None:
+                return True
             angle = self.preview.finish_rotation()
             self.preview.set_rotation_mode(False)
             if angle is not None:
@@ -3284,7 +3286,11 @@ toolbutton.inactive-action {
         svg = write_star_layer_svg(
             os.path.join(job_dir, "star_layer.svg"), detections, width, height
         )
-        self._log("Star catalog: %d detections, layer %s" % (len(detections), svg))
+        top_flux = max((star.flux for star in detections), default=0.0)
+        self._log(
+            "Star catalog: %d detections (%dx%d preview, top flux %.2f), layer %s"
+            % (len(detections), width, height, top_flux, svg)
+        )
         self._status("Star layer: %d objects (brightest first)" % len(detections))
 
     def _on_plate_solve_done(self, result, output_dir: str) -> None:
