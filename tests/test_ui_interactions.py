@@ -1,0 +1,72 @@
+"""UI interaction regressions requiring a GTK display."""
+
+import os
+from pathlib import Path
+
+import gi
+import pytest
+
+gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+gi.require_version("Gtk", "3.0")
+
+from gi.repository import Gdk, GdkPixbuf, Gtk
+
+from astrostudio.app import AstroStudioApplication
+from astrostudio.core import WorkingImage
+from astrostudio.ui import MainWindow, PreviewPane
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("DISPLAY"), reason="GTK display required"
+)
+
+
+def test_selection_hit_test_and_image_rectangle(monkeypatch, tmp_path):
+    pane = PreviewPane()
+    pane.selection = (10.0, 10.0, 40.0, 30.0)
+    assert pane.selection_at(20, 20)
+    assert not pane.selection_at(200, 200)
+
+    png = tmp_path / "p.png"
+    GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 100, 80).savev(
+        str(png), "png", [], []
+    )
+    pane.pixbuf = GdkPixbuf.Pixbuf.new_from_file(str(png))
+    monkeypatch.setattr(pane, "_view_parameters", lambda: (None, 2.0, 0.0, 0.0))
+    assert pane.image_rectangle() == (5, 5, 20, 15)
+
+
+def test_derivation_tree_dialog_opens(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    tiff = tmp_path / "working.tiff"
+    png = tmp_path / "preview.png"
+    tiff.write_bytes(b"tiff")
+    png.write_bytes(b"png")
+    window.current_images.append(
+        WorkingImage("img", "source.fits", str(tmp_path), str(tiff), str(png))
+    )
+    monkeypatch.setattr(Gtk.Dialog, "run", lambda self: Gtk.ResponseType.CLOSE)
+    window.action_derivation_tree()
+    window.destroy()
+
+
+def test_context_menu_has_menu_and_crop(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    monkeypatch.setattr(Gtk.Menu, "popup_at_pointer", lambda self, event: None)
+    event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    event.button, event.x, event.y = 3, 50, 50
+    window.preview.selection = (10.0, 10.0, 80.0, 60.0)
+    window.current_images.append(
+        WorkingImage("img", "source.fits", str(tmp_path), str(tmp_path / "w.tiff"), str(tmp_path / "p.png"))
+    )
+    window._show_context_menu(event)
+    items = window._context_popup.get_children()
+    assert [item.get_label() for item in items] == ["menu", "Crop Selection"]
+    assert items[1].get_sensitive()
+    window.preview.selection = None
+    window._show_context_menu(event)
+    items = window._context_popup.get_children()
+    assert not items[1].get_sensitive()
+    window.destroy()

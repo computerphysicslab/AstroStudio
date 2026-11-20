@@ -29,7 +29,7 @@ def test_main_window_builds_with_small_minimum_size():
     assert window.histogram_panel is not None
     assert "fullscreen" in ACTION_NAMES
     assert window.thumbnail_scroll.get_visible() is False
-    assert window.resource_monitor.get_visible() is True
+    assert window.resources_panel is not None
     window.show_all()
     minimum, _natural = window.get_preferred_size()
     assert isinstance(window.right_scroll, Gtk.ScrolledWindow)

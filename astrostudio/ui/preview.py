@@ -148,6 +148,25 @@ class PreviewPane(Gtk.DrawingArea):
         offset_y = (allocation.height - height * scale) / 2.0 + self.pan_y
         return allocation, scale, offset_x, offset_y
 
+    def selection_at(self, x: float, y: float) -> bool:
+        if not self.selection:
+            return False
+        rx, ry, width, height = self.selection
+        return rx <= x <= rx + width and ry <= y <= ry + height
+
+    def image_rectangle(self):
+        if not self.selection or self.pixbuf is None:
+            return None
+        _allocation, scale, offset_x, offset_y = self._view_parameters()
+        if scale <= 0:
+            return None
+        rx, ry, width, height = self.selection
+        x = int(max(0, min(self.pixbuf.get_width() - 1, (rx - offset_x) / scale)))
+        y = int(max(0, min(self.pixbuf.get_height() - 1, (ry - offset_y) / scale)))
+        w = int(max(1, min(self.pixbuf.get_width() - x, width / scale)))
+        h = int(max(1, min(self.pixbuf.get_height() - y, height / scale)))
+        return x, y, w, h
+
     def image_coordinates(self, x: float, y: float):
         _, scale, offset_x, offset_y = self._view_parameters()
         if self.pixbuf is None or scale <= 0:

@@ -752,3 +752,20 @@ to force a UI redraw.
 * Open Recent is inserted immediately after Open in the File menu.
 * RAM meter keeps only the circular gauge; CPU keeps gauge, linear bar and per-core bars.
 * Version bumped to `0.2.32`.
+
+---
+
+## 50. v0.2.33 — Panels, Fullscreen and Context Menu Fixes
+
+* CPU/RAM indicator group is now a closable dock panel with a horizontal layout: CPU
+  gauge/bars first, RAM circle to its right. RAM linear bar was removed earlier.
+* Fullscreen mode hides menu bar, toolbar, all dock panels and status bar. A transient
+  progress/status bar is shown at job start and hidden again 1 second after job end.
+* Right-click popups are retained on `self` until `deactivate`, fixing the intermittent
+  "third click works" behaviour. The popup now uses `_build_menu_model()`, the same model
+  as the menu bar, so Open Recent appears. A second `Crop Selection` item is sensitive
+  only when right-clicking inside a previously drawn selection; it delegates a `-crop`
+  transform to the external CLI through `ImageWorkspace`.
+* Derivation Tree was broken by another `Gtk.ScrolledWindow.set_min_content_size()`
+  call; replaced with width/height setters and covered by a UI test.
+* Version bumped to `0.2.33`.

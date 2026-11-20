@@ -65,7 +65,7 @@ class MeterWidget(Gtk.DrawingArea):
         self.history = []
         self.per_core = []
         self.set_app_paintable(True)
-        self.set_size_request(240, 56)
+        self.set_size_request(150, 56)
         self.connect("draw", self._on_draw)
 
     def update(self, value: float, per_core: list = None) -> None:
@@ -132,7 +132,7 @@ class ResourceMonitor(Gtk.Box):
     """Update both meters once per second without touching image data."""
 
     def __init__(self, interval_ms: int = 1000) -> None:
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         self.cpu_meter = MeterWidget("CPU")
         self.ram_meter = MeterWidget("RAM", show_bar=False)
         self.pack_start(self.cpu_meter, False, False, 0)

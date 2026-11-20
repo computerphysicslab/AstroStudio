@@ -406,6 +406,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self.export_format: ExportFormat = EXPORT_FORMATS[0]
         self._export_source = None
         self._gamma_timer = None
+        self._fullscreen = False
+        self._progress_hide_timer = None
+        self._context_popup = None
+        self._app_popup = None
         self.transform_history: List[str] = []
         self.annotations: List[Annotation] = []
         self.job_counter = 0
@@ -455,6 +459,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.preview.connect("drag-motion", self._on_drag_motion)
         self.add_events(Gdk.EventMask.KEY_PRESS_MASK)
         self.connect("key-press-event", self._on_key_press)
+        self.connect("window-state-event", self._on_window_state)
 
         self._build_layout()
         self._apply_panel_visibility()
@@ -469,7 +474,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.menu_bar = self._build_menu_bar()
         root.pack_start(self.menu_bar, False, False, 0)
-        root.pack_start(self._build_toolbar(), False, False, 0)
+        self.toolbar = self._build_toolbar()
+        root.pack_start(self.toolbar, False, False, 0)
 
         paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         paned.set_position(740)
@@ -496,7 +502,10 @@ class MainWindow(Gtk.ApplicationWindow):
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         right.set_border_width(6)
         self.resource_monitor = ResourceMonitor()
-        right.pack_start(self.resource_monitor, False, False, 0)
+        self.resources_panel = self._panel_with_close(
+            "Resources (CPU / RAM)", self.resource_monitor
+        )
+        right.pack_start(self.resources_panel, False, False, 0)
         self.backends_panel = self._panel_with_close(
             "Backends (startup discovery)", self._build_backend_content()
         )
@@ -578,7 +587,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 result.append(item)
         return result
 
-    def _build_menu_bar(self) -> Gtk.Widget:
+    def _build_menu_model(self) -> Gio.Menu:
         menu = Gio.Menu.new()
         for label, entries in MENU_LAYOUT:
             submenu = Gio.Menu.new()
@@ -606,7 +615,10 @@ class MainWindow(Gtk.ApplicationWindow):
                     submenu, dynamic_entries, self._menu_items, self.translator.tr
                 )
             menu.append_submenu(self.translator.tr(label), submenu)
-        return Gtk.MenuBar.new_from_model(menu)
+        return menu
+
+    def _build_menu_bar(self) -> Gtk.Widget:
+        return Gtk.MenuBar.new_from_model(self._build_menu_model())
 
     def _rebuild_menu_bar(self) -> None:
         root = self.get_child()
@@ -847,7 +859,7 @@ progressbar text {
 
     def _apply_panel_visibility(self) -> None:
         self.thumbnail_scroll.set_visible(bool(self.settings.get("show_thumbnails", False)))
-        self.resource_monitor.set_visible(bool(self.settings.get("show_resources", True)))
+        self.resources_panel.set_visible(bool(self.settings.get("show_resources", True)))
 
     def validate_geometry(self) -> None:
         minimum, _natural = self.get_preferred_size()
@@ -1170,25 +1182,97 @@ progressbar text {
         self.preview.end_pan()
         return False
 
+    def _set_chrome_visible(self, visible: bool) -> None:
+        for widget in (
+            self.menu_bar,
+            self.toolbar,
+            self.backends_panel,
+            self.metadata_panel,
+            self.histogram_panel,
+            self.job_panel,
+            self.terminal_panel,
+            self.resources_panel,
+            self.thumbnail_scroll,
+        ):
+            widget.set_visible(visible)
+        self.progress_bar.set_visible(False)
+
+    def _on_window_state(self, _widget, event) -> None:
+        if event.changed_mask & Gdk.WindowState.FULLSCREEN:
+            fullscreen = bool(event.new_window_state & Gdk.WindowState.FULLSCREEN)
+            self._fullscreen = fullscreen
+            self._set_chrome_visible(not fullscreen)
+            if not fullscreen:
+                self._apply_panel_visibility()
+
+    def _show_job_progress(self, text: str) -> None:
+        if not self._fullscreen:
+            return
+        if self._progress_hide_timer is not None:
+            GLib.source_remove(self._progress_hide_timer)
+            self._progress_hide_timer = None
+        self.progress_bar.set_text(text)
+        self.progress_bar.set_visible(True)
+
+    def _hide_job_progress_delayed(self) -> None:
+        if not self._fullscreen:
+            return
+        if self._progress_hide_timer is not None:
+            GLib.source_remove(self._progress_hide_timer)
+        self._progress_hide_timer = GLib.timeout_add(1000, self._hide_job_progress)
+
+    def _hide_job_progress(self) -> bool:
+        self._progress_hide_timer = None
+        self.progress_bar.set_visible(False)
+        return False
+
     def _show_context_menu(self, event) -> None:
         popup = Gtk.Menu()
-        item = Gtk.MenuItem(label=self.translator.tr("menu"))
-        item.connect("activate", lambda *_: self._show_app_menu(event))
-        popup.append(item)
+        menu_item = Gtk.MenuItem(label=self.translator.tr("menu"))
+        menu_item.connect("activate", lambda *_: self._show_app_menu(event))
+        crop_item = Gtk.MenuItem(label=self.translator.tr("Crop Selection"))
+        crop_item.set_sensitive(
+            self.preview.selection_at(event.x, event.y) and bool(self.current_images)
+        )
+        crop_item.connect("activate", lambda *_: self._crop_selection())
+        popup.append(menu_item)
+        popup.append(crop_item)
         popup.attach_to_widget(self, None)
+        self._context_popup = popup
+        popup.connect("deactivate", lambda *_: setattr(self, "_context_popup", None))
         popup.show_all()
         popup.popup_at_pointer(event)
 
     def _show_app_menu(self, event) -> None:
-        model = Gio.Menu.new()
-        for label, entries in MENU_LAYOUT:
-            submenu = Gio.Menu.new()
-            append_menu_items(submenu, entries, None, self.translator.tr)
-            model.append_submenu(self.translator.tr(label), submenu)
-        popup = Gtk.Menu.new_from_model(model)
+        popup = Gtk.Menu.new_from_model(self._build_menu_model())
         popup.attach_to_widget(self, None)
+        self._app_popup = popup
+        popup.connect("deactivate", lambda *_: setattr(self, "_app_popup", None))
         popup.show_all()
         popup.popup_at_pointer(event)
+
+    def _crop_selection(self) -> None:
+        rectangle = self.preview.image_rectangle()
+        if rectangle is None or not self.current_images:
+            return
+        image = self.current_images[-1]
+        x, y, width, height = rectangle
+        params = {"crop": "%dx%d+%d+%d" % (width, height, x, y)}
+        view_state = self._capture_view_state()
+        self._busy_begin()
+        self.workspace.transform(
+            image,
+            params,
+            on_ready=lambda final: self._on_crop_done(final, view_state),
+            on_error=self._on_workspace_error,
+            on_log=self._log,
+        )
+
+    def _on_crop_done(self, image: WorkingImage, view_state: dict) -> None:
+        self._busy_end()
+        self.preview.load(image.png_path)
+        self._restore_view_state(view_state)
+        self._log("Crop applied to working TIFF; preview refreshed")
 
     def _on_key_press(self, _widget, event) -> bool:
         window = self.get_window()
@@ -2205,7 +2289,8 @@ progressbar text {
         for index, title in enumerate(("Node", "Detail")):
             view.append_column(Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=index))
         scroll = Gtk.ScrolledWindow()
-        scroll.set_min_content_size(520, 320)
+        scroll.set_min_content_width(520)
+        scroll.set_min_content_height(320)
         scroll.add(view)
         dialog.get_content_area().pack_start(scroll, True, True, 6)
         dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)

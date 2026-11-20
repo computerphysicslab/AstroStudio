@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.33 — 2026-11-19
+
+- CPU/RAM dock panel is closable like the others; RAM circle placed to the right of CPU gauges.
+- Fullscreen hides all chrome; a transient status/progress bar appears during jobs and hides 1s later.
+- Right-click popup keeps widget references (fixes intermittent failures), shares the full application menu including Open Recent, and adds Crop Selection enabled only over a selection.
+- Derivation Tree fixed (`set_min_content_size` was invalid in GTK 3.24).
+- Unit/integration tests for selection geometry, context menu and derivation dialog.
+
 ## 0.2.32 — 2026-11-19
 
 - Gamma slider is debounced (one CLI preview job per 800ms) and logs the applied value.

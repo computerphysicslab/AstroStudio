@@ -115,11 +115,16 @@ class AstroStudioApplication(Gtk.Application):
         self.job_manager.start(job_id, list(argv))
         if self.window is not None:
             self.window.refresh_jobs()
+            self.window._show_job_progress("Working: %s" % job_id)
 
     def _on_job_end(self, job_id: str, result) -> None:
         self.job_manager.finish(job_id, result)
         if self.window is not None:
             self.window.refresh_jobs()
+            self.window._show_job_progress(
+                "%s: %s" % (job_id, "OK" if result.ok else "failed")
+            )
+            self.window._hide_job_progress_delayed()
 
     def apply_shortcuts(self) -> None:
         custom = self.settings.get("shortcuts", {}) or {}
