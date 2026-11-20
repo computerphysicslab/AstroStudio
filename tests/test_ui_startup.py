@@ -23,6 +23,8 @@ def test_geometry_warning_helper():
 
 def test_main_window_builds_with_small_minimum_size():
     app = AstroStudioApplication()
+    app.settings.set("show_thumbnails", False)
+    app.settings.set("show_resources", True)
     window = MainWindow(app, app.registry, app.scratch, app.engine)
     assert window.job_panel is not None
     assert window.backends_panel is not None

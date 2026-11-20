@@ -65,7 +65,7 @@ class MeterWidget(Gtk.DrawingArea):
         self.history = []
         self.per_core = []
         self.set_app_paintable(True)
-        self.set_size_request(150, 56)
+        self.set_size_request(200 if title == "CPU" else 84, 56)
         self.connect("draw", self._on_draw)
 
     def update(self, value: float, per_core: list = None) -> None:
@@ -93,15 +93,14 @@ class MeterWidget(Gtk.DrawingArea):
         cr.stroke()
 
         cr.set_source_rgb(1.0, 1.0, 1.0)
-        cr.set_font_size(13)
+        cr.set_font_size(12)
         text = "%.0f%%" % self.value
         extents = cr.text_extents(text)
-        cr.move_to(cx - extents.width / 2.0, cy + extents.height / 2.0)
+        cr.move_to(cx - extents.width / 2.0, cy - 1)
         cr.show_text(text)
-
-        cr.set_source_rgb(0.85, 0.85, 0.85)
-        cr.set_font_size(11)
-        cr.move_to(64, 14)
+        cr.set_font_size(8)
+        label_extents = cr.text_extents(self.title)
+        cr.move_to(cx - label_extents.width / 2.0, cy + 12)
         cr.show_text(self.title)
 
         bar_x, bar_y, bar_w, bar_h = 64, 22, max(10, width - 74), 12

@@ -37,6 +37,9 @@ class PreviewPane(Gtk.DrawingArea):
         self.selection_end = None
         self.selection = None
         self.wcs_center = None
+        self.rotation_mode = False
+        self.rotation_start = None
+        self.rotation_end = None
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -66,6 +69,39 @@ class PreviewPane(Gtk.DrawingArea):
         self.pan_x = 0.0
         self.pan_y = 0.0
         self._dragging = False
+
+    def set_rotation_mode(self, enabled: bool) -> None:
+        self.rotation_mode = enabled
+        self.rotation_start = None
+        self.rotation_end = None
+        self.queue_draw()
+
+    def start_rotation(self, x: float, y: float) -> None:
+        self.rotation_start = (x, y)
+        self.rotation_end = (x, y)
+        self.queue_draw()
+
+    def update_rotation(self, x: float, y: float) -> None:
+        if self.rotation_start is None:
+            return
+        self.rotation_end = (x, y)
+        self.queue_draw()
+
+    def segment_angle(self):
+        if not self.rotation_start or not self.rotation_end:
+            return None
+        dx = self.rotation_end[0] - self.rotation_start[0]
+        dy = self.rotation_end[1] - self.rotation_start[1]
+        if abs(dx) < 1 and abs(dy) < 1:
+            return None
+        return math.degrees(math.atan2(dy, dx))
+
+    def finish_rotation(self):
+        angle = self.segment_angle()
+        self.rotation_start = None
+        self.rotation_end = None
+        self.queue_draw()
+        return angle
 
     def set_select_mode(self, enabled: bool) -> None:
         self.select_mode = enabled
@@ -200,6 +236,12 @@ class PreviewPane(Gtk.DrawingArea):
             cr.set_source_rgb(0.20, 0.75, 1.0)
             cr.set_line_width(2)
             cr.rectangle(x, y, width, height)
+            cr.stroke()
+        if self.rotation_start and self.rotation_end:
+            cr.set_source_rgb(1.0, 0.65, 0.2)
+            cr.set_line_width(2)
+            cr.move_to(*self.rotation_start)
+            cr.line_to(*self.rotation_end)
             cr.stroke()
         if self.wcs_center is not None:
             cx = offset_x + self.wcs_center[0] * scale

@@ -769,3 +769,20 @@ to force a UI redraw.
 * Derivation Tree was broken by another `Gtk.ScrolledWindow.set_min_content_size()`
   call; replaced with width/height setters and covered by a UI test.
 * Version bumped to `0.2.33`.
+
+---
+
+## 51. v0.2.34 — Fullscreen Canvas, Panels and Rotation
+
+* Fullscreen hides the preview frame label and the right dock container in addition to
+  all chrome; measured canvas allocation is 1366x744 on a 1366x768 screen.
+* Right-click menus call `popup_at_pointer(None)` and keep widget references until
+  replaced, avoiding the intermittent "third click works" behaviour. The app menu comes
+  from the same model as the menu bar (Open Recent included). Crop Selection clears the
+  selection rectangle once the external `-crop` transform completes.
+* Resource meters are asymmetric: CPU 200px with linear/per-core bars, RAM 84px circle
+  only. Title and percentage are drawn inside each circle.
+* View > Panels groups toggles for Backends, Histogram, Terminal, Resources and Jobs.
+* Processing > Rotate Image offers 90 CW/CCW, a free angle dialog and rotation by a
+  mouse-drawn segment (angle from `atan2(dy, dx)` serialized as `-rotate <degrees>`).
+* Version bumped to `0.2.34`.

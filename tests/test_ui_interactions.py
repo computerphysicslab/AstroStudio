@@ -70,3 +70,15 @@ def test_context_menu_has_menu_and_crop(monkeypatch, tmp_path):
     items = window._context_popup.get_children()
     assert not items[1].get_sensitive()
     window.destroy()
+
+
+def test_rotation_segment_angle():
+    pane = PreviewPane()
+    assert pane.segment_angle() is None
+    pane.start_rotation(10, 10)
+    pane.update_rotation(110, 10)
+    assert pane.segment_angle() == 0
+    pane.update_rotation(10, 110)
+    assert pane.segment_angle() == 90
+    assert pane.finish_rotation() == 90
+    assert pane.rotation_start is None

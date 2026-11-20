@@ -123,6 +123,16 @@ MENU_LAYOUT = (
                     ("Custom Scale...", "resize-custom"),
                 ),
             ),
+            (
+                "Rotate Image",
+                None,
+                (
+                    ("90 degrees clockwise", "rotate-cw"),
+                    ("90 degrees anticlockwise", "rotate-ccw"),
+                    ("Free rotation...", "rotate-custom"),
+                    ("Rotate by segment...", "rotate-segment"),
+                ),
+            ),
             ("Generate BPM (auto)...", "bpm-auto"),
             ("Siril Calibrate...", "siril-calibrate"),
             ("Siril Stack...", "siril-stack"),
@@ -227,9 +237,17 @@ MENU_LAYOUT = (
             ("Derivation Tree...", "derivation-tree"),
             ("Pixel Line Profile", "line-profile"),
             ("Metadata Viewer", "metadata"),
-            ("Toggle Backends Viewer", "toggle-backends"),
-            ("Toggle Histogram Viewer", "toggle-histogram"),
-            ("Toggle Terminal Drawer", "toggle-terminal"),
+            (
+                "Panels",
+                None,
+                (
+                    ("Backends Viewer", "toggle-backends"),
+                    ("Histogram Viewer", "toggle-histogram"),
+                    ("Terminal Drawer", "toggle-terminal"),
+                    ("Resources", "toggle-resources"),
+                    ("Jobs", "toggle-jobs"),
+                ),
+            ),
         ),
     ),
     (
@@ -326,6 +344,8 @@ TOGGLE_PANELS = {
     "toggle-backends": "Backends Viewer",
     "toggle-histogram": "Histogram Viewer",
     "toggle-terminal": "Terminal Drawer",
+    "toggle-resources": "Resources",
+    "toggle-jobs": "Jobs",
 }
 
 
@@ -481,11 +501,11 @@ class MainWindow(Gtk.ApplicationWindow):
         paned.set_position(740)
 
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        frame = Gtk.Frame(label="Preview (PNG rendered from TIFF)")
+        self.preview_frame = Gtk.Frame(label="Preview (PNG rendered from TIFF)")
         self.preview_scroll = Gtk.ScrolledWindow()
         self.preview_scroll.add(self.preview)
-        frame.add(self.preview_scroll)
-        left.pack_start(frame, True, True, 0)
+        self.preview_frame.add(self.preview_scroll)
+        left.pack_start(self.preview_frame, True, True, 0)
 
         self.thumbnail_store = Gtk.ListStore(GdkPixbuf.Pixbuf, str)
         self.thumbnail_view = Gtk.IconView(model=self.thumbnail_store)
@@ -569,6 +589,8 @@ class MainWindow(Gtk.ApplicationWindow):
                         "toggle-backends": "backends_panel",
                         "toggle-histogram": "histogram_panel",
                         "toggle-terminal": "terminal_panel",
+                        "toggle-resources": "resources_panel",
+                        "toggle-jobs": "job_panel",
                     }[item[1]],
                     None,
                 )
@@ -1154,6 +1176,9 @@ progressbar text {
         if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
             self.action_zoom_fit()
             return True
+        if self.preview.rotation_mode and button == 1:
+            self.preview.start_rotation(event.x, event.y)
+            return True
         if self.preview.select_mode and button == 1:
             self.preview.start_selection(event.x, event.y)
             return True
@@ -1167,12 +1192,20 @@ progressbar text {
         return True
 
     def _on_canvas_motion(self, widget, event) -> bool:
+        if self.preview.rotation_mode:
+            self.preview.update_rotation(event.x, event.y)
+            return True
         if self.preview.select_mode:
             self.preview.update_selection(event.x, event.y)
             return True
         return self.preview.update_pan(event.x, event.y)
 
     def _on_canvas_release(self, widget, event) -> bool:
+        if self.preview.rotation_mode:
+            angle = self.preview.finish_rotation()
+            if angle is not None:
+                self._rotate_image(angle, "Rotate by segment")
+            return True
         if self.preview.select_mode:
             rectangle = self.preview.finish_selection()
             if rectangle:
@@ -1195,6 +1228,17 @@ progressbar text {
             self.thumbnail_scroll,
         ):
             widget.set_visible(visible)
+        self.right_scroll.set_visible(visible)
+        label_widget = self.preview_frame.get_label_widget()
+        if label_widget is not None:
+            label_widget.set_visible(visible)
+        self.preview_frame.set_shadow_type(
+            Gtk.ShadowType.NONE if not visible else Gtk.ShadowType.ETCHED_IN
+        )
+        self.preview_scroll.set_policy(
+            Gtk.PolicyType.NEVER if not visible else Gtk.PolicyType.AUTOMATIC,
+            Gtk.PolicyType.NEVER if not visible else Gtk.PolicyType.AUTOMATIC,
+        )
         self.progress_bar.set_visible(False)
 
     def _on_window_state(self, _widget, event) -> None:
@@ -1239,17 +1283,15 @@ progressbar text {
         popup.append(crop_item)
         popup.attach_to_widget(self, None)
         self._context_popup = popup
-        popup.connect("deactivate", lambda *_: setattr(self, "_context_popup", None))
         popup.show_all()
-        popup.popup_at_pointer(event)
+        popup.popup_at_pointer(None)
 
     def _show_app_menu(self, event) -> None:
         popup = Gtk.Menu.new_from_model(self._build_menu_model())
         popup.attach_to_widget(self, None)
         self._app_popup = popup
-        popup.connect("deactivate", lambda *_: setattr(self, "_app_popup", None))
         popup.show_all()
-        popup.popup_at_pointer(event)
+        popup.popup_at_pointer(None)
 
     def _crop_selection(self) -> None:
         rectangle = self.preview.image_rectangle()
@@ -1270,6 +1312,8 @@ progressbar text {
 
     def _on_crop_done(self, image: WorkingImage, view_state: dict) -> None:
         self._busy_end()
+        self.preview.selection = None
+        self.preview.queue_draw()
         self.preview.load(image.png_path)
         self._restore_view_state(view_state)
         self._log("Crop applied to working TIFF; preview refreshed")
@@ -1888,6 +1932,41 @@ progressbar text {
         scale = self._ask_percentage()
         if scale:
             self._run_transform({"resize": scale}, "Resize to " + scale)
+
+    def _rotate_image(self, angle: float, label: str) -> None:
+        self._run_transform({"rotate": "%g" % angle}, label)
+
+    def action_rotate_cw(self) -> None:
+        self._rotate_image(90, "Rotate 90 clockwise")
+
+    def action_rotate_ccw(self) -> None:
+        self._rotate_image(-90, "Rotate 90 anticlockwise")
+
+    def action_rotate_custom(self) -> None:
+        dialog = Gtk.Dialog(
+            title="Free rotation",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK, Gtk.ResponseType.OK,
+            ),
+        )
+        self._dialog_header(dialog, "Free rotation")
+        spin = Gtk.SpinButton.new_with_range(-360, 360, 1)
+        spin.set_value(0)
+        dialog.get_content_area().pack_start(spin, True, True, 6)
+        dialog.show_all()
+        response = dialog.run()
+        angle = spin.get_value() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if angle is not None:
+            self._rotate_image(angle, "Free rotation")
+
+    def action_rotate_segment(self) -> None:
+        enabled = not self.preview.rotation_mode
+        self.preview.set_rotation_mode(enabled)
+        self._status("Rotation by segment: ON" if enabled else "Rotation by segment: OFF")
 
     def _ask_unsharp(self) -> Optional[str]:
         presets = (
@@ -2757,6 +2836,14 @@ progressbar text {
         else:
             self.fullscreen()
             self._status("Fullscreen: ESC to exit, right-click for menu")
+
+    def action_toggle_resources(self) -> None:
+        self.resources_panel.set_visible(not self.resources_panel.get_visible())
+        self._update_toggle_labels()
+
+    def action_toggle_jobs(self) -> None:
+        self.job_panel.set_visible(not self.job_panel.get_visible())
+        self._update_toggle_labels()
 
     def action_toggle_histogram(self) -> None:
         if self.histogram_panel.get_visible():

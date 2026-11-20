@@ -109,3 +109,13 @@ def test_processing_resize_submenu_has_scales_and_custom():
     actions = set(iter_menu_actions())
     assert {"unsharp", "export"} <= actions
     assert "resize" not in actions
+
+
+def test_panels_submenu_and_toggles():
+    from astrostudio.app import ACTION_NAMES
+
+    view = dict(MENU_LAYOUT)["View"]
+    panels = next(item for item in view if item[0] == "Panels")
+    labels = [label for label, _action in panels[2]]
+    assert {"Backends Viewer", "Histogram Viewer", "Terminal Drawer", "Resources", "Jobs"} <= set(labels)
+    assert {"toggle-resources", "toggle-jobs", "rotate-cw", "rotate-ccw", "rotate-custom", "rotate-segment"} <= ACTION_NAMES

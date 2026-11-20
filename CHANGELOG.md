@@ -8,6 +8,15 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.34 — 2026-11-19
+
+- Fullscreen now gives the canvas 1366x744 of a 1366x768 screen by hiding the preview frame label and right dock container.
+- Right-click popups use the current pointer position and stay referenced until replaced; Crop Selection clears the selection after applying the CLI crop.
+- CPU/RAM meters are asymmetric: CPU 200px with bar/per-core, RAM 84px circle only; titles and percentages are inside the circles.
+- View > Panels submenu toggles Backends, Histogram, Terminal, Resources and Jobs.
+- Processing > Rotate Image adds 90 CW, 90 CCW, free angle and rotation by drawn segment.
+- Tests for panel submenu, rotation angle and context menu.
+
 ## 0.2.33 — 2026-11-19
 
 - CPU/RAM dock panel is closable like the others; RAM circle placed to the right of CPU gauges.
