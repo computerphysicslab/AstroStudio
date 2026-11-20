@@ -14,6 +14,7 @@ DEFAULTS: Dict[str, Any] = {
     "accent_color": "green",
     "show_thumbnails": False,
     "show_resources": True,
+    "recent_transforms": [],
     "binary_overrides": {},
     "scratch_dir": "",
     "cache_dir": "",

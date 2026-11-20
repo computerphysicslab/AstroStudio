@@ -51,7 +51,7 @@ DEFAULT_SHORTCUTS = {
     "metadata": ["<Control>i"],
     "histogram": ["<Control>h"],
     "undo": ["<Control>z"],
-    "redo": ["<Control><Shift>z"],
+    "redo": ["<Control>y", "<Control><Shift>z"],
     "quit": ["<Control>q"],
     "zoom-fit": ["f"],
 }
@@ -132,7 +132,10 @@ class AstroStudioApplication(Gtk.Application):
             accelerators = custom.get(action, default)
             if isinstance(accelerators, str):
                 accelerators = [accelerators]
-            self.set_accels_for_action("app." + action, list(accelerators))
+            accelerators = list(accelerators)
+            if action == "redo" and "<Control>y" not in accelerators:
+                accelerators.insert(0, "<Control>y")
+            self.set_accels_for_action("app." + action, accelerators)
 
     def _on_action(self, _action, _parameter, name: str) -> None:
         if self.window is None:

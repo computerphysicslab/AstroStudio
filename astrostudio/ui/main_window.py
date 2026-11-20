@@ -49,6 +49,7 @@ from ..core import (  # noqa: E402
     install_command,
     load_session,
     overlay_center,
+    parse_classification,
     raw_warnings,
     parse_metadata_text,
     parse_ser_header,
@@ -58,8 +59,11 @@ from ..core import (  # noqa: E402
     tile_count,
     parse_policy,
     save_session,
+    parse_star_catalog,
     suggest_presets,
     validate_avi_codec,
+    write_object_layer_svg,
+    write_star_layer_svg,
     solution_for_directory,
     write_makefile,
     write_shell,
@@ -152,6 +156,8 @@ MENU_LAYOUT = (
         "Astrometry",
         (
             ("Plate Solve...", "plate-solve"),
+            ("Export Star Catalog...", "export-stars"),
+            ("Classify Objects...", "classify-objects"),
             ("Solve with ASTAP...", "solve-astap"),
             ("Solve with astrometry.net...", "solve-solvefield"),
             ("Gaia Cache Info...", "gaia-cache-info"),
@@ -431,6 +437,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self._context_popup = None
         self._app_popup = None
         self.transform_history: List[str] = []
+        self.recent_transforms: List[dict] = list(
+            self.settings.get("recent_transforms", [])
+        )
         self.annotations: List[Annotation] = []
         self.job_counter = 0
         self.plate_solutions: dict = {}
@@ -1297,13 +1306,52 @@ toolbutton.inactive-action {
         crop_item.connect("activate", lambda *_: self._crop_selection())
         popup.append(menu_item)
         popup.append(crop_item)
+        if self.recent_transforms:
+            popup.append(Gtk.SeparatorMenuItem())
+            for entry in self.recent_transforms:
+                repeat = Gtk.MenuItem(
+                    label="%s: %s" % (self.translator.tr("Repeat"), entry.get("label", ""))
+                )
+                repeat.connect("activate", lambda *_widget, item=entry: self._reapply_transform(item))
+                popup.append(repeat)
         popup.attach_to_widget(self, None)
         self._context_popup = popup
         popup.show_all()
         popup.popup_at_pointer(None)
 
+    def _build_popup_menu(self, items) -> Gtk.Menu:
+        popup = Gtk.Menu()
+        for item in items:
+            if item[0] is None:
+                popup.append(Gtk.SeparatorMenuItem())
+            elif len(item) == 3:
+                parent = Gtk.MenuItem(label=self.translator.tr(item[0]))
+                parent.set_submenu(self._build_popup_menu(item[2]))
+                popup.append(parent)
+            else:
+                entry = Gtk.MenuItem(label=self.translator.tr(item[0]))
+                entry.connect(
+                    "activate",
+                    lambda *_widget, name=item[1]: self._run_popup_action(name),
+                )
+                popup.append(entry)
+        return popup
+
+    def _run_popup_action(self, action: str) -> None:
+        self._dismiss_popups()
+        handler = getattr(self, "action_" + action.replace("-", "_"), None)
+        if handler is not None:
+            handler()
+        else:
+            self._activate(action)
+
     def _show_app_menu(self, event) -> None:
-        popup = Gtk.Menu.new_from_model(self._build_menu_model())
+        self._dismiss_popups()
+        popup = Gtk.Menu()
+        for label, entries in MENU_LAYOUT:
+            parent = Gtk.MenuItem(label=self.translator.tr(label))
+            parent.set_submenu(self._build_popup_menu(entries))
+            popup.append(parent)
         popup.attach_to_widget(self, None)
         self._app_popup = popup
         popup.show_all()
@@ -1832,6 +1880,12 @@ toolbutton.inactive-action {
                 self._status("Linear guard blocked operation")
                 return
         self.transform_history.append(stage)
+        self.recent_transforms.insert(
+            0, {"label": description, "params": dict(params)}
+        )
+        self.recent_transforms = self.recent_transforms[:7]
+        self.settings.set("recent_transforms", self.recent_transforms)
+        self.settings.save()
         started = time.monotonic()
         self._busy_begin()
         self._begin_estimate(stage, self._current_megapixels(), "%s via CLI..." % description)
@@ -1978,6 +2032,10 @@ toolbutton.inactive-action {
         dialog.destroy()
         if angle is not None:
             self._rotate_image(angle, "Free rotation")
+
+    def _reapply_transform(self, entry: dict) -> None:
+        self._dismiss_popups()
+        self._run_transform(dict(entry.get("params", {})), entry.get("label", "Repeat"))
 
     def _dismiss_popups(self) -> None:
         for popup in (self._context_popup, self._app_popup):
@@ -2897,8 +2955,15 @@ toolbutton.inactive-action {
             last = row.iter
         if last is not None:
             self.thumbnail_store.remove(last)
-        self.preview.clear()
-        self._status(self.translator.tr("Closed active view"))
+        if self.current_images:
+            image = self.current_images[-1]
+            self.active_image = image
+            self.preview.load(image.png_path)
+            self._status(self.translator.tr("Closed active view; showing previous image"))
+        else:
+            self.active_image = None
+            self.preview.clear()
+            self._status(self.translator.tr("Closed active view"))
 
     def action_close_all(self) -> None:
         self.current_paths.clear()
@@ -3136,6 +3201,91 @@ toolbutton.inactive-action {
             output_dir,
             lambda result: self._on_plate_solve_done(result, output_dir),
         )
+
+    def action_export_stars(self) -> None:
+        if not self.current_paths:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        if not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is required for star catalog export.")
+            return
+        source = self.current_paths[-1]
+        job_dir = self.scratch.job_dir("stars-%d" % self.job_counter)
+        self.job_counter += 1
+        output_file = os.path.join(job_dir, "stars.json")
+        argv = self.adapters["SkyStacker"].build_export_stars_argv(source, output_file)
+        self._log("CLI export-stars: %s" % " ".join(argv))
+        self._busy_begin()
+        self.engine.run(
+            "export-stars",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_export_stars_done(result, output_file, job_dir),
+        )
+
+    def action_classify_objects(self) -> None:
+        if not self.current_paths:
+            self._status(self.translator.tr("Open an image first"))
+            return
+        if not self.registry.available("SkyStacker"):
+            self._show_error("SkyStacker is required for object classification.")
+            return
+        source = self.current_paths[-1]
+        job_dir = self.scratch.job_dir("objects-%d" % self.job_counter)
+        self.job_counter += 1
+        output_file = os.path.join(job_dir, "objects.json")
+        argv = self.adapters["SkyStacker"].build_classify_objects_argv(source, output_file)
+        self._log("CLI classify-objects: %s" % " ".join(argv))
+        self._busy_begin()
+        self.engine.run(
+            "classify-objects",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_classify_done(result, output_file, job_dir),
+        )
+
+    def _on_classify_done(self, result, output_file: str, job_dir: str) -> None:
+        self._busy_end()
+        if not result.ok:
+            self._show_error("Diffuse-object classification failed")
+            return
+        try:
+            with open(output_file, "r", encoding="utf-8") as handle:
+                objects, report = parse_classification(handle.read())
+        except OSError:
+            self._show_error("Classification report was not written")
+            return
+        self.preview.set_object_layer(objects)
+        width = self.preview.pixbuf.get_width() if self.preview.pixbuf else report["width"]
+        height = self.preview.pixbuf.get_height() if self.preview.pixbuf else report["height"]
+        svg = write_object_layer_svg(
+            os.path.join(job_dir, "object_layer.svg"), objects, width, height
+        )
+        self._log(
+            "Diffuse objects: %d (threshold %.1f sigma), layer %s"
+            % (len(objects), report["threshold_sigma"], svg)
+        )
+        self._status("Object layer: %d diffuse components" % len(objects))
+
+    def _on_export_stars_done(self, result, output_file: str, job_dir: str) -> None:
+        self._busy_end()
+        if not result.ok:
+            self._show_error("Star catalog export failed")
+            return
+        try:
+            with open(output_file, "r", encoding="utf-8") as handle:
+                detections = parse_star_catalog(handle.read())
+        except OSError:
+            self._show_error("Star catalog file was not written")
+            return
+        self.preview.set_star_layer(detections)
+        width = self.preview.pixbuf.get_width() if self.preview.pixbuf else 0
+        height = self.preview.pixbuf.get_height() if self.preview.pixbuf else 0
+        svg = write_star_layer_svg(
+            os.path.join(job_dir, "star_layer.svg"), detections, width, height
+        )
+        self._log("Star catalog: %d detections, layer %s" % (len(detections), svg))
+        self._status("Star layer: %d objects (brightest first)" % len(detections))
 
     def _on_plate_solve_done(self, result, output_dir: str) -> None:
         self._busy_end()

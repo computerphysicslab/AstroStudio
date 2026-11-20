@@ -181,6 +181,30 @@ class SkyStackerAdapter(CliAdapter):
         return argv
 
     @staticmethod
+    def build_export_stars_argv(source: str, output_file: str) -> List[str]:
+        """Export flux-sorted star detections without plate solving."""
+        return [
+            "skystacker",
+            "--process-image",
+            source,
+            "--export-stars",
+            output_file,
+            "--no-donation",
+        ]
+
+    @staticmethod
+    def build_classify_objects_argv(source: str, output_file: str) -> List[str]:
+        """Report-only diffuse-object classification with IVOA object types."""
+        return [
+            "skystacker",
+            "--process-image",
+            source,
+            "--classify-objects",
+            output_file,
+            "--no-donation",
+        ]
+
+    @staticmethod
     def build_bpm_argv(source_dir: str, output_dir: str, sigma: float = 5.0) -> List[str]:
         return [
             "skystacker",

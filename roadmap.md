@@ -211,6 +211,26 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 | Planetary video MP4/MOV (H.264/HEVC) | planned | ffmpeg-based frame extraction/SER conversion; refuse fragmented/10-bit variants (high) |
 | WebP / JPEG XL / JPEG 2000 (JP2, J2K) | planned | Display/sharing formats via external CLI (low-medium) |
 
+## Next three items (analysis, 2026-11-20)
+
+With all low-difficulty items complete, the next three are the medium-difficulty core
+quality items, in this order:
+
+1. **#23 `MainWindow` refactor** — `astrostudio/ui/main_window.py` is now the single point
+   of failure for menus, popups, docks, exports and transforms. Extract `MenuBuilder`,
+   `ActionRegistry`, `DockManager` and dialogs first so later fixes are local and testable
+   without changing behaviour. This unblocks reliable coverage of #24 and #25.
+2. **#24 `mypy` strict + `pytest-cov` gate + `desktop-file-validate`** — after the
+   refactor the core/adapters have stable boundaries. Add config and CI checks with 70%
+   coverage in `core/` and `adapters/`; this protects the argv-only/zero-processing
+   invariants and catches regressions in new report parsers.
+3. **#25 `pytest-gtk` UI smoke tests** — current UI tests are hand-written and already
+   cover popups, docks and close/undo behaviour, but formal `pytest-gtk` fixtures will
+   make menus, dock toggles and metadata/histogram panels repeatable in a real session.
+   Do this after #23 so tests target the extracted components instead of the God Object.
+
+Acceptance remains as listed above; update this section whenever the order changes.
+
 ## Milestone mapping (reference only)
 
 - **v0.2.0** — conversion/inspection completeness, settings persistence, job manager.

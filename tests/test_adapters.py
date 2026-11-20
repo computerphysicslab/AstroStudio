@@ -180,3 +180,16 @@ def test_gamma_preview_flag():
     argv = adapter.build_preview_argv("w.tiff", "p.png", gamma=1.4)
     assert argv[2:4] == ["-evaluate", "Pow"]
     assert argv[4] == "1.400"
+
+
+def test_display_export_includes_gamma_and_level():
+    from astrostudio.adapters import ImageMagickAdapter
+    from astrostudio.core.export_formats import find_format
+
+    adapter = ImageMagickAdapter(binary="convert")
+    argv = adapter.build_display_export_argv(
+        "w.tiff", "o.jpg", find_format("jpg90"), 1.25, (25.0, 200.0)
+    )
+    assert "-evaluate" in argv and "1.250" in argv
+    assert "-level" in argv and "9.8%,78.4%" in argv
+    assert "-quality" in argv and "90" in argv

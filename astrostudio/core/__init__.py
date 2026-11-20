@@ -24,9 +24,15 @@ from .histogram import histogram_argv, parse_histogram_text
 from .i18n import Translator
 from .job_manager import JobManager, JobState
 from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
+from .object_classification import (
+    DiffuseObject,
+    parse_classification,
+    write_object_layer_svg,
+)
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
 from .session import load_session, save_session
+from .star_catalog import StarDetection, parse_star_catalog, write_star_layer_svg
 from .video import (
     SerHeader,
     ffmpeg_extract_argv,
@@ -75,6 +81,9 @@ __all__ = [
     "unique_export_path",
     "ImageWorkspace",
     "OperationLog",
+    "DiffuseObject",
+    "parse_classification",
+    "write_object_layer_svg",
     "install_command",
     "package_for_binary",
     "parse_policy",
@@ -96,5 +105,8 @@ __all__ = [
     "ScratchManager",
     "load_session",
     "save_session",
+    "StarDetection",
+    "parse_star_catalog",
+    "write_star_layer_svg",
     "SettingsManager",
 ]

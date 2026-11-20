@@ -130,3 +130,26 @@ class ImageMagickAdapter(CliAdapter):
             argv.extend(export_format.flags)
         argv.append(destination)
         return self._with_threads(argv)
+
+    def build_display_export_argv(
+        self,
+        tiff_path: str,
+        destination: str,
+        export_format: "ExportFormat",
+        gamma: float = None,
+        stretch_points: tuple = None,
+    ) -> Sequence[str]:
+        argv = [self.binary, tiff_path]
+        if gamma is not None:
+            argv.extend(("-evaluate", "Pow", "%.3f" % float(gamma)))
+        if stretch_points:
+            low, high = stretch_points
+            argv.extend(
+                (
+                    "-level",
+                    "%.1f%%,%.1f%%" % (low / 255.0 * 100.0, high / 255.0 * 100.0),
+                )
+            )
+        argv.extend(export_format.flags)
+        argv.append(destination)
+        return self._with_threads(argv)

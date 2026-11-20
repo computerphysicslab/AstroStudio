@@ -53,6 +53,7 @@ def test_derivation_tree_dialog_opens(monkeypatch, tmp_path):
 
 def test_context_menu_has_menu_and_crop(monkeypatch, tmp_path):
     app = AstroStudioApplication()
+    app.settings.set("recent_transforms", [])
     window = MainWindow(app, app.registry, app.scratch, app.engine)
     monkeypatch.setattr(Gtk.Menu, "popup_at_pointer", lambda self, event: None)
     event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
@@ -63,7 +64,7 @@ def test_context_menu_has_menu_and_crop(monkeypatch, tmp_path):
     )
     window._show_context_menu(event)
     items = window._context_popup.get_children()
-    assert [item.get_label() for item in items] == ["menu", "Crop Selection"]
+    assert [item.get_label() for item in items[:2]] == ["menu", "Crop Selection"]
     assert items[1].get_sensitive()
     window.preview.selection = None
     window._show_context_menu(event)
@@ -118,3 +119,72 @@ def test_before_after_loads_image_into_canvas(monkeypatch, tmp_path):
     window._on_before_after_done(result, output)
     assert opened == [output]
     window.destroy()
+
+
+def test_close_shows_previous_image(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    for index in (1, 2):
+        png = tmp_path / ("p%d.png" % index)
+        GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 8, 8).savev(
+            str(png), "png", [], []
+        )
+        window.current_paths.append(str(png))
+        image = WorkingImage(
+            "img%d" % index, str(png), str(tmp_path), str(tmp_path / "w.tiff"), str(png)
+        )
+        window.current_images.append(image)
+    window.action_close()
+    assert len(window.current_images) == 1
+    assert window.preview.path == str(tmp_path / "p1.png")
+    window.destroy()
+
+
+def test_app_popup_menu_triggers_rotate_segment(monkeypatch):
+    app = AstroStudioApplication()
+    app.window = MainWindow(app, app.registry, app.scratch, app.engine)
+    window = app.window
+    monkeypatch.setattr(Gtk.Menu, "popup_at_pointer", lambda self, event: None)
+    event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    window._show_app_menu(event)
+    processing = next(
+        item for item in window._app_popup.get_children()
+        if item.get_label() == "Processing"
+    )
+    rotate_menu = processing.get_submenu()
+    rotate_item = next(
+        item for item in rotate_menu.get_children()
+        if item.get_label() == "Rotate Image"
+    )
+    segment = next(
+        item for item in rotate_item.get_submenu().get_children()
+        if item.get_label() == "Rotate by segment..."
+    )
+    segment.activate()
+    assert window.preview.rotation_mode
+    window.destroy()
+
+
+def test_context_menu_shows_recent_transforms(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    app.settings.set("recent_transforms", [{"label": "Sharpen", "params": {"unsharp": "1.5"}}])
+    app.window = MainWindow(app, app.registry, app.scratch, app.engine)
+    window = app.window
+    monkeypatch.setattr(Gtk.Menu, "popup_at_pointer", lambda self, event: None)
+    event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    window._show_context_menu(event)
+    labels = [item.get_label() for item in window._context_popup.get_children()]
+    assert "Repeat: Sharpen" in labels
+    window.destroy()
+
+
+def test_redo_accelerator_includes_ctrl_y(monkeypatch):
+    app = AstroStudioApplication()
+    original_get = app.settings.get
+
+    def custom_get(key, default=None):
+        return {"redo": "<Control><Shift>z"} if key == "shortcuts" else original_get(key, default)
+
+    monkeypatch.setattr(app.settings, "get", custom_get)
+    app.apply_shortcuts()
+    assert any("y" in accel for accel in app.get_accels_for_action("app.redo"))

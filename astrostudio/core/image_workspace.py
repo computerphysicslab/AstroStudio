@@ -319,9 +319,18 @@ class ImageWorkspace:
             shutil.copyfile(image.png_path, destination)
             on_ready(destination)
             return
-        argv = self.adapter.build_export_argv(
-            image.tiff_path, destination, export_format
-        )
+        if export_format is not None and export_format.category == "Display":
+            argv = self.adapter.build_display_export_argv(
+                image.tiff_path,
+                destination,
+                export_format,
+                image.gamma,
+                image.stretch_points,
+            )
+        else:
+            argv = self.adapter.build_export_argv(
+                image.tiff_path, destination, export_format
+            )
         if on_log:
             on_log("Export from TIFF: %s" % " ".join(argv))
         self.engine.run(

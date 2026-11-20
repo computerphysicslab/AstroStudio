@@ -267,8 +267,9 @@ For local integration testing of GTK file loading, metadata inspection, and CLI 
   have bottom arrow grips and a wider hit zone; the chart draws filled distributions
   plus bars and an explicit message when no data is available.
 * Right-dock headers use `sans 9`, a 16px high box and a flat 16x14 close button, roughly
-  halving their vertical footprint. Order is fixed: CPU/RAM monitor, Backends, Metadata
-  (hidden by default), Histogram, Terminal Drawer.
+  halving their vertical footprint. Current order: CPU/RAM monitor, Backends, Metadata
+  (hidden by default), Histogram, Jobs and Terminal Drawer; Jobs was added later and is
+  visible by default.
 * The export format dialog has a `Gtk.HeaderBar` (draggable), 600x560 default size, 520x480
   scroll area and `Sans 9` rows so all formats are visible at once.
 * PSD/PSB import uses the `[0]` composite selector and a CLI display stretch; a real-CLI
@@ -816,3 +817,30 @@ to force a UI redraw.
 * Before / After now opens the generated difference map through `_open_file()` so it is
   a new image in the canvas/workspace instead of a separate viewer window.
 * Version bumped to `0.2.36`.
+
+
+---
+
+## 54. v0.2.37 — Star/Diffuse Layers, Reliable Popups and Display Exports
+
+* SkyStacker 0.6.1 exposes `--export-stars FILE` and `--classify-objects FILE` as
+  report-only jobs used with `--process-image` and no `--image-op`. Adapters build argv
+  arrays for both; reports are parsed in `core/star_catalog.py` and
+  `core/object_classification.py`. Real CLI runs on `assets/MilkyWay.jpg` and a synthetic
+  field produced 500 stars and 177 diffuse components respectively.
+* Astrometry > Export Star Catalog and Astrometry > Classify Objects run the CLI
+  asynchronously, render numbered overlays in the preview, and write SVG sidecars
+  (`star_layer.svg`, `object_layer.svg`) in the job scratch directory. Pipeline pixels
+  are never modified; scientific exports remain linear.
+* Right-click is now a manually built GTK menu with nested submenus, a Crop Selection
+  item tied to the current selection, and recent transforms from settings after a
+  separator. Running a popup item dismisses popups first and dispatches directly to the
+  window handler, so the real app no longer relies on GApplication registration in the
+  test harness and the first click after rotation works.
+* `Ctrl+Z` and `Ctrl+Y` are registered accelerators with settings migration; closing an
+  image loads the previous one from the workspace history when available. Low-depth
+  display formats (JPEG/PNG/BMP) get gamma/level flags in the CLI export argv, while
+  FITS/TIFF scientific exports stay linear.
+* Tests cover argv building, report parsing, SVG layers, real CLI reports, popup dispatch,
+  recent transforms and close-to-previous-image. Full suite: 142 passed, 2 skipped.
+* Version bumped to `0.2.37`.

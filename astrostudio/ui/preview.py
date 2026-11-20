@@ -40,6 +40,8 @@ class PreviewPane(Gtk.DrawingArea):
         self.rotation_mode = False
         self.rotation_start = None
         self.rotation_end = None
+        self.star_layer = []
+        self.object_layer = []
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -69,6 +71,14 @@ class PreviewPane(Gtk.DrawingArea):
         self.pan_x = 0.0
         self.pan_y = 0.0
         self._dragging = False
+
+    def set_star_layer(self, detections) -> None:
+        self.star_layer = list(detections)
+        self.queue_draw()
+
+    def set_object_layer(self, objects) -> None:
+        self.object_layer = list(objects)
+        self.queue_draw()
 
     def set_rotation_mode(self, enabled: bool) -> None:
         self.rotation_mode = enabled
@@ -225,6 +235,33 @@ class PreviewPane(Gtk.DrawingArea):
         Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, 0)
         cr.paint()
         cr.restore()
+        if self.star_layer:
+            cr.set_font_size(9)
+            for rank, star in enumerate(self.star_layer[:40], start=1):
+                x = offset_x + star.x * scale
+                y = offset_y + star.y * scale
+                if not (0 <= x <= allocation.width and 0 <= y <= allocation.height):
+                    continue
+                cr.set_source_rgba(1.0, 0.80, 0.20, 0.9)
+                cr.set_line_width(1.2)
+                cr.arc(x, y, 6, 0, 2 * math.pi)
+                cr.stroke()
+                cr.move_to(x + 8, y - 6)
+                cr.fill_text(str(rank))
+        if self.object_layer:
+            cr.set_font_size(9)
+            for obj in self.object_layer[:30]:
+                x = offset_x + obj.x * scale
+                y = offset_y + obj.y * scale
+                if not (0 <= x <= allocation.width and 0 <= y <= allocation.height):
+                    continue
+                radius = max(5.0, min(50.0, (obj.area ** 0.5) * scale / 2.0))
+                cr.set_source_rgba(0.30, 0.70, 1.0, 0.85)
+                cr.set_line_width(1.4)
+                cr.arc(x, y, radius, 0, 2 * math.pi)
+                cr.stroke()
+                cr.move_to(x + radius + 2, y - radius - 2)
+                cr.fill_text("%d %s" % (obj.id, obj.object_type))
         rectangle = self.selection
         if self.selection_start is not None and self.selection_end is not None:
             rectangle = selection_rectangle(self.selection_start, self.selection_end)

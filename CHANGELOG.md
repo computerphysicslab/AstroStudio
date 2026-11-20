@@ -8,6 +8,14 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.37 — 2026-11-20
+
+- Added SkyStacker `--export-stars` and `--classify-objects` report-only jobs, with JSON parsers, numbered canvas overlays and SVG sidecars.
+- Right-click popups are built explicitly with nested submenus and recent transforms; actions dismiss popups and dispatch directly to window handlers.
+- Added `Ctrl+Y` redo accelerator with settings migration; closing an image restores the previous one.
+- Low-depth export formats (JPEG/PNG/BMP) receive CLI gamma/level flags while FITS/TIFF stay linear.
+- Added unit, real-CLI and UI interaction tests; suite is 142 passed, 2 skipped.
+
 ## 0.2.36 — 2026-11-19
 
 - Rotation argv now includes `+repage`, fixing ImageMagick 6 "negative image positions unsupported" when writing rotated TIFFs.
