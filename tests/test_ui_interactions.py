@@ -161,6 +161,12 @@ def test_app_popup_menu_triggers_rotate_segment(monkeypatch):
         item for item in rotate_item.get_submenu().get_children()
         if item.get_label() == "Rotate by segment..."
     )
+    rotations = []
+    monkeypatch.setattr(
+        window,
+        "_rotate_image",
+        lambda angle, label, relaunch=None: rotations.append((angle, label, relaunch)),
+    )
     segment.activate()
     assert window.preview.rotation_mode
     window._rotation_enabled_at = 0.0
@@ -173,6 +179,7 @@ def test_app_popup_menu_triggers_rotate_segment(monkeypatch):
     release = Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE)
     window._on_canvas_release(window.preview, release)
     assert not window.preview.rotation_mode
+    assert rotations == [(0, "Rotate by segment", "rotate-segment")]
     window.destroy()
 
 
@@ -283,4 +290,91 @@ def test_recent_transforms_deduplicated_and_relaunched(monkeypatch):
     )
     window._reapply_transform(window.recent_transforms[0])
     assert launched == [True]
+    window.destroy()
+
+
+def test_context_menu_keeps_open_recent(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    app.settings.set("recent_transforms", [])
+    app.settings.set("recent_images", [str(tmp_path / "M42.jpg"), str(tmp_path / "M31.jpg")])
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    monkeypatch.setattr(Gtk.Menu, "popup_at_pointer", lambda self, event: None)
+    event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    window._show_app_menu(event)
+    file_item = next(
+        item for item in window._app_popup.get_children()
+        if item.get_label() == "File"
+    )
+    labels = [item.get_label() for item in file_item.get_submenu().get_children()]
+    assert "Open Recent" in labels
+    recent_index = labels.index("Open Recent")
+    assert "Open" in labels[:recent_index]
+    recent_item = file_item.get_submenu().get_children()[recent_index]
+    recent_labels = [item.get_label() for item in recent_item.get_submenu().get_children()]
+    assert recent_labels == ["M42.jpg", "M31.jpg"]
+    window.destroy()
+
+
+def test_context_menu_open_recent_fallback(monkeypatch):
+    app = AstroStudioApplication()
+    app.settings.set("recent_images", [])
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    monkeypatch.setattr(Gtk.Menu, "popup_at_pointer", lambda self, event: None)
+    window._show_app_menu(Gdk.Event.new(Gdk.EventType.BUTTON_PRESS))
+    file_item = next(
+        item for item in window._app_popup.get_children()
+        if item.get_label() == "File"
+    )
+    recent_item = next(
+        item for item in file_item.get_submenu().get_children()
+        if item.get_label() == "Open Recent"
+    )
+    labels = [item.get_label() for item in recent_item.get_submenu().get_children()]
+    assert labels == ["No recent images"]
+    window.destroy()
+
+
+def test_rotation_cursor_restored_on_realized_window(monkeypatch):
+    class FakeWindow:
+        def __init__(self):
+            self.cursor = None
+
+        def set_cursor(self, cursor):
+            self.cursor = cursor
+
+    pane = PreviewPane()
+    fake = FakeWindow()
+    monkeypatch.setattr(pane, "get_window", lambda: fake)
+    pane.set_rotation_mode(True)
+    assert fake.cursor is not None
+    pane.set_rotation_mode(False)
+    assert fake.cursor is not None
+
+
+def test_layer_visibility_toggles():
+    pane = PreviewPane()
+    assert pane.star_layer_visible and pane.object_layer_visible
+    assert not pane.toggle_star_layer()
+    assert pane.star_layer_visible is False
+    assert pane.toggle_star_layer()
+    assert not pane.toggle_object_layer()
+    assert pane.toggle_object_layer()
+
+
+def test_no_segment_reports_status_and_keeps_mode(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    statuses = []
+    monkeypatch.setattr(window, "_status", statuses.append)
+    monkeypatch.setattr(
+        window, "_rotate_image", lambda *a, **k: pytest.fail("must not rotate")
+    )
+    window.action_rotate_segment()
+    window._rotation_enabled_at = 0.0
+    press = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+    press.button, press.x, press.y = 1, 100, 100
+    window._on_canvas_click(window.preview, press)
+    window._on_canvas_release(window.preview, Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE))
+    assert window.preview.rotation_mode
+    assert any("No segment" in text for text in statuses)
     window.destroy()

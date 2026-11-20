@@ -8,6 +8,22 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.0 — 2026-11-20
+
+- Roadmap milestone: first `MainWindow` refactor extracted `MenuBuilder`, `ActionRegistry`, `DockManager` and `DialogFactory` while preserving behaviour.
+- Added `mypy` strict config for `core/`/`adapters/`, 70% coverage gate, pre-commit hooks and GitHub Actions CI with `desktop-file-validate`.
+- Added GUI smoke tests and regression tests for layer toggles and no-segment rotation feedback.
+- View > Layers toggles star-identification and diffuse-object overlays independently.
+- A quick click without a segment now keeps rotation mode armed and reports "No segment drawn; rotation not applied".
+- Suite: 157 passed, 2 skipped.
+
+## 0.2.40 — 2026-11-20
+
+- Fixed rotate-by-segment completion: restoring the default cursor used the nonexistent `Gdk.CursorType.DEFAULT`, raising before `_rotate_image()` on a realized window; now uses `LEFT_PTR` and logs/shows the applied angle.
+- Restored `Open Recent` in the right-click File submenu; the manual popup now injects the same recent-image entries as the menu bar.
+- Added regression tests for Open Recent, recent fallback, cursor restoration, completed segment dispatch and a real-CLI end-to-end workspace rotation that verifies the regenerated preview changes.
+- Verified with a real X11 drag: segment -11.31° produced a successful ImageMagick rotation and preview refresh. Suite is 152 passed, 2 skipped.
+
 ## 0.2.39 — 2026-11-20
 
 - Rotate-by-segment activation now ignores a short window of stray events from the closing popup, checks rotation mode before double-click zoom, and shows a translated "Draw a segment" hint next to the pointer with a crosshair cursor.

@@ -842,7 +842,7 @@ to force a UI redraw.
   display formats (JPEG/PNG/BMP) get gamma/level flags in the CLI export argv, while
   FITS/TIFF scientific exports stay linear.
 * Tests cover argv building, report parsing, SVG layers, real CLI reports, popup dispatch,
-  recent transforms and close-to-previous-image. Full suite: 147 passed, 2 skipped.
+  recent transforms and close-to-previous-image. Full suite: 157 passed, 2 skipped.
 * Version bumped to `0.2.37`.
 
 
@@ -880,3 +880,42 @@ to force a UI redraw.
   free-angle rotations store a `relaunch` target so selecting them from the right-click
   history reopens the interaction instead of silently reusing the previous angle.
 * Version bumped to `0.2.39`.
+
+
+---
+
+## 57. v0.2.40 — Segment Completion and Open Recent Regression
+
+* Real X11 reproduction exposed the real rotate-by-segment failure: on release,
+  `PreviewPane.set_rotation_mode(False)` raised `AttributeError` because
+  `Gdk.CursorType.DEFAULT` does not exist in this GDK build. The exception happened before
+  `_rotate_image()`, so no CLI job was launched. Cursor reset now uses `LEFT_PTR`, and the
+  applied angle is logged and shown in the status bar. A real drag of -11.31 degrees was
+  verified end to end in the operation log.
+* The manual right-click popup had replaced the model-based menu and lost the dynamically
+  inserted `Open Recent` submenu. `_entries_with_recent()` now injects the same recent
+  paths (or the "No recent images" fallback) into the File submenu of the popup.
+* Regression coverage: Open Recent present/absent cases, cursor restoration on a realized
+  widget, segment release dispatching `(angle, label, relaunch)` and a real-CLI workspace
+  rotation whose preview PNG bytes and dimensions change.
+* Version bumped to `0.2.40`.
+
+
+---
+
+## 58. v0.3.0 — Roadmap Items 23-25 and Layer Toggles
+
+* First `MainWindow` refactor: menu construction moved to `ui/menu_builder.py`, action
+  dispatch to `ui/action_registry.py`, dock visibility to `ui/dock_manager.py` and dialog
+  headers to `ui/dialogs.py`. `MainWindow` delegates to these collaborators; all previous
+  methods and behaviour are preserved.
+* Added View > Layers toggles for the star-identification and diffuse-object overlays;
+  visibility is owned by `PreviewPane` and reported in the status bar.
+* A quick click without a drawn segment no longer silently ends rotation mode: the mode
+  stays armed and the status bar explains that no segment was drawn.
+* Quality tooling: `mypy.ini` (strict, core/adapters), `requirements-dev.txt`,
+  `.pre-commit-config.yaml` and `.github/workflows/ci.yml` with a 70% coverage gate and
+  `desktop-file-validate`. Added `tests/test_ui_smoke.py` for window, menu, dock and
+  metadata/histogram coverage. Local environment lacks the optional dev tools, so they
+  are pinned for CI.
+* Roadmap items 23-25 are now checked; version bumped to `0.3.0`.

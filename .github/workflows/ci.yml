@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gir1.2-gtk-3.0 libcairo2-dev python3-gi desktop-file-utils
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements-dev.txt
+      - name: Mypy strict
+        run: python3 -m mypy --config-file mypy.ini
+      - name: Tests with coverage
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/ -q --cov=astrostudio/core --cov=astrostudio/adapters --cov-fail-under=70
+      - name: Desktop entry
+        run: desktop-file-validate packaging/astro-studio.desktop

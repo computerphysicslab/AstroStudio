@@ -2,6 +2,7 @@
 
 import shutil
 import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -139,3 +140,55 @@ def test_classify_objects_real_cli(tmp_path):
     objects, report = parse_classification(output.read_text())
     assert report["image"] == "field.png"
     assert len(objects) == report["count"]
+
+
+def test_workspace_rotation_end_to_end_regenerates_preview(tmp_path, monkeypatch):
+    from gi.repository import GLib
+    from PIL import Image, ImageDraw
+
+    from astrostudio.adapters import ImageMagickAdapter
+    from astrostudio.core import ImageWorkspace, ProcessEngine, ScratchManager
+
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))
+    (tmp_path / "runtime").mkdir()
+    source = tmp_path / "source.png"
+    image = Image.new("RGB", (80, 60), "black")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((5, 5, 45, 20), fill="red")
+    image.save(str(source))
+
+    engine = ProcessEngine()
+    workspace = ImageWorkspace(
+        ScratchManager("session"), engine, ImageMagickAdapter(binary="convert")
+    )
+    opened = []
+    workspace.prepare(str(source), opened.append, lambda m: pytest.fail(m))
+
+    def wait_until(predicate, seconds=20):
+        loop = GLib.MainLoop()
+
+        def check():
+            if predicate():
+                loop.quit()
+                return False
+            return True
+
+        GLib.timeout_add(50, check)
+        GLib.timeout_add(seconds * 1000, loop.quit)
+        loop.run()
+
+    wait_until(lambda: bool(opened))
+    assert opened
+    working = opened[0]
+    before = (Path(working.png_path)).read_bytes()
+
+    rotated = []
+    workspace.transform(
+        working, {"rotate": "30"}, rotated.append, lambda m: pytest.fail(m)
+    )
+    wait_until(lambda: bool(rotated))
+    assert rotated == [working]
+    after = Path(working.png_path).read_bytes()
+    assert after != before
+    with Image.open(working.png_path) as preview:
+        assert preview.size != (80, 60)

@@ -149,11 +149,11 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 21. [x] AVI codec validation via ffprobe, rejecting lossy codecs such as MJPEG.
 22. [x] PSD/PSB read-back via ImageMagick `[0]` flattened composite with display stretch
        and an integration test (v0.2.4).
-23. [ ] First `MainWindow` refactor: extract `MenuBuilder`, `ActionRegistry`,
+23. [x] First `MainWindow` refactor: extract `MenuBuilder`, `ActionRegistry`,
        `DockManager` and reusable dialogs; keep behaviour identical (v0.3.0).
-24. [ ] `mypy` strict on the core plus `pytest-cov` threshold (70% in `core/` and
+24. [x] `mypy` strict on the core plus `pytest-cov` threshold (70% in `core/` and
        `adapters/`) in a pre-commit/CI job with `desktop-file-validate` (v0.3.0).
-25. [ ] UI smoke tests with `pytest-gtk` that start the window and verify menus, dock
+25. [x] UI smoke tests with `pytest-gtk` that start the window and verify menus, dock
        toggles and metadata/histogram panels (v0.3.0).
 26. [ ] SIGKILL escalation after a configurable per-job timeout to avoid zombie jobs
        (v0.3.0).
@@ -211,7 +211,7 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 | Planetary video MP4/MOV (H.264/HEVC) | planned | ffmpeg-based frame extraction/SER conversion; refuse fragmented/10-bit variants (high) |
 | WebP / JPEG XL / JPEG 2000 (JP2, J2K) | planned | Display/sharing formats via external CLI (low-medium) |
 
-## Next three items (analysis, 2026-11-20)
+## Next three items (completed 2026-11-20)
 
 With all low-difficulty items complete, the next three are the medium-difficulty core
 quality items, in this order:
@@ -249,3 +249,14 @@ Acceptance remains as listed above; update this section whenever the order chang
 - Never commit scratch files, backups, large datasets or secrets; `.gitignore` excludes
   generated caches.
 - No push, tag, merge or history rewrite without explicit user request.
+
+
+### Completion note
+
+Items 23-25 were completed in v0.3.0: `MenuBuilder`, `ActionRegistry`, `DockManager`
+and `DialogFactory` were extracted from `MainWindow`; `mypy.ini`,
+`requirements-dev.txt`, `.pre-commit-config.yaml` and `.github/workflows/ci.yml` enforce
+strict core/adapters typing, 70% coverage and `desktop-file-validate`; GUI smoke tests
+cover the window, menus, dock toggles and metadata/histogram panels. The local
+environment lacks `mypy`, `pytest-cov` and `pytest-gtk`, so those checks run in CI with
+the pinned dev requirements.

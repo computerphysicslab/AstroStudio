@@ -1,0 +1,20 @@
+repos:
+  - repo: local
+    hooks:
+      - id: mypy-core
+        name: mypy strict (core/adapters)
+        entry: python3 -m mypy
+        language: system
+        pass_filenames: false
+        args: [--config-file, mypy.ini]
+      - id: pytest-cov
+        name: pytest coverage gate
+        entry: python3 -m pytest
+        language: system
+        pass_filenames: false
+        args: [tests/, --cov=astrostudio/core, --cov=astrostudio/adapters, --cov-fail-under=70, -q]
+      - id: desktop-file-validate
+        name: validate desktop entry
+        entry: desktop-file-validate
+        language: system
+        files: packaging/astro-studio.desktop

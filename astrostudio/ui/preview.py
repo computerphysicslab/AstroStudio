@@ -42,6 +42,8 @@ class PreviewPane(Gtk.DrawingArea):
         self.rotation_end = None
         self.star_layer = []
         self.object_layer = []
+        self.star_layer_visible = True
+        self.object_layer_visible = True
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -95,6 +97,16 @@ class PreviewPane(Gtk.DrawingArea):
         self.object_layer = list(objects)
         self.queue_draw()
 
+    def toggle_star_layer(self) -> bool:
+        self.star_layer_visible = not self.star_layer_visible
+        self.queue_draw()
+        return self.star_layer_visible
+
+    def toggle_object_layer(self) -> bool:
+        self.object_layer_visible = not self.object_layer_visible
+        self.queue_draw()
+        return self.object_layer_visible
+
     def set_rotation_mode(self, enabled: bool) -> None:
         self.rotation_mode = enabled
         self.rotation_start = None
@@ -102,7 +114,7 @@ class PreviewPane(Gtk.DrawingArea):
         window = self.get_window()
         display = Gdk.Display.get_default()
         if window is not None and display is not None:
-            cursor_type = Gdk.CursorType.CROSSHAIR if enabled else Gdk.CursorType.DEFAULT
+            cursor_type = Gdk.CursorType.CROSSHAIR if enabled else Gdk.CursorType.LEFT_PTR
             window.set_cursor(Gdk.Cursor.new_for_display(display, cursor_type))
         if not enabled:
             self.hide_tooltip()
@@ -127,7 +139,7 @@ class PreviewPane(Gtk.DrawingArea):
         _allocation, scale, offset_x, offset_y = self._view_parameters()
         if scale <= 0:
             return None
-        if self.star_layer:
+        if self.star_layer and self.star_layer_visible:
             top_flux = max((star.flux for star in self.star_layer), default=1.0) or 1.0
             for rank, star in enumerate(self.star_layer[:500], start=1):
                 sx = offset_x + star.x * scale
@@ -330,7 +342,7 @@ class PreviewPane(Gtk.DrawingArea):
                 if rank <= 30:
                     cr.move_to(x + radius + 2, y - radius)
                     cr.show_text(str(rank))
-        if self.object_layer:
+        if self.object_layer and self.object_layer_visible:
             cr.set_font_size(9)
             for obj in self.object_layer[:30]:
                 x = offset_x + obj.x * scale

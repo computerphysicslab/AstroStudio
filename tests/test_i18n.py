@@ -49,3 +49,7 @@ def test_translation_falls_back_to_english():
 def test_draw_segment_hint_translated():
     assert Translator("es").tr("Draw a segment") == "Dibujar segmento"
     assert Translator("de").tr("Draw a segment") == "Segment ziehen"
+
+
+def test_rotating_by_hint_translated():
+    assert Translator("es").tr("Rotating by") == "Rotando"

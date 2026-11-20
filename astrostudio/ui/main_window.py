@@ -74,6 +74,10 @@ from .histogram_panel import HistogramWidget  # noqa: E402
 from .job_panel import JobPanel  # noqa: E402
 from .preview import PreviewPane  # noqa: E402
 from .resource_monitor import ResourceMonitor  # noqa: E402
+from .action_registry import ActionRegistry  # noqa: E402
+from .dialogs import DialogFactory  # noqa: E402
+from .dock_manager import DockManager  # noqa: E402
+from .menu_builder import MenuBuilder, append_menu_items, toggle_label  # noqa: E402
 from .window_utils import make_draggable  # noqa: E402
 
 MENU_LAYOUT = (
@@ -254,6 +258,14 @@ MENU_LAYOUT = (
                     ("Jobs", "toggle-jobs"),
                 ),
             ),
+            (
+                "Layers",
+                None,
+                (
+                    ("Star Identification Layer", "toggle-star-layer"),
+                    ("Diffuse Object Layer", "toggle-object-layer"),
+                ),
+            ),
         ),
     ),
     (
@@ -355,26 +367,6 @@ TOGGLE_PANELS = {
 }
 
 
-def toggle_label(action: str, label: str, visible: bool) -> str:
-    return "%s: %s" % (label, "On" if visible else "Off")
-
-
-def append_menu_items(menu: Gio.Menu, items, registry: dict = None, tr=None) -> None:
-    translate = tr or (lambda text: text)
-    for item in items:
-        if item[0] is None:
-            menu.append_section(None, Gio.Menu.new())
-        elif len(item) == 3:
-            child = Gio.Menu.new()
-            append_menu_items(child, item[2], registry, translate)
-            menu.append_submenu(translate(item[0]), child)
-        else:
-            menu_item = Gio.MenuItem.new(translate(item[0]), "app." + item[1])
-            menu.append_item(menu_item)
-            if registry is not None:
-                registry[item[1]] = menu_item
-
-
 class MainWindow(Gtk.ApplicationWindow):
     def __init__(self, app, registry, scratch, engine) -> None:
         super().__init__(application=app, title="Astro Studio")
@@ -391,6 +383,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.scratch = scratch
         self.engine = engine
         self.translator = Translator(self.settings.get("language", "en"))
+        self.actions = ActionRegistry(self)
+        self.docks = DockManager(self)
+        self.dialogs = DialogFactory(self)
+        self.menus = MenuBuilder(
+            self, MENU_LAYOUT, TOGGLE_PANELS, self.docks.panel_for_action
+        )
         for index in range(10):
             setattr(
                 self,
@@ -532,14 +530,14 @@ class MainWindow(Gtk.ApplicationWindow):
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         right.set_border_width(6)
         self.resource_monitor = ResourceMonitor()
-        self.resources_panel = self._panel_with_close(
+        self.resources_panel = self.docks.panel_with_close(
             "Resources (CPU / RAM)", self.resource_monitor
         )
         right.pack_start(self.resources_panel, False, False, 0)
-        self.backends_panel = self._panel_with_close(
+        self.backends_panel = self.docks.panel_with_close(
             "Backends (startup discovery)", self._build_backend_content()
         )
-        self.metadata_panel = self._panel_with_close(
+        self.metadata_panel = self.docks.panel_with_close(
             "Metadata (ExifTool, read-only)", self._build_metadata_content()
         )
         self.metadata_panel.set_no_show_all(True)
@@ -554,10 +552,10 @@ class MainWindow(Gtk.ApplicationWindow):
         hist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         hist_box.pack_start(self.histogram_widget, True, True, 0)
         hist_box.pack_start(self.gamma_scale, False, False, 0)
-        self.histogram_panel = self._panel_with_close(
+        self.histogram_panel = self.docks.panel_with_close(
             "Histogram (CLI data, click handles to stretch)", hist_box
         )
-        self.terminal_panel = self._panel_with_close(
+        self.terminal_panel = self.docks.panel_with_close(
             "Terminal Drawer", self._build_log_content()
         )
         right.pack_start(self.backends_panel, False, False, 0)
@@ -586,68 +584,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self._rebuild_menu_bar()
 
     def _dynamic_entries(self, entries):
-        result = []
-        for item in entries:
-            if item[0] is None:
-                result.append(item)
-            elif len(item) == 3:
-                result.append((item[0], None, self._dynamic_entries(item[2])))
-            elif item[1] in TOGGLE_PANELS:
-                panel = getattr(
-                    self,
-                    {
-                        "toggle-backends": "backends_panel",
-                        "toggle-histogram": "histogram_panel",
-                        "toggle-terminal": "terminal_panel",
-                        "toggle-resources": "resources_panel",
-                        "toggle-jobs": "job_panel",
-                    }[item[1]],
-                    None,
-                )
-                visible = panel.get_visible() if panel is not None else True
-                result.append(
-                    (
-                        toggle_label(
-                            item[1],
-                            self.translator.tr(TOGGLE_PANELS[item[1]]),
-                            visible,
-                        ),
-                        item[1],
-                    )
-                )
-            else:
-                result.append(item)
-        return result
+        return self.menus.dynamic_entries(entries)
 
     def _build_menu_model(self) -> Gio.Menu:
-        menu = Gio.Menu.new()
-        for label, entries in MENU_LAYOUT:
-            submenu = Gio.Menu.new()
-            dynamic_entries = self._dynamic_entries(entries)
-            if label == "File":
-                first, remaining = dynamic_entries[:1], dynamic_entries[1:]
-                append_menu_items(
-                    submenu, first, self._menu_items, self.translator.tr
-                )
-                recent_menu = Gio.Menu.new()
-                paths = self.settings.get("recent_images", [])
-                if paths:
-                    for index, path in enumerate(paths[:10]):
-                        recent_menu.append(
-                            os.path.basename(path), "app.open-recent-%d" % index
-                        )
-                else:
-                    recent_menu.append(self.translator.tr("No recent images"), "app.open")
-                submenu.append_submenu(self.translator.tr("Open Recent"), recent_menu)
-                append_menu_items(
-                    submenu, remaining, self._menu_items, self.translator.tr
-                )
-            else:
-                append_menu_items(
-                    submenu, dynamic_entries, self._menu_items, self.translator.tr
-                )
-            menu.append_submenu(self.translator.tr(label), submenu)
-        return menu
+        return self.menus.build_menu_model()
 
     def _build_menu_bar(self) -> Gtk.Widget:
         return Gtk.MenuBar.new_from_model(self._build_menu_model())
@@ -677,27 +617,7 @@ class MainWindow(Gtk.ApplicationWindow):
         return toolbar
 
     def _panel_with_close(self, title: str, content: Gtk.Widget) -> Gtk.Widget:
-        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        header.set_size_request(-1, 16)
-        label = Gtk.Label(label=self.translator.tr(title), xalign=0.0)
-        self.panel_labels[title] = label
-        label.set_hexpand(True)
-        label.set_margin_top(0)
-        label.set_margin_bottom(0)
-        label.override_font(Pango.FontDescription("sans 9"))
-        close_button = Gtk.Button.new_from_icon_name(
-            "window-close-symbolic", Gtk.IconSize.MENU
-        )
-        close_button.set_relief(Gtk.ReliefStyle.NONE)
-        close_button.set_size_request(16, 14)
-        close_button.set_tooltip_text("Close panel")
-        close_button.connect("clicked", lambda *_: self._on_panel_closed(panel))
-        header.pack_start(label, True, True, 0)
-        header.pack_start(close_button, False, False, 0)
-        panel.pack_start(header, False, False, 0)
-        panel.pack_start(content, True, True, 0)
-        return panel
+        return self.docks.panel_with_close(title, content)
 
     def _build_backend_content(self) -> Gtk.Widget:
         self.backend_store = Gtk.ListStore(GdkPixbuf.Pixbuf, str, str)
@@ -965,15 +885,10 @@ toolbutton.inactive-action {
                 self._open_file(path)
 
     def _update_toggle_labels(self) -> None:
-        self._rebuild_menu_bar()
+        self.docks.update_labels()
 
     def _activate(self, action: str) -> None:
-        gio_action = self.app.lookup_action(action)
-        if gio_action is not None and not gio_action.get_enabled():
-            self._log("Action unavailable: %s (check Backends panel)" % action)
-            self._status("%s: %s" % (self.translator.tr("Action unavailable"), action))
-            return
-        self.app.activate_action(action, None)
+        self.actions.activate(action)
 
     def update_toolbar_sensitivity(self) -> None:
         for action, button in self.toolbar_buttons.items():
@@ -1245,7 +1160,14 @@ toolbutton.inactive-action {
             self.preview.hide_tooltip()
             self.preview.set_rotation_mode(False)
             if angle is not None:
+                self._log("Rotate by segment: %.2f degrees" % angle)
+                self._status(
+                    "%s %.2f°" % (self.translator.tr("Rotating by"), angle)
+                )
                 self._rotate_image(angle, "Rotate by segment", "rotate-segment")
+            else:
+                self.preview.set_rotation_mode(True)
+                self._status(self.translator.tr("No segment drawn; rotation not applied"))
             return True
         if self.preview.select_mode:
             rectangle = self.preview.finish_selection()
@@ -1336,38 +1258,18 @@ toolbutton.inactive-action {
         popup.popup_at_pointer(None)
 
     def _build_popup_menu(self, items) -> Gtk.Menu:
-        popup = Gtk.Menu()
-        for item in items:
-            if item[0] is None:
-                popup.append(Gtk.SeparatorMenuItem())
-            elif len(item) == 3:
-                parent = Gtk.MenuItem(label=self.translator.tr(item[0]))
-                parent.set_submenu(self._build_popup_menu(item[2]))
-                popup.append(parent)
-            else:
-                entry = Gtk.MenuItem(label=self.translator.tr(item[0]))
-                entry.connect(
-                    "activate",
-                    lambda *_widget, name=item[1]: self._run_popup_action(name),
-                )
-                popup.append(entry)
-        return popup
+        return self.menus.build_popup_menu(items)
 
     def _run_popup_action(self, action: str) -> None:
         self._dismiss_popups()
-        handler = getattr(self, "action_" + action.replace("-", "_"), None)
-        if handler is not None:
-            handler()
-        else:
-            self._activate(action)
+        self.actions.invoke(action)
+
+    def _entries_with_recent(self, entries):
+        return self.menus.entries_with_recent(entries)
 
     def _show_app_menu(self, event) -> None:
         self._dismiss_popups()
-        popup = Gtk.Menu()
-        for label, entries in MENU_LAYOUT:
-            parent = Gtk.MenuItem(label=self.translator.tr(label))
-            parent.set_submenu(self._build_popup_menu(entries))
-            popup.append(parent)
+        popup = self.menus.build_app_popup()
         popup.attach_to_widget(self, None)
         self._app_popup = popup
         popup.show_all()
@@ -2933,11 +2835,7 @@ toolbutton.inactive-action {
         self._update_toggle_labels()
 
     def action_toggle_backends(self) -> None:
-        if self.backends_panel.get_visible():
-            self.backends_panel.hide()
-        else:
-            self.backends_panel.show()
-        self._update_toggle_labels()
+        self.docks.toggle("toggle-backends")
 
     def action_select_area(self) -> None:
         enabled = not self.preview.select_mode
@@ -2968,27 +2866,34 @@ toolbutton.inactive-action {
             self._status("Fullscreen: ESC to exit, right-click for menu")
 
     def action_toggle_resources(self) -> None:
-        self.resources_panel.set_visible(not self.resources_panel.get_visible())
-        self._update_toggle_labels()
+        self.docks.toggle("toggle-resources")
 
     def action_toggle_jobs(self) -> None:
-        self.job_panel.set_visible(not self.job_panel.get_visible())
-        self._update_toggle_labels()
+        self.docks.toggle("toggle-jobs")
 
     def action_toggle_histogram(self) -> None:
-        if self.histogram_panel.get_visible():
-            self.histogram_panel.hide()
-        else:
-            self.histogram_panel.show()
-        self._update_toggle_labels()
+        self.docks.toggle("toggle-histogram")
 
     def action_toggle_terminal(self) -> None:
-        if self.terminal_panel.get_visible():
-            self.terminal_panel.hide()
-        else:
-            self.terminal_panel.show()
-            self.log_view.scroll_to_iter(self.log_buffer.get_end_iter(), 0.0, False, 0.0, 0.0)
-        self._update_toggle_labels()
+        self.docks.toggle("toggle-terminal")
+
+    def action_toggle_star_layer(self) -> None:
+        visible = self.preview.toggle_star_layer()
+        self._status(
+            "%s: %s" % (
+                self.translator.tr("Star layer"),
+                self.translator.tr("ON" if visible else "OFF"),
+            )
+        )
+
+    def action_toggle_object_layer(self) -> None:
+        visible = self.preview.toggle_object_layer()
+        self._status(
+            "%s: %s" % (
+                self.translator.tr("Object layer"),
+                self.translator.tr("ON" if visible else "OFF"),
+            )
+        )
 
     def action_close(self) -> None:
         if self.current_paths:
@@ -3018,12 +2923,7 @@ toolbutton.inactive-action {
         self._status(self.translator.tr("All views closed"))
 
     def _dialog_header(self, dialog: Gtk.Window, title: str) -> Gtk.HeaderBar:
-        header = Gtk.HeaderBar()
-        header.set_title(self.translator.tr(title))
-        header.set_show_close_button(True)
-        dialog.set_titlebar(header)
-        make_draggable(dialog, header)
-        return header
+        return self.dialogs.header(dialog, title)
 
     def _show_info(self, title: str, text: str) -> None:
         dialog = Gtk.MessageDialog(
