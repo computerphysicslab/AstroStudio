@@ -842,7 +842,7 @@ to force a UI redraw.
   display formats (JPEG/PNG/BMP) get gamma/level flags in the CLI export argv, while
   FITS/TIFF scientific exports stay linear.
 * Tests cover argv building, report parsing, SVG layers, real CLI reports, popup dispatch,
-  recent transforms and close-to-previous-image. Full suite: 144 passed, 2 skipped.
+  recent transforms and close-to-previous-image. Full suite: 147 passed, 2 skipped.
 * Version bumped to `0.2.37`.
 
 
@@ -862,3 +862,21 @@ to force a UI redraw.
 * `set_pixbuf()` clears star/object layers when loading another image, preventing stale
   overlays. The terminal log now records detection count, preview size and top flux.
 * Version bumped to `0.2.38`.
+
+
+---
+
+## 56. v0.2.39 — Segment Hint, Overlay Tooltips and Recent Actions
+
+* Rotate-by-segment activation records a short guard interval so events generated while
+  the popup closes cannot consume the first drag; rotation mode is also checked before
+  double-click zoom. A translated `Draw a segment` tooltip follows the pointer and the
+  canvas uses a crosshair cursor until the segment is finished.
+* `PreviewPane._layer_hit()` finds star/diffuse overlays under the pointer and displays
+  a tooltip with rank, coordinates, flux, size, HFR, eccentricity or object type, area,
+  ellipticity and CAS/Gini/M20 morphology. The small strokes seen in the overlay are the
+  numeric rank labels, not leader lines.
+* Recent transforms are deduplicated by label + params + relaunch target. Segment and
+  free-angle rotations store a `relaunch` target so selecting them from the right-click
+  history reopens the interaction instead of silently reusing the previous angle.
+* Version bumped to `0.2.39`.

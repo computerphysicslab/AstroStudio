@@ -89,12 +89,13 @@ def test_rotate_segment_is_exclusive_and_resets(monkeypatch):
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)
     angles = []
-    monkeypatch.setattr(window, "_rotate_image", lambda angle, label: angles.append(angle))
+    monkeypatch.setattr(window, "_rotate_image", lambda angle, label, relaunch=None: angles.append(angle))
 
     window.preview.set_select_mode(True)
     window.action_rotate_segment()
     assert window.preview.rotation_mode
     assert not window.preview.select_mode
+    window._rotation_enabled_at = 0.0
 
     window.preview.start_rotation(10, 10)
     window.preview.update_rotation(60, 10)
@@ -162,6 +163,7 @@ def test_app_popup_menu_triggers_rotate_segment(monkeypatch):
     )
     segment.activate()
     assert window.preview.rotation_mode
+    window._rotation_enabled_at = 0.0
     press = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
     press.button, press.x, press.y = 1, 100, 100
     window._on_canvas_click(window.preview, press)
@@ -203,8 +205,9 @@ def test_rotation_survives_release_before_segment(monkeypatch):
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)
     angles = []
-    monkeypatch.setattr(window, "_rotate_image", lambda angle, label: angles.append(angle))
+    monkeypatch.setattr(window, "_rotate_image", lambda angle, label, relaunch=None: angles.append(angle))
     window.action_rotate_segment()
+    window._rotation_enabled_at = 0.0
     stray_release = Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE)
     window._on_canvas_release(window.preview, stray_release)
     assert window.preview.rotation_mode
@@ -242,3 +245,42 @@ def test_star_layer_draws_all_detections(monkeypatch):
         if red > 180 and green > 120 and blue < 120 and alpha > 0:
             marked += 1
     assert marked > 200
+
+
+def test_layer_hover_hit_test(monkeypatch):
+    from types import SimpleNamespace
+
+    from astrostudio.core.star_catalog import StarDetection
+
+    pane = PreviewPane()
+    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_star_layer([StarDetection(50, 40, 90, 4, 0.2, 3)])
+    monkeypatch.setattr(
+        pane,
+        "_view_parameters",
+        lambda: (SimpleNamespace(width=400, height=200), 1.0, 0.0, 0.0),
+    )
+    assert "Star #1" in pane._layer_hit(52, 40)
+    assert "flux=90.00" in pane._layer_hit(50, 40)
+    assert pane._layer_hit(300, 150) is None
+
+
+def test_recent_transforms_deduplicated_and_relaunched(monkeypatch):
+    app = AstroStudioApplication()
+    app.settings.set("recent_transforms", [])
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    for _ in range(2):
+        window._record_recent("Rotate by segment", {"rotate": "12"}, "rotate-segment")
+    assert len(window.recent_transforms) == 1
+    assert window.recent_transforms[0]["relaunch"] == "rotate-segment"
+
+    launched = []
+    monkeypatch.setattr(window, "action_rotate_segment", lambda: launched.append(True))
+    monkeypatch.setattr(
+        window, "_run_transform", lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("must not reapply fixed angle")
+        )
+    )
+    window._reapply_transform(window.recent_transforms[0])
+    assert launched == [True]
+    window.destroy()

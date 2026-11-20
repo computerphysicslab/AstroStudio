@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.2.39 — 2026-11-20
+
+- Rotate-by-segment activation now ignores a short window of stray events from the closing popup, checks rotation mode before double-click zoom, and shows a translated "Draw a segment" hint next to the pointer with a crosshair cursor.
+- Star and diffuse-object overlays now have hover tooltips with star rank/flux/HFR or object type/CAS/Gini/M20 data.
+- Recent transforms are deduplicated by full parameter set; segment and free-angle rotations relaunch their interaction instead of reapplying the old angle.
+- Added hover, translation, dedup and relaunch tests; suite is 147 passed, 2 skipped.
+
 ## 0.2.38 — 2026-11-20
 
 - Fixed rotate-by-segment being cancelled by a stray button-release delivered when the popup closes; a release without an active segment no longer disables rotation mode.

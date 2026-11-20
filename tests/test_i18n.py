@@ -44,3 +44,8 @@ def test_translation_falls_back_to_english():
     assert Translator("ru").tr("File") == "Файл"
     assert Translator("zh").tr("File") == "文件"
     assert Translator("xx").tr("File") == "File"
+
+
+def test_draw_segment_hint_translated():
+    assert Translator("es").tr("Draw a segment") == "Dibujar segmento"
+    assert Translator("de").tr("Draw a segment") == "Segment ziehen"

@@ -436,6 +436,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._progress_hide_timer = None
         self._context_popup = None
         self._app_popup = None
+        self._rotation_enabled_at = 0.0
         self.transform_history: List[str] = []
         self.recent_transforms: List[dict] = list(
             self.settings.get("recent_transforms", [])
@@ -1197,14 +1198,17 @@ toolbutton.inactive-action {
         if button == 3:
             self._show_context_menu(event)
             return True
-        if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
-            self.action_zoom_fit()
-            return True
         if self.preview.rotation_mode and button == 1:
+            if time.monotonic() - self._rotation_enabled_at < 0.12:
+                return True
             self.preview.start_rotation(event.x, event.y)
+            self.preview.hide_tooltip()
             return True
         if self.preview.select_mode and button == 1:
             self.preview.start_selection(event.x, event.y)
+            return True
+        if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
+            self.action_zoom_fit()
             return True
         position = self.preview.image_coordinates(event.x, event.y)
         if position:
@@ -1218,20 +1222,30 @@ toolbutton.inactive-action {
     def _on_canvas_motion(self, widget, event) -> bool:
         if self.preview.rotation_mode:
             self.preview.update_rotation(event.x, event.y)
+            self.preview.show_tooltip(
+                self.translator.tr("Draw a segment"), event.x, event.y
+            )
             return True
         if self.preview.select_mode:
             self.preview.update_selection(event.x, event.y)
+            self.preview.hide_tooltip()
             return True
-        return self.preview.update_pan(event.x, event.y)
+        result = self.preview.update_pan(event.x, event.y)
+        if result:
+            self.preview.hide_tooltip()
+        else:
+            self.preview.update_hover(event.x, event.y)
+        return result
 
     def _on_canvas_release(self, widget, event) -> bool:
         if self.preview.rotation_mode:
             if self.preview.rotation_start is None:
                 return True
             angle = self.preview.finish_rotation()
+            self.preview.hide_tooltip()
             self.preview.set_rotation_mode(False)
             if angle is not None:
-                self._rotate_image(angle, "Rotate by segment")
+                self._rotate_image(angle, "Rotate by segment", "rotate-segment")
             return True
         if self.preview.select_mode:
             rectangle = self.preview.finish_selection()
@@ -1856,7 +1870,7 @@ toolbutton.inactive-action {
         )
         self.app.update_action_sensitivity()
 
-    def _run_transform(self, params: dict, description: str) -> None:
+    def _run_transform(self, params: dict, description: str, relaunch: str = None) -> None:
         if not self.current_images:
             self._log("Open an image before applying a transformation")
             self._status(self.translator.tr("Open an image first"))
@@ -1882,12 +1896,7 @@ toolbutton.inactive-action {
                 self._status("Linear guard blocked operation")
                 return
         self.transform_history.append(stage)
-        self.recent_transforms.insert(
-            0, {"label": description, "params": dict(params)}
-        )
-        self.recent_transforms = self.recent_transforms[:7]
-        self.settings.set("recent_transforms", self.recent_transforms)
-        self.settings.save()
+        self._record_recent(description, params, relaunch)
         started = time.monotonic()
         self._busy_begin()
         self._begin_estimate(stage, self._current_megapixels(), "%s via CLI..." % description)
@@ -2005,8 +2014,25 @@ toolbutton.inactive-action {
         if scale:
             self._run_transform({"resize": scale}, "Resize to " + scale)
 
-    def _rotate_image(self, angle: float, label: str) -> None:
-        self._run_transform({"rotate": "%g" % angle}, label)
+    def _record_recent(self, description: str, params: dict, relaunch: str = None) -> None:
+        entry = {"label": description, "params": dict(params)}
+        if relaunch:
+            entry["relaunch"] = relaunch
+        key = json.dumps(entry, sort_keys=True)
+        self.recent_transforms = [
+            item
+            for item in self.recent_transforms
+            if json.dumps(item, sort_keys=True) != key
+        ]
+        self.recent_transforms.insert(0, entry)
+        self.recent_transforms = self.recent_transforms[:7]
+        self.settings.set("recent_transforms", self.recent_transforms)
+        self.settings.save()
+
+    def _rotate_image(
+        self, angle: float, label: str, relaunch: str = None
+    ) -> None:
+        self._run_transform({"rotate": "%g" % angle}, label, relaunch)
 
     def action_rotate_cw(self) -> None:
         self._rotate_image(90, "Rotate 90 clockwise")
@@ -2033,10 +2059,17 @@ toolbutton.inactive-action {
         angle = spin.get_value() if response == Gtk.ResponseType.OK else None
         dialog.destroy()
         if angle is not None:
-            self._rotate_image(angle, "Free rotation")
+            self._rotate_image(angle, "Free rotation", "rotate-custom")
 
     def _reapply_transform(self, entry: dict) -> None:
         self._dismiss_popups()
+        relaunch = entry.get("relaunch")
+        if relaunch == "rotate-segment":
+            self.action_rotate_segment()
+            return
+        if relaunch == "rotate-custom":
+            self.action_rotate_custom()
+            return
         self._run_transform(dict(entry.get("params", {})), entry.get("label", "Repeat"))
 
     def _dismiss_popups(self) -> None:
@@ -2050,6 +2083,16 @@ toolbutton.inactive-action {
         self._dismiss_popups()
         self.preview.set_select_mode(False)
         self.preview.set_rotation_mode(True)
+        self._rotation_enabled_at = time.monotonic()
+        pointer = self.preview.get_pointer()
+        if len(pointer) == 3:
+            _found, pointer_x, pointer_y = pointer
+        else:
+            pointer_x, pointer_y = pointer
+        if pointer_x >= 0 and pointer_y >= 0:
+            self.preview.show_tooltip(
+                self.translator.tr("Draw a segment"), pointer_x, pointer_y
+            )
         self._status("Rotation by segment: ON (draw a line)")
 
     def _ask_unsharp(self) -> Optional[str]:

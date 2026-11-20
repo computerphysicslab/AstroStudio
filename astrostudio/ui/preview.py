@@ -47,8 +47,21 @@ class PreviewPane(Gtk.DrawingArea):
             Gdk.EventMask.BUTTON_PRESS_MASK
             | Gdk.EventMask.POINTER_MOTION_MASK
             | Gdk.EventMask.BUTTON_RELEASE_MASK
+            | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
         self.connect("draw", self._on_draw)
+        self.connect("leave-notify-event", self._on_leave)
+        self.hover_window = Gtk.Window(type=Gtk.WindowType.POPUP)
+        self.hover_window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+        self.hover_window.set_decorated(False)
+        self.hover_window.set_accept_focus(False)
+        self.hover_window.set_skip_taskbar_hint(True)
+        self.hover_label = Gtk.Label()
+        self.hover_label.set_line_wrap(True)
+        self.hover_label.set_max_width_chars(42)
+        self.hover_window.add(self.hover_label)
+        self.hover_window.show_all()
+        self.hover_window.hide()
 
     def load(self, path: str) -> None:
         self.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file(path), path)
@@ -86,7 +99,70 @@ class PreviewPane(Gtk.DrawingArea):
         self.rotation_mode = enabled
         self.rotation_start = None
         self.rotation_end = None
+        window = self.get_window()
+        display = Gdk.Display.get_default()
+        if window is not None and display is not None:
+            cursor_type = Gdk.CursorType.CROSSHAIR if enabled else Gdk.CursorType.DEFAULT
+            window.set_cursor(Gdk.Cursor.new_for_display(display, cursor_type))
+        if not enabled:
+            self.hide_tooltip()
         self.queue_draw()
+
+    def show_tooltip(self, text: str, x: float, y: float) -> None:
+        self.hover_label.set_text(text)
+        window = self.get_window()
+        if window is not None:
+            root_x, root_y = window.get_root_coords(int(x), int(y))
+            self.hover_window.move(root_x + 16, root_y + 16)
+        self.hover_window.show_all()
+
+    def hide_tooltip(self) -> None:
+        self.hover_window.hide()
+
+    def _on_leave(self, *_args) -> bool:
+        self.hide_tooltip()
+        return False
+
+    def _layer_hit(self, x: float, y: float):
+        _allocation, scale, offset_x, offset_y = self._view_parameters()
+        if scale <= 0:
+            return None
+        if self.star_layer:
+            top_flux = max((star.flux for star in self.star_layer), default=1.0) or 1.0
+            for rank, star in enumerate(self.star_layer[:500], start=1):
+                sx = offset_x + star.x * scale
+                sy = offset_y + star.y * scale
+                intensity = star.flux / top_flux
+                radius = max(2.5, 6.0 - intensity * 2.0) + 4
+                if (x - sx) ** 2 + (y - sy) ** 2 <= radius ** 2:
+                    return (
+                        "Star #%d  x=%.1f y=%.1f\n"
+                        "flux=%.2f  size=%.0f  HFR=%.2f  ecc=%.2f"
+                        % (rank, star.x, star.y, star.flux, star.size, star.hfr, star.eccentricity)
+                    )
+        for obj in self.object_layer[:30]:
+            sx = offset_x + obj.x * scale
+            sy = offset_y + obj.y * scale
+            radius = max(5.0, min(50.0, (obj.area ** 0.5) * scale / 2.0)) + 4
+            if (x - sx) ** 2 + (y - sy) ** 2 <= radius ** 2:
+                return (
+                    "Object #%d: %s  x=%.1f y=%.1f\n"
+                    "area=%d px  flux=%.1f  ellipticity=%.2f\n"
+                    "C=%.2f A=%.2f S=%.2f  Gini=%.2f  M20=%.2f"
+                    % (
+                        obj.id, obj.object_type, obj.x, obj.y, obj.area, obj.flux,
+                        obj.ellipticity, obj.concentration, obj.asymmetry, obj.smoothness,
+                        obj.gini, obj.m20,
+                    )
+                )
+        return None
+
+    def update_hover(self, x: float, y: float) -> None:
+        text = self._layer_hit(x, y)
+        if text is None:
+            self.hide_tooltip()
+        else:
+            self.show_tooltip(text, x, y)
 
     def start_rotation(self, x: float, y: float) -> None:
         self.rotation_start = (x, y)
