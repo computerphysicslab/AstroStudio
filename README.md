@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.3.10**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.3.14**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -48,6 +48,13 @@ flowchart LR
 python3 -m astrostudio
 ```
 
+## Plugins, remote jobs and packaging
+
+Optional adapters can publish an `astrostudio.adapters` entry point and are registered at
+startup. `RemoteAdapter` prepares SSH or HTTP API argv lists for remote compute jobs.
+Reproducible Flatpak/AppImage manifests and an optional-dependency table live under
+`packaging/`; actual bundles are built at release time.
+
 ## Install as a desktop application
 
 The installer is user-level (no `sudo`) and registers a launcher, icon and desktop
@@ -89,7 +96,9 @@ Every opened image is prepared in scratch as two files:
 When you apply a transform (resize, unsharp, crop, rotate), an external CLI tool
 operates on the TIFF and writes a new TIFF. The new TIFF replaces the previous one
 and a fresh PNG is generated from it; the GUI then reloads that PNG while preserving
-the current zoom and scroll position. Original inputs are never modified.
+the current zoom and scroll position. Undo/Redo snapshots are hardlinks trimmed to
+`history_depth`, and large images also get CLI-generated 25%/50% preview levels selected
+automatically by zoom. Original inputs are never modified.
 
 The **Metadata** panel on the right is hidden until you press the (i) Metadata button;
 it then shows two tabs (PNG preview and TIFF working) filled by ExifTool, and can be
@@ -136,7 +145,7 @@ megapixels from readable CLI inputs and separates `import`, `preview`, `transfor
 ## Astrometry (SkyStacker bridge)
 
 The **Astrometry** menu delegates to the installed SkyStacker CLI and writes all
-results to scratch:
+results to scratch. It also prefetches blind catalogs and HiPS tiles for offline work:
 
 - **Plate Solve...** optionally asks for an RA/Dec seed (decimal degrees). When the
   filename contains an unambiguous catalog reference such as `M42`, `NGC 1976`,
@@ -161,6 +170,18 @@ instead of a false "OK" report; `measure-quality` alone never produced a plate s
 A reproduced failure with uncalibrated wide-field JPGs (`0 matched pairs`) occurs in
 SkyStacker itself when its CLI is run outside AstroStudio, so alternative solvers are
 planned in the roadmap.
+
+## Quality and automation
+
+*View > Quality Dashboard* runs `--image-op measure-quality` and flags low SNR, large
+HFR, elongated stars and low quality. *Processing > Watch Hot Folder...* polls a session
+folder and runs a Siril calibration + stacking script when new light frames appear.
+
+## Pipeline export
+
+*File > Export Pipeline* opens an editable graph of recorded CLI jobs. Nodes can be moved,
+disabled, duplicated or removed; only enabled nodes are written to the reproducible shell
+or Makefile script.
 
 ## Export formats
 

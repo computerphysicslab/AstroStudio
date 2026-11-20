@@ -1,0 +1,32 @@
+{
+  "app-id": "org.astrostudio.AstroStudio",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "44",
+  "sdk": "org.gnome.Sdk",
+  "command": "astro-studio",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=x11",
+    "--socket=wayland",
+    "--filesystem=home",
+    "--filesystem=xdg-run/astro-studio:create"
+  ],
+  "modules": [
+    {
+      "name": "astro-studio",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm755 packaging/astro-studio /app/bin/astro-studio",
+        "install -Dm644 packaging/astro-studio.desktop /app/share/applications/org.astrostudio.AstroStudio.desktop",
+        "install -Dm644 packaging/astro-studio.svg /app/share/icons/hicolor/scalable/apps/org.astrostudio.AstroStudio.svg",
+        "cp -r astrostudio /app/share/astro-studio/astrostudio"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+version: 1
+script: |
+  apt-get update
+  apt-get install -y python3-gi gir1.2-gtk-3.0 gir1.2-gdkpixbuf-2.0 imagemagick libimage-exiftool-perl
+AppDir:
+  path: AppDir
+  app_info:
+    id: astro-studio
+    name: Astro Studio
+    icon: astro-studio
+    version: "0.3.14"
+    exec: usr/bin/python3
+    exec_args: -m astrostudio
+  apt:
+    arch: amd64
+    sources:
+      - sourceline: deb http://archive.ubuntu.com/ubuntu jammy main universe
+    include:
+      - python3
+      - python3-gi
+      - gir1.2-gtk-3.0
+      - gir1.2-gdkpixbuf-2.0
+      - imagemagick
+      - libimage-exiftool-perl
+  files:
+    exclude:
+      - usr/share/man
+      - usr/share/doc
+AppImage:
+  arch: x86_64

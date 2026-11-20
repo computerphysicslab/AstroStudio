@@ -29,11 +29,14 @@ def header_bytes(cards):
     return "".join(card.ljust(80) for card in cards).encode("ascii").ljust(2880, b" ")
 
 
-def _workspace(tmp_path, monkeypatch, engine):
+def _workspace(tmp_path, monkeypatch, engine, history_depth=10):
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))
     (tmp_path / "runtime").mkdir()
     return ImageWorkspace(
-        ScratchManager("session"), engine, ImageMagickAdapter(binary="convert")
+        ScratchManager("session"),
+        engine,
+        ImageMagickAdapter(binary="convert"),
+        history_depth=history_depth,
     )
 
 
@@ -273,6 +276,8 @@ def test_skystacker_filter_receives_working_tiff_directly(tmp_path, monkeypatch)
         calls.append((job_id, list(argv)))
         if job_id.endswith("-sky-tiff"):
             Path(argv[-1]).write_bytes(b"tiff")
+        if job_id.endswith("-preview"):
+            Path(argv[-1]).write_bytes(b"png")
         if on_done is not None:
             on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=0))
 
@@ -327,3 +332,30 @@ def test_unusual_fits_is_rejected_before_cli(tmp_path, monkeypatch):
     workspace.prepare(str(source), lambda *_: None, errors.append)
     assert errors and "single image HDU" in errors[0]
     assert engine.calls == []
+
+
+def test_hardlink_snapshots_respect_history_depth(tmp_path, monkeypatch):
+    import os
+
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine, history_depth=2)
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    image = workspace.prepare(str(source), lambda *_: None, lambda message: pytest.fail(message))
+    original = Path(image.tiff_path).read_bytes()
+    linked = workspace._snapshot(image, workspace._undo)
+    assert os.stat(linked.tiff_path).st_nlink >= 2
+
+    for _ in range(3):
+        workspace.transform(
+            image, {"resize": "50%"}, lambda *_: None,
+            lambda message: pytest.fail(message),
+        )
+
+    stack = workspace._undo[image.key]
+    assert len(stack) == 2
+    assert not os.path.exists(os.path.join(image.directory, "snapshot_001.tiff"))
+
+    workspace.undo(image, lambda *_: None, lambda message: pytest.fail(message))
+    assert Path(image.tiff_path).read_bytes() != original
+    assert os.stat(image.tiff_path).st_nlink >= 2

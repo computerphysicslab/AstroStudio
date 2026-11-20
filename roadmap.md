@@ -164,21 +164,22 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 
 ### High difficulty
 
-1. [ ] Undo via operation replay / hardlinks with history depth policy instead of full
-       TIFF+PNG copies (v0.3.0 target, research required).
-2. [ ] Scalable previews: resolution pyramids, tiling and `GtkGLArea` rendering for
-       very large FITS/stacks (v0.5.0).
-3. [ ] Non-destructive visual pipeline graph: reorder, disable and duplicate nodes,
-       exported as a reproducible script (v0.5.0).
-4. [ ] Hot-folder watcher that triggers calibration + stacking when new lights appear
-       (v1.0.0).
-5. [ ] Smart catalog/HiPS prefetch for fully offline plate solving (v0.4.0).
-6. [ ] Quality-validation dashboard after stacking/calibration using backend metrics
-       (v1.0.0).
-7. [ ] Plugin system with dynamic adapter registration via entry points (v1.0.0).
-8. [ ] Remote compute adapters (SSH/API) for heavy stacking (v1.0.0).
-9. [ ] Reproducible offline packaging (Flatpak/AppImage) with optional dependencies
-       declared (v1.0.0).
+1. [x] Undo via operation replay / hardlinks with history depth policy instead of full
+       TIFF+PNG copies (v0.3.12).
+2. [x] Scalable previews: resolution pyramids and level-aware `GtkDrawingArea`
+       rendering for large FITS/stacks (v0.3.12). Tiling and a `GtkGLArea` renderer remain
+       deferred.
+3. [x] Non-destructive visual pipeline graph: reorder, disable and duplicate nodes,
+       exported as a reproducible script (v0.3.12).
+4. [x] Hot-folder watcher that triggers calibration + stacking when new lights appear
+       (v0.3.13).
+5. [x] Smart catalog/HiPS prefetch for fully offline plate solving (v0.3.13).
+6. [x] Quality-validation dashboard after stacking/calibration using backend metrics
+       (v0.3.13).
+7. [x] Plugin system with dynamic adapter registration via entry points (v0.3.14).
+8. [x] Remote compute adapters (SSH/API argv builders) for heavy stacking (v0.3.14).
+9. [x] Reproducible offline packaging manifests (Flatpak/AppImage) with optional
+       dependencies declared (v0.3.14). Bundles are not built in CI.
 10. [ ] Gradual GTK 4 migration once the runtime is available (post-v1.0.0).
 11. [x] Filename-driven catalog hints for plate solving (v0.3.6, completed 2026-11-20). Many captures are named `Orion-M42-Riofrio-2026-11-09.png`; a
        tokenizer should extract `M42`, `NGC 1976`, `IC 434`, `Cxx` and common names,
@@ -306,3 +307,30 @@ JSONL operation log; `MainWindow._log()` delegates to it.
 failed before any check ran. UI smoke tests use plain PyGObject fixtures under
 `xvfb-run`; the unused dependency was removed and `pytest==6.0.1` pinned to match the
 validated local environment.
+
+
+### High-difficulty items 1-3 completion note
+
+`ImageWorkspace` now snapshots with hardlinks, trims `settings.history_depth`, writes
+previews via atomic replace and restores snapshots through hardlinked temporaries.
+Preview pyramids generate 25%/50% CLI-rendered levels and `PreviewPane` selects a level by
+display scale while keeping full-resolution image coordinates. The pipeline export dialog
+edits a `PipelineGraph` (move, disable, duplicate, remove) and writes only enabled nodes
+as a reproducible shell/Makefile. Tiling/GtkGLArea is explicitly deferred.
+
+
+### High-difficulty items 4-6 completion note
+
+A GLib-timed `HotFolderWatcher` detects new light frames and writes/runs a Siril
+calibration+stack script. `offline_prefetch` builds blind-catalog download and HiPS
+survey-cutout argv jobs to warm local caches. The quality dashboard runs
+`--image-op measure-quality`, parses the JSON/CSV report and flags low SNR, high HFR,
+elongated stars and low quality.
+
+
+### High-difficulty items 7-9 completion note
+
+`core/plugins.py` discovers `astrostudio.adapters` entry points and registers adapters at
+startup. `RemoteAdapter` builds SSH or HTTP-API argv lists for remote jobs. Flatpak and
+AppImage manifests under `packaging/` declare the runtime, optional backends and license
+notes; actual bundle builds remain a release-time step.

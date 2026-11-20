@@ -42,6 +42,8 @@ from ..core import (  # noqa: E402
     unique_export_path,
     find_plate_solution,
     histogram_argv,
+    HotFolderWatcher,
+    folders_from_files,
     cli_entries,
     default_cache_dir,
     discover_calibration,
@@ -49,6 +51,12 @@ from ..core import (  # noqa: E402
     install_command,
     load_session,
     overlay_center,
+    register_plugins,
+    parse_quality_report,
+    summarize,
+    DEFAULT_CATALOGS,
+    prefetch_plan,
+    PipelineGraph,
     parse_classification,
     resolve_filename,
     raw_warnings,
@@ -154,6 +162,7 @@ MENU_LAYOUT = (
             ("GIMP Script...", "gimp-script"),
             ("Suggest Presets...", "suggest-presets"),
             ("Detect Calibration Folders...", "detect-calibration"),
+            ("Watch Hot Folder...", "hot-folder"),
             ("Calibration", "calibration"),
             ("Stacking", "stacking"),
             ("Image Geometry", "geometry"),
@@ -171,6 +180,7 @@ MENU_LAYOUT = (
             ("Gaia Cache Info...", "gaia-cache-info"),
             ("Gaia Sky Map...", "sky-map"),
             ("Survey Cutout...", "survey-cutout"),
+            ("Prefetch Offline Catalogs...", "prefetch-catalogs"),
         ),
     ),
     (
@@ -246,6 +256,7 @@ MENU_LAYOUT = (
             ("Fit to Window", "zoom-fit"),
             (None, None),
             ("Histogram", "histogram"),
+            ("Quality Dashboard...", "quality-dashboard"),
             ("Frame Table...", "frame-table"),
             ("Before / After...", "before-after"),
             ("WCS Overlay", "wcs-overlay"),
@@ -418,6 +429,9 @@ class MainWindow(Gtk.ApplicationWindow):
             "SkyStacker": SkyStackerAdapter(),
             "Siril": SirilAdapter(),
         }
+        self.plugin_names = register_plugins(self.adapters)
+        if self.plugin_names:
+            self._log("Loaded adapter plugins: %s" % ", ".join(self.plugin_names))
         from ..adapters.astrometry import scale_hint_arcsec
         from ..adapters.skystacker import discover_catalog_dir
 
@@ -469,6 +483,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._busy_count = 0
         self.metadata_pending = 0
         self.metadata_window = None
+        self.hot_watcher = None
         self.histogram_pending = 0
         self.histogram_generation = 0
         self.histogram_datasets = []
@@ -1466,6 +1481,14 @@ toolbutton.inactive-action {
         self._busy_end()
         self._stop_progress()
         self.preview.load(image.png_path)
+        pixbuf = self.preview.pixbuf
+        full_size = (pixbuf.get_width(), pixbuf.get_height()) if pixbuf else None
+        self.workspace.ensure_pyramid(
+            image,
+            on_ready=lambda levels: self.preview.set_pyramid(levels, full_size),
+            on_error=self._log,
+            on_log=self._log,
+        )
         self._add_thumbnail(image)
         self._status_image(image, "%s: %s" % (self.translator.tr("Ready"), os.path.basename(image.source)))
         self._log(
@@ -1665,33 +1688,92 @@ toolbutton.inactive-action {
         self._status("Session resumed")
 
     def action_export_pipeline(self) -> None:
-        dialog = Gtk.FileChooserDialog(
+        jobs = cli_entries(self.operation_log.entries(), self.operation_log.session)
+        if not jobs:
+            self._status("No CLI jobs to export")
+            return
+        graph = PipelineGraph.from_argv(jobs)
+
+        dialog = Gtk.Dialog(
+            title="Pipeline graph",
+            parent=self,
+            modal=True,
+            buttons=(
+                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OK, Gtk.ResponseType.OK,
+            ),
+        )
+        self._dialog_header(dialog, "Pipeline graph")
+        store = Gtk.ListStore(bool, str)
+        tree = Gtk.TreeView(model=store)
+        toggle = Gtk.CellRendererToggle()
+        toggle.connect("toggled", self._on_pipeline_toggle, store, graph)
+        tree.append_column(Gtk.TreeViewColumn("Enabled", toggle, active=0))
+        tree.append_column(
+            Gtk.TreeViewColumn("Node", Gtk.CellRendererText(), text=1)
+        )
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_size_request(520, 300)
+        scroll.add(tree)
+
+        def selected_index():
+            model, iterator = tree.get_selection().get_selected()
+            return model.get_path(iterator).get_indices()[0] if iterator else None
+
+        def refresh():
+            store.clear()
+            for node in graph.nodes:
+                store.append((node.enabled, node.label))
+
+        def mutate(handler):
+            index = selected_index()
+            if index is not None and handler(index):
+                refresh()
+
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        for label, handler in (
+            ("Up", lambda i: graph.move(i, -1)),
+            ("Down", lambda i: graph.move(i, 1)),
+            ("Duplicate", graph.duplicate),
+            ("Remove", graph.remove),
+        ):
+            button = Gtk.Button(label=label)
+            button.connect("clicked", lambda *_widget, h=handler: mutate(h))
+            button_box.pack_start(button, False, False, 0)
+        content = dialog.get_content_area()
+        content.pack_start(scroll, True, True, 6)
+        content.pack_start(button_box, False, False, 0)
+        refresh()
+        dialog.show_all()
+        response = dialog.run()
+        dialog.destroy()
+        if response != Gtk.ResponseType.OK:
+            return
+
+        chooser = Gtk.FileChooserDialog(
             title="Export pipeline",
             parent=self,
             action=Gtk.FileChooserAction.SAVE,
             buttons=(
-                Gtk.STOCK_CANCEL,
-                Gtk.ResponseType.CANCEL,
-                Gtk.STOCK_SAVE,
-                Gtk.ResponseType.OK,
+                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_SAVE, Gtk.ResponseType.OK,
             ),
         )
-        dialog.set_current_name("pipeline.sh")
-        dialog.set_do_overwrite_confirmation(True)
-        response = dialog.run()
-        path = dialog.get_filename() if response == Gtk.ResponseType.OK else None
-        dialog.destroy()
+        chooser.set_current_name("pipeline.sh")
+        chooser.set_do_overwrite_confirmation(True)
+        response = chooser.run()
+        path = chooser.get_filename() if response == Gtk.ResponseType.OK else None
+        chooser.destroy()
         if not path:
             return
-        jobs = cli_entries(self.operation_log.entries(), self.operation_log.session)
-        if path.endswith(".mk") or path.endswith("Makefile"):
-            write_makefile(jobs, path)
-        else:
-            if not path.endswith(".sh"):
-                path += ".sh"
-            write_shell(jobs, path)
-        self._log("Exported %d CLI jobs to %s" % (len(jobs), path))
-        self._status("Pipeline exported (%d jobs)" % len(jobs))
+        path = graph.export(path)
+        self._log("Exported %d pipeline nodes to %s" % (len(graph.nodes), path))
+        self._status("Pipeline exported (%d nodes)" % len(graph.nodes))
+
+    def _on_pipeline_toggle(self, renderer, path, store, graph):
+        index = int(path)
+        graph.set_enabled(index, not graph.nodes[index].enabled)
+        store[index][0] = graph.nodes[index].enabled
 
     def action_export(self) -> None:
         if not self.current_images:
@@ -2779,6 +2861,51 @@ toolbutton.inactive-action {
             self._log("BPM failed: %s" % (result.error or result.stderr))
             self._show_error("BPM generation failed")
 
+    def action_hot_folder(self) -> None:
+        if self.hot_watcher is not None:
+            self.hot_watcher.stop()
+            self.hot_watcher = None
+            self._status("Hot folder watcher stopped")
+            return
+        root = self._choose_folder("Select session root to watch")
+        if not root:
+            return
+        if not self.registry.available("Siril"):
+            self._status("Siril is required for hot-folder stacking")
+            return
+        self.hot_watcher = HotFolderWatcher(
+            root, self._on_hot_folder, interval_s=5.0
+        )
+        self.hot_watcher.start()
+        self._log("Watching hot folder: %s" % root)
+        self._status("Hot folder watcher: ON")
+
+    def _on_hot_folder(self, lights: list, found: dict) -> None:
+        folders = folders_from_files(found)
+        output_dir = os.path.join(os.path.dirname(os.path.dirname(lights[0])), "stacked")
+        os.makedirs(output_dir, exist_ok=True)
+        script = SirilAdapter.calibration_script(
+            folders.get("light", ""),
+            folders.get("dark", ""),
+            folders.get("flat", ""),
+            folders.get("bias", ""),
+            output_dir,
+        )
+        script_path = os.path.join(
+            self.scratch.job_dir("hot-folder"), "calibrate_stack.siril"
+        )
+        with open(script_path, "w", encoding="utf-8") as handle:
+            handle.write(script)
+        self._log("Hot folder: %d new light(s), script %s" % (len(lights), script_path))
+        self.engine.run(
+            "hot-folder-stack",
+            self.adapters["Siril"].build_script_argv(script_path),
+            on_log=self._log,
+            on_done=lambda result: self._log(
+                "Hot-folder stacking %s" % ("OK" if result.ok else "failed")
+            ),
+        )
+
     def action_detect_calibration(self) -> None:
         dialog = Gtk.FileChooserDialog(
             title="Select session root",
@@ -3231,6 +3358,96 @@ toolbutton.inactive-action {
             argv,
             output_dir,
             lambda result: self._on_plate_solve_done(result, output_dir),
+        )
+
+    def action_quality_dashboard(self) -> None:
+        if not self.current_paths:
+            self._status("Open an image first")
+            return
+        if not self.registry.available("SkyStacker"):
+            self._status("SkyStacker backend unavailable")
+            return
+        source = self.current_paths[-1]
+        output_dir = self._astrometry_job_dir("measure-quality")
+        argv = self.adapters["SkyStacker"].build_image_op_argv(
+            source, output_dir, "measure-quality"
+        )
+        self._log("CLI measure-quality: %s" % " ".join(argv))
+        self.engine.run(
+            "measure-quality",
+            argv,
+            on_log=self._log,
+            on_done=lambda result: self._on_quality_done(result, output_dir),
+        )
+
+    def _on_quality_done(self, result, output_dir: str) -> None:
+        if not result.ok:
+            self._show_error("SkyStacker measure-quality failed")
+            return
+        path = os.path.join(output_dir, "image_measurements.json")
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                rows = parse_quality_report(handle.read())
+        except OSError:
+            self._show_error("No quality report was written by SkyStacker")
+            return
+        passed, issues = summarize(rows)
+        dialog = Gtk.Dialog(
+            title="Quality dashboard",
+            parent=self,
+            modal=True,
+            buttons=(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE),
+        )
+        self._dialog_header(dialog, "Quality dashboard")
+        store = Gtk.ListStore(str, str, str, str, str)
+        for row in rows:
+            store.append((
+                os.path.basename(row.file),
+                "%d stars" % row.stars,
+                "SNR %.1f" % row.snr,
+                "HFR %.2f" % row.hfr,
+                "OK" if not row.issues() else ", ".join(row.issues()),
+            ))
+        tree = Gtk.TreeView(model=store)
+        for index, title in enumerate(("Image", "Stars", "Signal", "Seeing", "Verdict")):
+            tree.append_column(Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=index))
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_size_request(560, 240)
+        scroll.add(tree)
+        dialog.get_content_area().pack_start(scroll, True, True, 6)
+        label = Gtk.Label(label="PASS" if passed else "; ".join(issues))
+        dialog.get_content_area().pack_start(label, False, False, 6)
+        dialog.show_all()
+        dialog.run()
+        dialog.destroy()
+        self._status("Quality dashboard: %s" % ("PASS" if passed else "issues found"))
+
+    def action_prefetch_catalogs(self) -> None:
+        if not self.registry.available("SkyStacker"):
+            self._status("SkyStacker backend unavailable")
+            return
+        catalogs = list(self.settings.get("offline_catalogs", DEFAULT_CATALOGS))
+        source = self.current_paths[-1] if self.current_paths else None
+        output_dir = self._astrometry_job_dir("survey-prefetch") if source else None
+        survey = self.settings.get("survey_hips", "CDS/P/DSS2/color")
+        jobs = prefetch_plan(catalogs, source, output_dir, survey)
+        self._log("Prefetching %d offline catalog/survey job(s)" % len(jobs))
+        self._run_prefetch_jobs(jobs, 0)
+
+    def _run_prefetch_jobs(self, jobs: list, index: int) -> None:
+        if index >= len(jobs):
+            self._status("Offline catalogs ready")
+            return
+        self.engine.run(
+            "prefetch-%d" % index,
+            jobs[index],
+            on_log=self._log,
+            on_done=lambda result: (
+                self._log(
+                    "Prefetch %d %s" % (index, "OK" if result.ok else "failed")
+                ),
+                self._run_prefetch_jobs(jobs, index + 1),
+            ),
         )
 
     def action_export_stars(self) -> None:

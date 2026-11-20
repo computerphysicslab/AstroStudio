@@ -8,6 +8,36 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.14 — 2026-11-20
+
+- Roadmap high-difficulty items 7-9 implemented at adapter/manifest scope.
+- Plugins are discovered from `astrostudio.adapters` entry points and registered at startup.
+- Added `RemoteAdapter` with SSH and JSON API argv builders for remote compute jobs.
+- Added Flatpak/AppImage manifests and an optional dependency declaration; bundles are not built in CI.
+- Added unit tests; suite 197 passed, 2 skipped, mypy clean on 52 modules.
+
+## 0.3.13 — 2026-11-20
+
+- Roadmap high-difficulty items 4-6 implemented.
+- Added a hot-folder watcher that detects new light frames and runs a Siril calibration + stacking script.
+- Added offline catalog/HiPS prefetch jobs that warm SkyStacker blind-catalog and survey caches.
+- Added a quality dashboard that parses SkyStacker measure-quality reports and flags low SNR, high HFR, elongated stars and low quality.
+- Added unit tests; suite 191 passed, 2 skipped, mypy clean on 50 modules.
+
+## 0.3.12 — 2026-11-20
+
+- Roadmap high-difficulty items 1-3 implemented at MVP scope.
+- Undo/redo snapshots use hardlinks with `history_depth` trimming; previews are written atomically so snapshots keep their original bytes.
+- Added CLI-generated 25%/50% preview pyramids with zoom-aware level selection and preserved full-resolution coordinates.
+- Export Pipeline now opens an editable node graph (reorder, disable, duplicate, remove) and exports only enabled jobs as shell/Makefile.
+- Added unit tests; suite 184 passed, 2 skipped, mypy clean on 47 modules.
+
+## 0.3.11 — 2026-11-20
+
+- CI now uses the system Python 3.10 from Ubuntu 22.04 instead of `setup-python`, so the apt-installed PyGObject `gi` module is importable.
+- Pinned `pytest==7.4.4` for Python 3.10 compatibility; mypy still targets Python 3.8 via `mypy.ini`.
+- Local verification: 180 tests pass with 90% coverage and mypy clean on 45 modules.
+
 ## 0.3.10 — 2026-11-20
 
 - Fixed CI dependency installation: removed unpublished `pytest-gtk==0.7`, pinned `pytest==6.0.1` and `pre-commit==3.5.0`, and clarified that UI smoke tests use PyGObject fixtures under `xvfb`.

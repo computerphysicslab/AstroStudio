@@ -20,3 +20,5 @@ __all__ = [
     "SirilAdapter",
     "SkyStackerAdapter",
 ]
+
+from .remote import RemoteAdapter

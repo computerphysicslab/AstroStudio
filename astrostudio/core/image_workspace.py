@@ -50,6 +50,7 @@ class ImageWorkspace:
         engine: ProcessEngine,
         adapter: "ImageMagickAdapter" = None,
         cache_dir: str = None,
+        history_depth: int = 10,
     ) -> None:
         if adapter is None:
             from ..adapters.magick import ImageMagickAdapter
@@ -59,13 +60,92 @@ class ImageWorkspace:
         self.engine = engine
         self.adapter = adapter
         self.cache_dir = cache_dir
+        self.history_depth = max(1, int(history_depth))
         if self.cache_dir:
             os.makedirs(self.cache_dir, exist_ok=True)
         self.images: Dict[str, WorkingImage] = {}
         self._undo: Dict[str, List[Snapshot]] = {}
         self._redo: Dict[str, List[Snapshot]] = {}
         self._snapshot_counter: Dict[str, int] = {}
+        self._pyramids: Dict[str, List[Tuple[str, float]]] = {}
         self._counter = 0
+
+    def ensure_pyramid(
+        self,
+        image: WorkingImage,
+        on_ready: Callable[[List[Tuple[str, float]]], None],
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback] = None,
+    ) -> None:
+        """Generate downscaled preview levels with external CLI jobs."""
+        from .preview_pyramid import PYRAMID_LEVELS, pyramid_paths
+
+        missing = [
+            (name, scale)
+            for name, scale in PYRAMID_LEVELS
+            if not os.path.isfile(os.path.join(image.directory, name))
+        ]
+        if not missing:
+            levels = pyramid_paths(image.directory)
+            self._pyramids[image.key] = levels
+            on_ready(levels)
+            return
+        self._run_pyramid_job(image, missing, 0, on_ready, on_error, on_log)
+
+    def _run_pyramid_job(
+        self,
+        image: WorkingImage,
+        jobs: List[Tuple[str, float]],
+        index: int,
+        on_ready: Callable[[List[Tuple[str, float]]], None],
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback],
+    ) -> None:
+        from .preview_pyramid import pyramid_paths
+
+        if index >= len(jobs):
+            levels = pyramid_paths(image.directory)
+            self._pyramids[image.key] = levels
+            on_ready(levels)
+            return
+        name, _scale = jobs[index]
+        destination = os.path.join(image.directory, name)
+        argv = self.adapter.build_preview_argv(
+            image.tiff_path,
+            destination,
+            image.display_stretch,
+            image.stretch_points,
+            image.gamma,
+        )
+        if on_log:
+            on_log("Preview pyramid level: %s" % " ".join(argv))
+        self.engine.run(
+            image.key + "-pyramid-%d" % index,
+            argv,
+            on_log=on_log,
+            on_done=lambda result: self._on_pyramid_job(
+                result, image, jobs, index, on_ready, on_error, on_log
+            ),
+        )
+
+    def _on_pyramid_job(
+        self,
+        result: JobResult,
+        image: WorkingImage,
+        jobs: List[Tuple[str, float]],
+        index: int,
+        on_ready: Callable[[List[Tuple[str, float]]], None],
+        on_error: ErrorCallback,
+        on_log: Optional[LogCallback],
+    ) -> None:
+        if not result.ok:
+            self._fail(
+                "Preview pyramid failed: %s" % (result.error or result.stderr),
+                on_error,
+                on_log,
+            )
+            return
+        self._run_pyramid_job(image, jobs, index + 1, on_ready, on_error, on_log)
 
     def prepare(
         self,
@@ -196,9 +276,10 @@ class ImageWorkspace:
         on_error: ErrorCallback,
         on_log: Optional[LogCallback],
     ) -> None:
+        temporary_png = image.png_path + ".next"
         argv = self.adapter.build_preview_argv(
             image.tiff_path,
-            image.png_path,
+            temporary_png,
             image.display_stretch,
             image.stretch_points,
             image.gamma,
@@ -225,6 +306,7 @@ class ImageWorkspace:
         if not result.ok:
             self._fail("PNG preview failed: %s" % (result.error or result.stderr), on_error, on_log)
             return
+        os.replace(result.argv[-1], image.png_path)
         if on_log:
             on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         on_ready(image)
@@ -456,10 +538,34 @@ class ImageWorkspace:
             tiff_path=os.path.join(image.directory, "snapshot_%03d.tiff" % count),
             png_path=os.path.join(image.directory, "snapshot_%03d.png" % count),
         )
-        shutil.copyfile(image.tiff_path, snapshot.tiff_path)
-        shutil.copyfile(image.png_path, snapshot.png_path)
-        stack.setdefault(image.key, []).append(snapshot)
+        self._link_or_copy(image.tiff_path, snapshot.tiff_path)
+        self._link_or_copy(image.png_path, snapshot.png_path)
+        entries = stack.setdefault(image.key, [])
+        entries.append(snapshot)
+        while len(entries) > self.history_depth:
+            old = entries.pop(0)
+            for path in (old.tiff_path, old.png_path):
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
         return snapshot
+
+    @staticmethod
+    def _link_or_copy(source: str, destination: str) -> None:
+        try:
+            os.link(source, destination)
+        except OSError:
+            shutil.copyfile(source, destination)
+
+    @staticmethod
+    def _restore(source: str, destination: str) -> None:
+        temporary = destination + ".restore"
+        try:
+            os.link(source, temporary)
+        except OSError:
+            shutil.copyfile(source, temporary)
+        os.replace(temporary, destination)
 
     def can_undo(self, image: WorkingImage) -> bool:
         return bool(self._undo.get(image.key))
@@ -480,8 +586,8 @@ class ImageWorkspace:
             return
         self._snapshot(image, self._redo)
         snapshot = stack.pop()
-        shutil.copyfile(snapshot.tiff_path, image.tiff_path)
-        shutil.copyfile(snapshot.png_path, image.png_path)
+        self._restore(snapshot.tiff_path, image.tiff_path)
+        self._restore(snapshot.png_path, image.png_path)
         if on_log:
             on_log("Undo restored TIFF/PNG for %s" % image.key)
         on_ready(image)
@@ -499,8 +605,8 @@ class ImageWorkspace:
             return
         self._snapshot(image, self._undo)
         snapshot = stack.pop()
-        shutil.copyfile(snapshot.tiff_path, image.tiff_path)
-        shutil.copyfile(snapshot.png_path, image.png_path)
+        self._restore(snapshot.tiff_path, image.tiff_path)
+        self._restore(snapshot.png_path, image.png_path)
         if on_log:
             on_log("Redo restored TIFF/PNG for %s" % image.key)
         on_ready(image)

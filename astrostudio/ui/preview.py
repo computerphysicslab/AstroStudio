@@ -8,8 +8,9 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
+from ..core.preview_pyramid import choose_level
 from ..core.star_catalog import star_display_radius
 
 
@@ -47,6 +48,9 @@ class PreviewPane(Gtk.DrawingArea):
         self.star_layer_visible = True
         self.object_layer_visible = True
         self.hover_target = None
+        self.pyramid_levels = []
+        self.logical_size = None
+        self.level_scale = 1.0
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -74,6 +78,9 @@ class PreviewPane(Gtk.DrawingArea):
     def set_pixbuf(self, pixbuf: GdkPixbuf.Pixbuf, path: str = None) -> None:
         self.pixbuf = pixbuf
         self.path = path
+        self.logical_size = (pixbuf.get_width(), pixbuf.get_height())
+        self.level_scale = 1.0
+        self.pyramid_levels = []
         self.fit = True
         self.zoom = 1.0
         self.star_layer = []
@@ -81,9 +88,39 @@ class PreviewPane(Gtk.DrawingArea):
         self.reset_pan()
         self.queue_draw()
 
+    def set_pyramid(self, levels, full_size=None) -> None:
+        self.pyramid_levels = list(levels)
+        if full_size is not None:
+            self.logical_size = tuple(full_size)
+        self._refresh_level()
+
+    def _refresh_level(self) -> None:
+        if not self.pyramid_levels or self.logical_size is None:
+            return
+        width, height = self.logical_size
+        allocation = self.get_allocation()
+        if self.fit and allocation.width and allocation.height:
+            display_scale = min(allocation.width / width, allocation.height / height)
+        else:
+            display_scale = self.zoom
+        level = choose_level(self.pyramid_levels, display_scale)
+        if level is None or level[0] == self.path:
+            return
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(level[0])
+        except GLib.Error:
+            return
+        self.pixbuf = pixbuf
+        self.path = level[0]
+        self.level_scale = level[1]
+        self.queue_draw()
+
     def clear(self) -> None:
         self.pixbuf = None
         self.path = None
+        self.pyramid_levels = []
+        self.logical_size = None
+        self.level_scale = 1.0
         self.reset_pan()
         self.queue_draw()
 
@@ -271,30 +308,35 @@ class PreviewPane(Gtk.DrawingArea):
     def zoom_in(self) -> None:
         self.fit = False
         self.zoom = min(self.zoom * 1.25, 32.0)
+        self._refresh_level()
         self.queue_draw()
 
     def zoom_out(self) -> None:
         self.fit = False
         self.zoom = max(self.zoom / 1.25, 0.05)
+        self._refresh_level()
         self.queue_draw()
 
     def zoom_fit(self) -> None:
         self.fit = True
         self.zoom = 1.0
         self.reset_pan()
+        self._refresh_level()
         self.queue_draw()
 
     def set_zoom_scale(self, scale: float) -> None:
         self.fit = False
         self.zoom = min(max(scale, 0.01), 32.0)
+        self._refresh_level()
         self.queue_draw()
 
     def _view_parameters(self):
         allocation = self.get_allocation()
         if self.pixbuf is None:
             return allocation, 1.0, 0.0, 0.0
-        width = self.pixbuf.get_width()
-        height = self.pixbuf.get_height()
+        width, height = self.logical_size or (
+            self.pixbuf.get_width(), self.pixbuf.get_height()
+        )
         if self.fit:
             scale = min(allocation.width / width, allocation.height / height)
         else:
@@ -316,10 +358,13 @@ class PreviewPane(Gtk.DrawingArea):
         if scale <= 0:
             return None
         rx, ry, width, height = self.selection
-        x = int(max(0, min(self.pixbuf.get_width() - 1, (rx - offset_x) / scale)))
-        y = int(max(0, min(self.pixbuf.get_height() - 1, (ry - offset_y) / scale)))
-        w = int(max(1, min(self.pixbuf.get_width() - x, width / scale)))
-        h = int(max(1, min(self.pixbuf.get_height() - y, height / scale)))
+        full_width, full_height = self.logical_size or (
+            self.pixbuf.get_width(), self.pixbuf.get_height()
+        )
+        x = int(max(0, min(full_width - 1, (rx - offset_x) / scale)))
+        y = int(max(0, min(full_height - 1, (ry - offset_y) / scale)))
+        w = int(max(1, min(full_width - x, width / scale)))
+        h = int(max(1, min(full_height - y, height / scale)))
         return x, y, w, h
 
     def image_coordinates(self, x: float, y: float):
@@ -328,7 +373,10 @@ class PreviewPane(Gtk.DrawingArea):
             return None
         column = int((x - offset_x) / scale)
         row = int((y - offset_y) / scale)
-        if 0 <= column < self.pixbuf.get_width() and 0 <= row < self.pixbuf.get_height():
+        width, height = self.logical_size or (
+            self.pixbuf.get_width(), self.pixbuf.get_height()
+        )
+        if 0 <= column < width and 0 <= row < height:
             return column, row
         return None
 
@@ -340,7 +388,7 @@ class PreviewPane(Gtk.DrawingArea):
             return False
         cr.save()
         cr.translate(offset_x, offset_y)
-        cr.scale(scale, scale)
+        cr.scale(scale / self.level_scale, scale / self.level_scale)
         Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, 0)
         cr.paint()
         cr.restore()

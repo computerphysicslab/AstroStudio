@@ -11,15 +11,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.8'
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gir1.2-gtk-3.0 libcairo2-dev python3-gi desktop-file-utils xvfb
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements-dev.txt
+          sudo apt-get install -y python3-pip gir1.2-gtk-3.0 libcairo2-dev python3-gi desktop-file-utils xvfb
+      - name: Install Python dependencies
+        run: python3 -m pip install -r requirements-dev.txt
       - name: Mypy strict
         run: python3 -m mypy --config-file mypy.ini
       - name: Tests with coverage
