@@ -267,9 +267,11 @@ def test_layer_hover_hit_test(monkeypatch):
         "_view_parameters",
         lambda: (SimpleNamespace(width=400, height=200), 1.0, 0.0, 0.0),
     )
-    assert "Star #1" in pane._layer_hit(52, 40)
-    assert "flux=90.00" in pane._layer_hit(50, 40)
-    assert pane._layer_hit(300, 150) is None
+    text, target = pane._layer_hit(52, 40)
+    assert "Star #1" in text and target == ("star", 1)
+    text, target = pane._layer_hit(50, 40)
+    assert "flux=90.00" in text and target == ("star", 1)
+    assert pane._layer_hit(300, 150) == (None, None)
 
 
 def test_recent_transforms_deduplicated_and_relaunched(monkeypatch):
@@ -378,3 +380,54 @@ def test_no_segment_reports_status_and_keeps_mode(monkeypatch):
     assert window.preview.rotation_mode
     assert any("No segment" in text for text in statuses)
     window.destroy()
+
+
+def test_leader_line_hover_target(monkeypatch):
+    from types import SimpleNamespace
+
+    from astrostudio.core.star_catalog import StarDetection
+
+    pane = PreviewPane()
+    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_star_layer([StarDetection(50, 40, 90, 4, 0.2, 3)])
+    monkeypatch.setattr(
+        pane,
+        "_view_parameters",
+        lambda: (SimpleNamespace(width=400, height=200), 1.0, 0.0, 0.0),
+    )
+    text, target = pane._layer_hit(68, 26)
+    assert target == ("star-leader", 1)
+    assert "no invariant-pattern field" in text
+
+
+def test_hover_highlight_thickens_star_circle(monkeypatch):
+    from types import SimpleNamespace
+
+    import cairo
+
+    from astrostudio.core.star_catalog import StarDetection
+
+    pane = PreviewPane()
+    pane.set_pixbuf(GdkPixbuf.Pixbuf.new_from_file("assets/M42.jpg"), "assets/M42.jpg")
+    pane.set_star_layer([StarDetection(60, 60, 2, 4, 0.2, 3)])
+    monkeypatch.setattr(
+        pane,
+        "_view_parameters",
+        lambda: (SimpleNamespace(width=200, height=140), 1.0, 0.0, 0.0),
+    )
+
+    def count_yellow():
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 200, 140)
+        pane._on_draw(None, cairo.Context(surface))
+        data = surface.get_data()
+        return sum(
+            1
+            for offset in range(0, len(data), 4)
+            if data[offset + 2] > 180 and data[offset + 1] > 120
+            and data[offset] < 120 and data[offset + 3] > 0
+        )
+
+    normal = count_yellow()
+    pane.set_hover_target(("star", 1))
+    highlighted = count_yellow()
+    assert highlighted > normal

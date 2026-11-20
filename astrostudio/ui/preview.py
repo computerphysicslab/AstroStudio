@@ -10,6 +10,8 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
+from ..core.star_catalog import star_display_radius
+
 
 def selection_rectangle(start, end):
     """Return a normalised (x, y, width, height) rectangle from two points."""
@@ -44,6 +46,7 @@ class PreviewPane(Gtk.DrawingArea):
         self.object_layer = []
         self.star_layer_visible = True
         self.object_layer_visible = True
+        self.hover_target = None
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -133,44 +136,72 @@ class PreviewPane(Gtk.DrawingArea):
 
     def _on_leave(self, *_args) -> bool:
         self.hide_tooltip()
+        self.set_hover_target(None)
         return False
+
+    @staticmethod
+    def _point_segment_distance(px, py, ax, ay, bx, by):
+        dx, dy = bx - ax, by - ay
+        length_sq = dx * dx + dy * dy
+        if length_sq == 0:
+            return math.hypot(px - ax, py - ay)
+        position = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length_sq))
+        return math.hypot(px - (ax + position * dx), py - (ay + position * dy))
+
+    def set_hover_target(self, target) -> None:
+        if self.hover_target != target:
+            self.hover_target = target
+            self.queue_draw()
 
     def _layer_hit(self, x: float, y: float):
         _allocation, scale, offset_x, offset_y = self._view_parameters()
         if scale <= 0:
-            return None
+            return None, None
         if self.star_layer and self.star_layer_visible:
             top_flux = max((star.flux for star in self.star_layer), default=1.0) or 1.0
             for rank, star in enumerate(self.star_layer[:500], start=1):
                 sx = offset_x + star.x * scale
                 sy = offset_y + star.y * scale
-                intensity = star.flux / top_flux
-                radius = max(2.5, 6.0 - intensity * 2.0) + 4
+                radius = star_display_radius(star.flux, top_flux) + 4
                 if (x - sx) ** 2 + (y - sy) ** 2 <= radius ** 2:
                     return (
                         "Star #%d  x=%.1f y=%.1f\n"
                         "flux=%.2f  size=%.0f  HFR=%.2f  ecc=%.2f"
                         % (rank, star.x, star.y, star.flux, star.size, star.hfr, star.eccentricity)
-                    )
-        for obj in self.object_layer[:30]:
-            sx = offset_x + obj.x * scale
-            sy = offset_y + obj.y * scale
-            radius = max(5.0, min(50.0, (obj.area ** 0.5) * scale / 2.0)) + 4
-            if (x - sx) ** 2 + (y - sy) ** 2 <= radius ** 2:
-                return (
-                    "Object #%d: %s  x=%.1f y=%.1f\n"
-                    "area=%d px  flux=%.1f  ellipticity=%.2f\n"
-                    "C=%.2f A=%.2f S=%.2f  Gini=%.2f  M20=%.2f"
-                    % (
-                        obj.id, obj.object_type, obj.x, obj.y, obj.area, obj.flux,
-                        obj.ellipticity, obj.concentration, obj.asymmetry, obj.smoothness,
-                        obj.gini, obj.m20,
-                    )
-                )
-        return None
+                    ), ("star", rank)
+                if rank <= 30:
+                    leader_x2 = sx + radius + 4
+                    leader_y2 = sy - radius - 2
+                    if self._point_segment_distance(
+                        x, y, sx + radius, sy, leader_x2, leader_y2
+                    ) <= 5:
+                        return (
+                            "Label leader for star #%d (rank printed on canvas).\n"
+                            "SkyStacker's catalog has no invariant-pattern field; "
+                            "flux=%.2f  HFR=%.2f"
+                            % (rank, star.flux, star.hfr)
+                        ), ("star-leader", rank)
+        if self.object_layer and self.object_layer_visible:
+            for obj in self.object_layer[:30]:
+                sx = offset_x + obj.x * scale
+                sy = offset_y + obj.y * scale
+                radius = max(5.0, min(50.0, (obj.area ** 0.5) * scale / 2.0)) + 4
+                if (x - sx) ** 2 + (y - sy) ** 2 <= radius ** 2:
+                    return (
+                        "Object #%d: %s  x=%.1f y=%.1f\n"
+                        "area=%d px  flux=%.1f  ellipticity=%.2f\n"
+                        "C=%.2f A=%.2f S=%.2f  Gini=%.2f  M20=%.2f"
+                        % (
+                            obj.id, obj.object_type, obj.x, obj.y, obj.area, obj.flux,
+                            obj.ellipticity, obj.concentration, obj.asymmetry, obj.smoothness,
+                            obj.gini, obj.m20,
+                        )
+                    ), ("object", obj.id)
+        return None, None
 
     def update_hover(self, x: float, y: float) -> None:
-        text = self._layer_hit(x, y)
+        text, target = self._layer_hit(x, y)
+        self.set_hover_target(target)
         if text is None:
             self.hide_tooltip()
         else:
@@ -325,7 +356,7 @@ class PreviewPane(Gtk.DrawingArea):
         Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, 0)
         cr.paint()
         cr.restore()
-        if self.star_layer:
+        if self.star_layer and self.star_layer_visible:
             cr.set_font_size(9)
             top_flux = max((star.flux for star in self.star_layer), default=1.0) or 1.0
             for rank, star in enumerate(self.star_layer[:500], start=1):
@@ -333,14 +364,24 @@ class PreviewPane(Gtk.DrawingArea):
                 y = offset_y + star.y * scale
                 if not (0 <= x <= allocation.width and 0 <= y <= allocation.height):
                     continue
-                intensity = star.flux / top_flux
-                radius = max(2.5, 6.0 - intensity * 2.0)
-                cr.set_source_rgba(1.0, 0.80, 0.20, 0.35 + intensity * 0.6)
-                cr.set_line_width(1.2)
-                cr.arc(x, y, radius, 0, 2 * math.pi)
+                radius = star_display_radius(star.flux, top_flux)
+                highlighted = self.hover_target in (("star", rank), ("star-leader", rank))
+                alpha = 1.0 if highlighted else 0.35 + star.flux / top_flux * 0.55
+                line_width = 2.6 if highlighted else 1.2
+                cr.set_source_rgba(1.0, 0.90 if highlighted else 0.80, 0.20, alpha)
+                cr.set_line_width(line_width)
+                cr.arc(x, y, radius + (1.5 if highlighted else 0), 0, 2 * math.pi)
                 cr.stroke()
                 if rank <= 30:
-                    cr.move_to(x + radius + 2, y - radius)
+                    label_x = x + radius + 4
+                    label_y = y - radius - 2
+                    cr.set_source_rgba(1.0, 0.90, 0.25, 0.9 if highlighted else 0.55)
+                    cr.set_line_width(line_width if highlighted else 0.8)
+                    cr.move_to(x + radius, y)
+                    cr.line_to(label_x - 1, label_y + 2)
+                    cr.stroke()
+                    cr.set_source_rgba(1.0, 0.92, 0.30, 1.0 if highlighted else 0.9)
+                    cr.move_to(label_x, label_y)
                     cr.show_text(str(rank))
         if self.object_layer and self.object_layer_visible:
             cr.set_font_size(9)
@@ -350,9 +391,15 @@ class PreviewPane(Gtk.DrawingArea):
                 if not (0 <= x <= allocation.width and 0 <= y <= allocation.height):
                     continue
                 radius = max(5.0, min(50.0, (obj.area ** 0.5) * scale / 2.0))
-                cr.set_source_rgba(0.30, 0.70, 1.0, 0.85)
-                cr.set_line_width(1.4)
-                cr.arc(x, y, radius, 0, 2 * math.pi)
+                highlighted = self.hover_target == ("object", obj.id)
+                cr.set_source_rgba(
+                    0.45 if highlighted else 0.30,
+                    0.90 if highlighted else 0.70,
+                    1.0,
+                    1.0 if highlighted else 0.85,
+                )
+                cr.set_line_width(2.6 if highlighted else 1.4)
+                cr.arc(x, y, radius + (2 if highlighted else 0), 0, 2 * math.pi)
                 cr.stroke()
                 cr.move_to(x + radius + 2, y - radius - 2)
                 cr.show_text("%d %s" % (obj.id, obj.object_type))
@@ -387,3 +434,4 @@ class PreviewPane(Gtk.DrawingArea):
             cr.line_to(cx, cy + 18)
             cr.stroke()
         return False
+

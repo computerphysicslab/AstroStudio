@@ -2,8 +2,17 @@
 
 import csv
 import json
+import math
 from dataclasses import dataclass
 from typing import List
+
+
+def star_display_radius(flux: float, top_flux: float) -> float:
+    """Map background-subtracted flux to a visible circle radius."""
+    if top_flux <= 0:
+        return 3.0
+    normalized = math.log1p(max(0.0, flux)) / math.log1p(top_flux)
+    return 3.0 + 7.0 * max(0.0, min(1.0, normalized))
 
 
 @dataclass
@@ -68,15 +77,22 @@ def write_star_layer_svg(
     ]
     for rank, star in enumerate(detections, start=1):
         intensity = star.flux / top_flux
-        radius = max(3.0, 11.0 - intensity * 7.0)
+        radius = star_display_radius(star.flux, top_flux)
         lines.append(
             '<circle cx="%.1f" cy="%.1f" r="%.1f" fill="none" stroke="#ffcc4d" '
             'stroke-width="1.2" opacity="%.2f"/>'
             % (star.x, star.y, radius, 0.4 + intensity * 0.6)
         )
+        label_x = star.x + radius + 2
+        label_y = star.y - radius - 1
+        lines.append(
+            '<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#ffcc4d" '
+            'stroke-width="0.8" opacity="0.6" class="star-label-leader"/>'
+            % (star.x + radius, star.y, label_x - 1, label_y + 2)
+        )
         lines.append(
             '<text x="%.1f" y="%.1f" fill="#ffcc4d" font-size="9">%d</text>'
-            % (star.x + radius + 2, star.y - radius - 1, rank)
+            % (label_x, label_y, rank)
         )
     lines.append("</g>")
     lines.append("</svg>")

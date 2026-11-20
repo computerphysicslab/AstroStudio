@@ -36,3 +36,17 @@ def test_svg_layer(tmp_path):
     content = open(path, encoding="utf-8").read()
     assert 'id="star-identification"' in content
     assert "<circle" in content
+
+
+def test_flux_drives_circle_radius(tmp_path):
+    from astrostudio.core.star_catalog import star_display_radius
+
+    faint = star_display_radius(0.5, 100)
+    bright = star_display_radius(100, 100)
+    assert bright > faint
+    path = tmp_path / "layer.svg"
+    from astrostudio.core.star_catalog import StarDetection
+
+    objects = [StarDetection(10, 10, 90, 4, 0.2, 3)]
+    write_star_layer_svg(str(path), objects, 100, 80)
+    assert "star-label-leader" in path.read_text(encoding="utf-8")

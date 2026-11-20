@@ -842,7 +842,7 @@ to force a UI redraw.
   display formats (JPEG/PNG/BMP) get gamma/level flags in the CLI export argv, while
   FITS/TIFF scientific exports stay linear.
 * Tests cover argv building, report parsing, SVG layers, real CLI reports, popup dispatch,
-  recent transforms and close-to-previous-image. Full suite: 160 passed, 2 skipped.
+  recent transforms and close-to-previous-image. Full suite: 163 passed, 2 skipped.
 * Version bumped to `0.2.37`.
 
 
@@ -937,3 +937,18 @@ to force a UI redraw.
 * Background, deconvolution and starless presets still pass through the linear guard.
   Real-CLI integration verifies that the working TIFF and preview PNG both change.
 * Version bumped to `0.3.1`.
+
+
+---
+
+## 60. v0.3.2 — Flux-scaled Stars and Highlightable Overlays
+
+* `star_display_radius()` maps flux logarithmically to circle radius (3-10 px); the live
+  overlay, hit-testing and `star_layer.svg` all use the same value, so brighter stars are
+  visibly larger.
+* Rank labels now have explicit leader lines. Those straight strokes are label leaders,
+  not detected invariant patterns: SkyStacker's `stars[]` only carries `x_px`, `y_px`,
+  `flux`, `size_px`, `eccentricity` and `hfr_px`. Hovering a leader states this explicitly.
+* `PreviewPane.hover_target` tracks the hovered star, leader or diffuse object and redraws
+  only that item with a brighter, thicker outline. Leaving the canvas clears the target.
+* Version bumped to `0.3.2`.

@@ -32,7 +32,12 @@ from .object_classification import (
 from .process_engine import JobResult, ProcessEngine
 from .scratch import ScratchManager
 from .session import load_session, save_session
-from .star_catalog import StarDetection, parse_star_catalog, write_star_layer_svg
+from .star_catalog import (
+    StarDetection,
+    parse_star_catalog,
+    star_display_radius,
+    write_star_layer_svg,
+)
 from .video import (
     SerHeader,
     ffmpeg_extract_argv,
@@ -108,6 +113,7 @@ __all__ = [
     "save_session",
     "StarDetection",
     "parse_star_catalog",
+    "star_display_radius",
     "write_star_layer_svg",
     "SettingsManager",
     "SKY_FILTERS",

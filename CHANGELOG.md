@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.2 — 2026-11-20
+
+- Star-identification circles now scale logarithmically with flux; brighter stars get visibly larger rings in both the live overlay and the SVG sidecar.
+- Rank labels have explicit leader lines; hovering them explains that SkyStacker's catalog contains no invariant-pattern field, only star photometry/morphology.
+- Hovering a star circle, its leader or a diffuse object now highlights that item with a brighter, thicker outline; leaving the canvas clears the highlight.
+- Added regression tests for flux-radius ordering, leader hit-testing and highlight rendering; suite is 163 passed, 2 skipped.
+
 ## 0.3.1 — 2026-11-20
 
 - Filter menu expanded with 24 SkyStacker single-image presets: blur, unsharp/wavelet sharpen, polynomial/masked/multiscale/asymmetric/RBF background, STF variants, guided/wavelet/adaptive denoise, Richardson-Lucy/Wiener/grid deconvolution and three starless modes.
