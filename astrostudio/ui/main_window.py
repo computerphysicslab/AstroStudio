@@ -1090,7 +1090,17 @@ toolbutton.inactive-action {
             self.log_buffer.insert_with_tags_by_name(
                 self.log_buffer.get_end_iter(), text + suffix, tag
             )
-        self.log_view.scroll_to_iter(self.log_buffer.get_end_iter(), 0.0, False, 0.0, 0.0)
+        self.log_view.scroll_to_iter(self.log_buffer.get_end_iter(), 0.0, True, 0.0, 1.0)
+
+        def scroll_to_bottom() -> bool:
+            adjustment = self.log_view.get_vadjustment()
+            if adjustment is not None:
+                adjustment.set_value(
+                    adjustment.get_upper() - adjustment.get_page_size()
+                )
+            return False
+
+        GLib.idle_add(scroll_to_bottom)
 
     def _capture_view_state(self) -> dict:
         return {
@@ -3122,6 +3132,48 @@ toolbutton.inactive-action {
     def _dialog_header(self, dialog: Gtk.Window, title: str) -> Gtk.HeaderBar:
         return self.dialogs.header(dialog, title)
 
+    def _show_external_failure(
+        self, category: str, title: str, hint: str, detail: str
+    ) -> None:
+        window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        window.set_title(self.translator.tr("External backend failure"))
+        window.set_transient_for(self)
+        window.set_modal(True)
+        window.set_default_size(560, 300)
+        header = Gtk.HeaderBar()
+        header.set_title(self.translator.tr("External backend failure"))
+        header.set_show_close_button(True)
+        window.set_titlebar(header)
+        make_draggable(window, header)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        box.set_border_width(12)
+        explanation = Gtk.Label(label=self.translator.tr(title), xalign=0.0)
+        explanation.set_line_wrap(True)
+        advice = Gtk.Label(label=self.translator.tr(hint), xalign=0.0)
+        advice.set_line_wrap(True)
+        raw_title = Gtk.Label(
+            label=self.translator.tr("Connector output (literal)"), xalign=0.0
+        )
+        raw = Gtk.Label(label=detail[:3000], xalign=0.0)
+        raw.set_line_wrap(True)
+        raw.set_selectable(True)
+        raw.override_font(Pango.FontDescription("sans 9"))
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_min_content_height(110)
+        scroll.add(raw)
+        box.pack_start(explanation, False, False, 0)
+        box.pack_start(advice, False, False, 0)
+        box.pack_start(raw_title, False, False, 0)
+        box.pack_start(scroll, True, True, 0)
+        window.add(box)
+
+        loop = GLib.MainLoop()
+        window.connect("delete-event", lambda *_: (loop.quit(), True)[1])
+        window.show_all()
+        loop.run()
+        window.destroy()
+
     def _show_info(self, title: str, text: str) -> None:
         dialog = Gtk.MessageDialog(
             parent=self,
@@ -3469,9 +3521,12 @@ toolbutton.inactive-action {
             else:
                 detail = result.error or result.stderr or "unknown error"
                 failures.append(index)
-                category, _hint = classify_backend_failure(detail)
+                category, title, hint = classify_backend_failure(detail)
                 self.operation_log.record(
                     "external_failure", job_id=result.job_id, category=category
+                )
+                self._status(
+                    "%s: %s" % (self.translator.tr(title), self.translator.tr(hint))[:160]
                 )
                 self._log("Prefetch %d failed (%s): %s" % (index, category, detail))
             self._run_prefetch_jobs(jobs, index + 1, failures)
@@ -3572,15 +3627,11 @@ toolbutton.inactive-action {
         if not result.ok:
             detail = result.error or result.stderr or ""
             self._log("CLI %s failed: %s" % (result.job_id, detail))
-            category, hint = classify_backend_failure(detail)
+            category, title, hint = classify_backend_failure(detail)
             self.operation_log.record(
                 "external_failure", job_id=result.job_id, category=category
             )
-            summary = "Plate solving failed (SkyStacker backend, %s).\n%s" % (
-                category,
-                hint,
-            )
-            self._show_error(summary + "\n\n" + detail[:1500])
+            self._show_external_failure(category, title, hint, detail)
         else:
             solution = find_plate_solution(output_dir)
             if solution:
@@ -3719,13 +3770,11 @@ toolbutton.inactive-action {
         if not result.ok:
             detail = result.error or result.stderr or "unknown error"
             self._log("CLI %s failed: %s" % (result.job_id, detail))
-            category, hint = classify_backend_failure(detail)
+            category, title, hint = classify_backend_failure(detail)
             self.operation_log.record(
                 "external_failure", job_id=result.job_id, category=category
             )
-            self._show_error(
-                "Survey cutout failed (%s): %s\n\n%s" % (category, detail, hint)
-            )
+            self._show_external_failure(category, title, hint, detail)
             return
         fits_file = find_output(output_dir, [".fits", ".fit"])
         text = "Survey cutout written to %s" % (fits_file or output_dir)

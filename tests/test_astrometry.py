@@ -90,13 +90,15 @@ def test_sky_map_argv_requests_solve_and_uses_layered_product():
 
 
 def test_classify_backend_failure_returns_actionable_hints():
-    category, hint = classify_backend_failure("skystacker: hips2fits HTTP 404")
+    category, title, hint = classify_backend_failure("skystacker: hips2fits HTTP 404")
     assert category == "hips-service"
+    assert title == "HiPS survey service unavailable"
     assert "CDS HiPS" in hint
-    category, hint = classify_backend_failure(
+    category, title, hint = classify_backend_failure(
         "plate solve: no consistent transform (0 matched pairs)"
     )
     assert category == "solver-matching"
+    assert title == "Star matching failed"
     assert "astrometry.net" in hint
     assert classify_backend_failure("no catalog manifest found")[0] == "catalog-env"
     assert classify_backend_failure("something unexpected")[0] == "backend-error"

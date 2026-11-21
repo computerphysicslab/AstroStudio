@@ -1057,6 +1057,83 @@ TRANSLATIONS = {'de': {'90 degrees anticlockwise': '90 Grad gegen den Uhrzeigers
         'view unchanged': '视图未变'}}
 
 
+FAILURE_TRANSLATIONS = {
+    'de': {
+        'External backend failure': 'Externer Backend-Fehler',
+        'Connector output (literal)': 'Ausgabe des Konnektors (wortwörtlich)',
+        'HiPS survey service unavailable': 'HiPS-Durchmusterungsdienst nicht verfügbar',
+        'The CDS HiPS survey service is unavailable for the configured survey; change survey_hips in Options > Backend Settings or retry later.': 'Der CDS-HiPS-Dienst ist für die konfigurierte Durchmusterung nicht verfügbar. Ändere survey_hips in Optionen > Backend-Einstellungen oder versuche es später erneut.',
+        'Star matching failed': 'Sternabgleich fehlgeschlagen',
+        'SkyStacker could not match stars in this field. Use a linear frame and a precise RA/Dec seed; a blind fallback needs astrometry.net or ASTAP.': 'SkyStacker konnte in diesem Feld keine Sterne abgleichen. Verwende ein lineares Bild und einen genauen RA/Dec-Startwert; ein Blind-Fallback benötigt astrometry.net oder ASTAP.',
+        'SkyStacker catalog environment missing': 'SkyStacker-Katalogumgebung fehlt',
+        'SkyStacker could not find the blind catalog manifest; set SKYSTACKER_CATALOGS in Options > Backend Settings.': 'SkyStacker konnte das Blind-Katalogmanifest nicht finden; setze SKYSTACKER_CATALOGS in Optionen > Backend-Einstellungen.',
+        'Invalid CLI argument order': 'Ungültige CLI-Argumentreihenfolge',
+        'ImageMagick rejected the operation order; this is an AstroStudio bug.': 'ImageMagick hat die Operationsreihenfolge abgelehnt; dies ist ein AstroStudio-Fehler.',
+        'External backend error': 'Externer Backend-Fehler',
+        'The external backend reported an error; no result was fabricated.': 'Das externe Backend hat einen Fehler gemeldet; es wurde kein Ergebnis erfunden.',
+    },
+    'es': {
+        'External backend failure': 'Fallo del backend externo',
+        'Connector output (literal)': 'Salida del conector (literal)',
+        'HiPS survey service unavailable': 'Servicio de sondeo HiPS no disponible',
+        'The CDS HiPS survey service is unavailable for the configured survey; change survey_hips in Options > Backend Settings or retry later.': 'El servicio HiPS del CDS no está disponible para el sondeo configurado; cambia survey_hips en Opciones > Ajustes de backends o inténtalo más tarde.',
+        'Star matching failed': 'Falló el emparejamiento de estrellas',
+        'SkyStacker could not match stars in this field. Use a linear frame and a precise RA/Dec seed; a blind fallback needs astrometry.net or ASTAP.': 'SkyStacker no pudo emparejar estrellas en este campo. Usa una imagen lineal y una semilla RA/Dec precisa; el modo ciego necesita astrometry.net o ASTAP.',
+        'SkyStacker catalog environment missing': 'Falta el entorno de catálogos de SkyStacker',
+        'SkyStacker could not find the blind catalog manifest; set SKYSTACKER_CATALOGS in Options > Backend Settings.': 'SkyStacker no encontró el manifiesto del catálogo ciego; configura SKYSTACKER_CATALOGS en Opciones > Ajustes de backends.',
+        'Invalid CLI argument order': 'Orden inválido de argumentos CLI',
+        'ImageMagick rejected the operation order; this is an AstroStudio bug.': 'ImageMagick rechazó el orden de operaciones; es un error de AstroStudio.',
+        'External backend error': 'Error del backend externo',
+        'The external backend reported an error; no result was fabricated.': 'El backend externo informó de un error; no se ha inventado ningún resultado.',
+    },
+    'ja': {
+        'External backend failure': '外部バックエンドのエラー',
+        'Connector output (literal)': 'コネクタの出力（原文）',
+        'HiPS survey service unavailable': 'HiPSサーベイサービスを利用できません',
+        'The CDS HiPS survey service is unavailable for the configured survey; change survey_hips in Options > Backend Settings or retry later.': '設定されたサーベイではCDSのHiPSサービスを利用できません。オプション＞バックエンド設定のsurvey_hipsを変更するか、後で再試行してください。',
+        'Star matching failed': '星の照合に失敗しました',
+        'SkyStacker could not match stars in this field. Use a linear frame and a precise RA/Dec seed; a blind fallback needs astrometry.net or ASTAP.': 'SkyStackerはこの視野で星を照合できませんでした。リニア画像と正確なRA/Decシードを使用してください。ブラインド解決にはastrometry.netまたはASTAPが必要です。',
+        'SkyStacker catalog environment missing': 'SkyStackerのカタログ環境がありません',
+        'SkyStacker could not find the blind catalog manifest; set SKYSTACKER_CATALOGS in Options > Backend Settings.': 'SkyStackerがブラインドカタログのマニフェストを見つけられません。オプション＞バックエンド設定でSKYSTACKER_CATALOGSを設定してください。',
+        'Invalid CLI argument order': 'CLI引数の順序が不正です',
+        'ImageMagick rejected the operation order; this is an AstroStudio bug.': 'ImageMagickが操作順を拒否しました。これはAstroStudioのバグです。',
+        'External backend error': '外部バックエンドのエラー',
+        'The external backend reported an error; no result was fabricated.': '外部バックエンドがエラーを報告しました。結果は捏造されていません。',
+    },
+    'ru': {
+        'External backend failure': 'Ошибка внешнего бэкенда',
+        'Connector output (literal)': 'Вывод коннектора (дословно)',
+        'HiPS survey service unavailable': 'Служба обзора HiPS недоступна',
+        'The CDS HiPS survey service is unavailable for the configured survey; change survey_hips in Options > Backend Settings or retry later.': 'Служба CDS HiPS недоступна для настроенного обзора; измените survey_hips в «Параметры > Настройки бэкендов» или повторите позже.',
+        'Star matching failed': 'Не удалось сопоставить звёзды',
+        'SkyStacker could not match stars in this field. Use a linear frame and a precise RA/Dec seed; a blind fallback needs astrometry.net or ASTAP.': 'SkyStacker не смог сопоставить звёзды в этом поле. Используйте линейный кадр и точные координаты RA/Dec; для слепого решения нужен astrometry.net или ASTAP.',
+        'SkyStacker catalog environment missing': 'Отсутствует окружение каталогов SkyStacker',
+        'SkyStacker could not find the blind catalog manifest; set SKYSTACKER_CATALOGS in Options > Backend Settings.': 'SkyStacker не нашёл манифест слепого каталога; задайте SKYSTACKER_CATALOGS в «Параметры > Настройки бэкендов».',
+        'Invalid CLI argument order': 'Неверный порядок аргументов CLI',
+        'ImageMagick rejected the operation order; this is an AstroStudio bug.': 'ImageMagick отклонил порядок операций; это ошибка AstroStudio.',
+        'External backend error': 'Ошибка внешнего бэкенда',
+        'The external backend reported an error; no result was fabricated.': 'Внешний бэкенд сообщил об ошибке; результат не был выдуман.',
+    },
+    'zh': {
+        'External backend failure': '外部后端故障',
+        'Connector output (literal)': '连接器输出（原文）',
+        'HiPS survey service unavailable': 'HiPS 巡天服务不可用',
+        'The CDS HiPS survey service is unavailable for the configured survey; change survey_hips in Options > Backend Settings or retry later.': 'CDS 的 HiPS 服务对当前配置的巡天不可用；请在“选项 > 后端设置”中更改 survey_hips，或稍后重试。',
+        'Star matching failed': '恒星匹配失败',
+        'SkyStacker could not match stars in this field. Use a linear frame and a precise RA/Dec seed; a blind fallback needs astrometry.net or ASTAP.': 'SkyStacker 无法在此视场匹配恒星。请使用线性图像和精确的 RA/Dec 种子；盲解需要 astrometry.net 或 ASTAP。',
+        'SkyStacker catalog environment missing': '缺少 SkyStacker 星表环境',
+        'SkyStacker could not find the blind catalog manifest; set SKYSTACKER_CATALOGS in Options > Backend Settings.': 'SkyStacker 找不到盲解星表清单；请在“选项 > 后端设置”中设置 SKYSTACKER_CATALOGS。',
+        'Invalid CLI argument order': 'CLI 参数顺序无效',
+        'ImageMagick rejected the operation order; this is an AstroStudio bug.': 'ImageMagick 拒绝了操作顺序；这是 AstroStudio 的错误。',
+        'External backend error': '外部后端错误',
+        'The external backend reported an error; no result was fabricated.': '外部后端报告了错误；没有伪造结果。',
+    },
+}
+
+for _language, _entries in FAILURE_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_language, {}).update(_entries)
+
+
 class Translator:
     def __init__(self, language: str = "en") -> None:
         self.language = language if language in TRANSLATIONS else "en"

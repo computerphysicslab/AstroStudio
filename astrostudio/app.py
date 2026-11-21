@@ -117,6 +117,7 @@ class AstroStudioApplication(Gtk.Application):
         if self.window is not None:
             self.window.refresh_jobs()
             self.window._show_job_progress("Working: %s" % job_id)
+        self.update_action_sensitivity()
 
     def _on_job_end(self, job_id: str, result) -> None:
         self.job_manager.finish(job_id, result)
@@ -126,6 +127,7 @@ class AstroStudioApplication(Gtk.Application):
                 "%s: %s" % (job_id, "OK" if result.ok else "failed")
             )
             self.window._hide_job_progress_delayed()
+        self.update_action_sensitivity()
 
     def apply_shortcuts(self) -> None:
         custom = self.settings.get("shortcuts", {}) or {}
@@ -199,7 +201,10 @@ class AstroStudioApplication(Gtk.Application):
                 action.set_enabled(enabled)
         cancel = self.lookup_action("cancel")
         if cancel is not None:
-            cancel.set_enabled(bool(self.engine.active_jobs))
+            user_jobs = [
+                job for job in self.engine.active_jobs if not job.startswith("probe-")
+            ]
+            cancel.set_enabled(bool(user_jobs))
         if self.window is not None:
             self.window.update_toolbar_sensitivity()
 

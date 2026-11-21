@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.24 — 2026-11-21
+
+- External backend failures now show a clear, localised explanation (EN/ES/DE/JA/RU/ZH) with the connector's literal stderr below in smaller text, via `_show_external_failure()`. Failure titles/hints were added to `i18n.py` for all five non-English UI languages.
+- The terminal drawer now always scrolls fully to the last line (bottom-aligned `scroll_to_iter` plus an idle adjustment update).
+- The Stop toolbar action is disabled by default and during internal probes; it is enabled only while a user job is active, and its state is refreshed on every job start/end.
+- Added four regression tests (localised messages, terminal scroll, stop-action gating). Suite: 234 passed, 2 skipped; mypy clean on 52 modules.
+
 ## 0.3.23 — 2026-11-21
 
 - Added structured classification of backend failures (`classify_backend_failure()`): HiPS service outages, star-matching failures, missing catalog manifests and argv-order errors now produce categories and actionable hints. Plate solving, survey cutouts and prefetch record `external_failure` events with the category in the persistent operation log, so later iterations can distinguish app bugs from external outages without rereading raw stderr.

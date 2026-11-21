@@ -51,5 +51,23 @@ def test_draw_segment_hint_translated():
     assert Translator("de").tr("Draw a segment") == "Segment ziehen"
 
 
+def test_external_failure_messages_are_localised():
+    keys = (
+        "External backend failure",
+        "Connector output (literal)",
+        "HiPS survey service unavailable",
+        "Star matching failed",
+        "SkyStacker catalog environment missing",
+        "Invalid CLI argument order",
+        "External backend error",
+    )
+    for language in ("es", "de", "ja", "ru", "zh"):
+        translator = Translator(language)
+        for key in keys:
+            translated = translator.tr(key)
+            assert translated != key, (language, key)
+            assert translated.strip()
+
+
 def test_rotating_by_hint_translated():
     assert Translator("es").tr("Rotating by") == "Rotando"

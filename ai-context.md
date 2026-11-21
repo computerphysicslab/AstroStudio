@@ -20,8 +20,8 @@
 - **Repo:** public `computerphysicslab/AstroStudio`, branch `main` (English commit messages;
   **never** push/tag/merge/rewrite history without an explicit request).
 - **HEAD:** `3f63f9d` ("Fix CI Python environment and complete roadmap items 1-9").
-- **Version:** `0.3.23` (`astrostudio/__init__.py:3`), committed on `main` as `af0d4c1` and pushed
-  to `origin/main`; working tree clean. `BUILD_DATE = "2026-11-21"`.
+- **Version:** `0.3.24` (`astrostudio/__init__.py:3`), committed on `main` and pushed to
+  `origin/main`; working tree clean. `BUILD_DATE = "2026-11-21"`.
 - **Stack:** Python 3.8-compatible runtime (mypy targets 3.9; CI uses system Python 3.10 on
   Ubuntu 22.04), PyGObject, **GTK 3.24 only** (GTK4 not installed), `Gio.Subprocess`,
   `GdkPixbuf`, Cairo.
@@ -196,7 +196,7 @@ desktop-file validation. `mypy.ini` has documented pragmatic exceptions and
 `ignore_missing_imports` for `gi`, `numpy`, `PIL`. Current local environment: Python 3.14.4,
 pytest 9.0.2, GTK 3.24.52 with glycin loaders, ImageMagick 7.1.2-18. Dev tools installed from apt
 via `~/install-astrostudio-dev-tools.sh`: mypy 1.19.1, pytest-cov 5.0.0, pre-commit 4.5.1.
-Latest verification: **231 passed, 2 skipped**, real GUI launch without GError, mypy clean on 52
+Latest verification: **234 passed, 2 skipped**, real GUI launch without GError, mypy clean on 52
 modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% gate. With
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, add `-p pytest_cov` so the coverage plugin loads.
 
@@ -281,3 +281,5 @@ modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% ga
 - **2026-11-21:** session `21f9df83` contained only external failures; added structured failure
   classification and `external_failure` log events so future iterations can separate app bugs
   from backend outages; 231 passed/2 skipped (§83).
+- **2026-11-21:** localised external-failure dialogs with literal stderr in smaller text, fixed
+  terminal bottom scroll, and gated the Stop action to active user jobs; 234 passed/2 skipped (§84).

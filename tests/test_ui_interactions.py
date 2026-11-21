@@ -511,7 +511,9 @@ def test_plate_solve_failure_is_classified_as_external(monkeypatch):
 
     errors = []
     log = StubLog()
-    monkeypatch.setattr(window, "_show_error", lambda *args: errors.append(args))
+    monkeypatch.setattr(
+        window, "_show_external_failure", lambda *args: errors.append(args)
+    )
     monkeypatch.setattr(window, "operation_log", log)
     detail = (
         "gaia: tile nside=64 [cache hit]\n"
@@ -521,7 +523,8 @@ def test_plate_solve_failure_is_classified_as_external(monkeypatch):
     window._on_plate_solve_done(
         JobResult("plate-solve", [], 1, stderr=detail), "/tmp/job"
     )
-    assert errors and "solver-matching" in str(errors[0])
+    assert errors and errors[0][0] == "solver-matching"
+    assert errors[0][1] == "Star matching failed"
     assert ("external_failure", {"job_id": "plate-solve", "category": "solver-matching"}) in log.records
     window.destroy()
 
@@ -606,12 +609,15 @@ def test_survey_cutout_hints_about_hips_outage(monkeypatch):
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)
     errors = []
-    monkeypatch.setattr(window, "_show_error", lambda *args: errors.append(args))
+    monkeypatch.setattr(
+        window, "_show_external_failure", lambda *args: errors.append(args)
+    )
     window._on_survey_cutout_done(
         JobResult("survey-cutout", [], 1, stderr="skystacker: hips2fits HTTP 404"),
         "/tmp/job",
     )
-    assert errors and "hips-service" in str(errors[0]) and "CDS HiPS" in str(errors[0])
+    assert errors and errors[0][0] == "hips-service"
+    assert "CDS HiPS" in errors[0][2]
     window.destroy()
 
 
@@ -755,3 +761,38 @@ def test_open_large_image_fit_survives_pyramid_and_real_allocation(tmp_path, mon
     assert 900 * scale <= allocation.height + 1
     assert offset_x >= -1 and offset_y >= -1
     window.destroy()
+
+
+def test_terminal_always_scrolls_to_the_last_line():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    window.show_all()
+    for index in range(80):
+        window._append_log_line("terminal line %d" % index, "info", {})
+    loop = GLib.MainLoop()
+    GLib.timeout_add(50, lambda: loop.quit() or False)
+    loop.run()
+    adjustment = window.log_view.get_vadjustment()
+    assert adjustment is not None
+    assert adjustment.get_value() >= adjustment.get_upper() - adjustment.get_page_size() - 1
+    window.destroy()
+
+
+def test_stop_action_only_enabled_for_user_jobs():
+    app = AstroStudioApplication()
+    action = app.lookup_action("cancel")
+    assert action is not None
+    action.set_enabled(True)
+    app.update_action_sensitivity()
+    assert not action.get_enabled()
+
+    class Engine:
+        active_jobs = ["probe-ImageMagick"]
+
+    app.engine = Engine()
+    app.update_action_sensitivity()
+    assert not action.get_enabled()
+
+    Engine.active_jobs = ["image-0001-import"]
+    app.update_action_sensitivity()
+    assert action.get_enabled()
