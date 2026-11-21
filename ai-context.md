@@ -20,8 +20,8 @@
 - **Repo:** public `computerphysicslab/AstroStudio`, branch `main` (English commit messages;
   **never** push/tag/merge/rewrite history without an explicit request).
 - **HEAD:** `3f63f9d` ("Fix CI Python environment and complete roadmap items 1-9").
-- **Version:** `0.3.23` in the working tree (`astrostudio/__init__.py:3`), but **HEAD is
-  `4bacac9` (0.3.22)**: the 0.3.23 diagnostics work is uncommitted (see §10). `BUILD_DATE = "2026-11-21"`.
+- **Version:** `0.3.23` (`astrostudio/__init__.py:3`), committed on `main` as `af0d4c1` and pushed
+  to `origin/main`; working tree clean. `BUILD_DATE = "2026-11-21"`.
 - **Stack:** Python 3.8-compatible runtime (mypy targets 3.9; CI uses system Python 3.10 on
   Ubuntu 22.04), PyGObject, **GTK 3.24 only** (GTK4 not installed), `Gio.Subprocess`,
   `GdkPixbuf`, Cairo.
