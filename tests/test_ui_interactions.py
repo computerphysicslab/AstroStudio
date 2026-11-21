@@ -838,3 +838,57 @@ def test_stop_action_only_enabled_for_user_jobs():
     Engine.active_jobs = ["image-0001-import"]
     app.update_action_sensitivity()
     assert action.get_enabled()
+
+
+def test_histogram_debounce_restarts_timer():
+    from astrostudio.ui.histogram_panel import HistogramWidget
+
+    widget = HistogramWidget()
+    widget._drag = "low"
+    calls = []
+    widget.on_change = lambda low, high: calls.append((low, high))
+    for index in range(50):
+        widget.low = float(index)
+        widget._schedule_apply()
+    loop = GLib.MainLoop()
+    GLib.timeout_add(450, lambda: loop.quit() or False)
+    loop.run()
+    assert len(calls) == 1
+    assert calls[0][0] == 49.0
+
+
+def test_stretch_uses_active_image(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    first = WorkingImage("a", "a.png", "/tmp/a", "/tmp/a.tiff", "/tmp/a.png")
+    second = WorkingImage("b", "b.png", "/tmp/b", "/tmp/b.tiff", "/tmp/b.png")
+    window.current_images.extend([first, second])
+    window.current_paths.extend(["a.png", "b.png"])
+    window.active_image = first
+    seen = []
+    monkeypatch.setattr(
+        window.workspace,
+        "update_preview",
+        lambda image, **kwargs: seen.append(image),
+    )
+    window._on_stretch_change(10.0, 200.0)
+    assert seen == [first]
+    window.destroy()
+
+
+def test_close_removes_active_not_last_image(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    first = WorkingImage("a", "a.png", "/tmp/a", "/tmp/a.tiff", "/tmp/a.png")
+    second = WorkingImage("b", "b.png", "/tmp/b", "/tmp/b.tiff", "/tmp/b.png")
+    window.current_images.extend([first, second])
+    window.current_paths.extend(["a.png", "b.png"])
+    window.thumbnail_store.append([None, "a.png"])
+    window.thumbnail_store.append([None, "b.png"])
+    window.active_image = first
+    monkeypatch.setattr(window.preview, "load", lambda path: None)
+    window.action_close()
+    assert window.current_images == [second]
+    assert window.current_paths == ["b.png"]
+    assert window.active_image is second
+    window.destroy()

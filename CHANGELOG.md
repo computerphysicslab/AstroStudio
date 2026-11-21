@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.31 — 2026-11-21
+
+- Audit-driven roadmap items R1–R4: FITS cards with inline ` / comment` are now parsed correctly (real Siril/ASTAP headers no longer fail as `missing SIMPLE=T`); preview jobs use per-generation IDs and temporary files, cancel/supersede older jobs and discard stale callbacks; histogram stretch uses a trailing 250 ms debounce shared with gamma; undo snapshots are created only after a successful transform; stretch and Close operate on the active document.
+- Verified against the source-aware audit in `reviews/informe_auditoria_AstroStudio.md`; screenshot-only claims from the other reviews were treated as hypotheses. Added six regression tests. Suite: 252 passed, 2 skipped; mypy clean on 53 modules.
+
 ## 0.3.30 — 2026-11-21
 
 - Canvas framing: added View > Zoom Modes with Fit to Window, Fill Window, Fit Width and Fit Height. The mode is stored in the view state and survives transforms/Undo-Redo; all five UI languages have the new labels.

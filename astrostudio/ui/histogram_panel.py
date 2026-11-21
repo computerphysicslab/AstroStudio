@@ -69,8 +69,8 @@ class HistogramWidget(Gtk.DrawingArea):
 
     def _schedule_apply(self) -> None:
         if self._apply_timer is not None:
-            return
-        self._apply_timer = GLib.timeout_add(1000, self._debounced_apply)
+            GLib.source_remove(self._apply_timer)
+        self._apply_timer = GLib.timeout_add(250, self._debounced_apply)
 
     def _debounced_apply(self) -> bool:
         self._apply_timer = None

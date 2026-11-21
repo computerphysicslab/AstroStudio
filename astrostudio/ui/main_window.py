@@ -3092,9 +3092,11 @@ button.info-circle {
             self._status(self.translator.tr("Histogram ready (drag the two handles to stretch)"))
 
     def _on_stretch_change(self, low: float, high: float) -> None:
-        if not self.current_images:
+        image = self.active_image or (
+            self.current_images[-1] if self.current_images else None
+        )
+        if image is None:
             return
-        image = self.current_images[-1]
         image.stretch_points = (low, high)
         image.gamma = float(self.gamma_scale.get_value())
         view_state = self._capture_view_state()
@@ -3108,7 +3110,7 @@ button.info-circle {
     def _on_gamma_changed(self, _scale) -> None:
         if self._gamma_timer is not None:
             GLib.source_remove(self._gamma_timer)
-        self._gamma_timer = GLib.timeout_add(800, self._apply_gamma_now)
+        self._gamma_timer = GLib.timeout_add(250, self._apply_gamma_now)
 
     def _apply_gamma_now(self) -> bool:
         self._gamma_timer = None
@@ -3191,17 +3193,26 @@ button.info-circle {
         )
 
     def action_close(self) -> None:
-        if self.current_paths:
-            self.current_paths.pop()
+        index = -1
+        if self.active_image is not None:
+            for position, image in enumerate(self.current_images):
+                if image is self.active_image:
+                    index = position
+                    break
+        if index < 0 and self.current_images:
+            index = len(self.current_images) - 1
+        if index >= 0:
+            if index < len(self.current_paths):
+                self.current_paths.pop(index)
+            self.current_images.pop(index)
+            try:
+                row = self.thumbnail_store.get_iter_from_string(str(index))
+            except ValueError:
+                row = None
+            if row is not None:
+                self.thumbnail_store.remove(row)
         if self.current_images:
-            self.current_images.pop()
-        last = None
-        for row in self.thumbnail_store:
-            last = row.iter
-        if last is not None:
-            self.thumbnail_store.remove(last)
-        if self.current_images:
-            image = self.current_images[-1]
+            image = self.current_images[min(index, len(self.current_images) - 1)]
             self.active_image = image
             self.preview.load(image.png_path)
             self._status(self.translator.tr("Closed active view; showing previous image"))

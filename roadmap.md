@@ -347,3 +347,19 @@ solution and merges them into a `.metadata.json` sidecar in the image's scratch 
 Existing keys are always preserved; coherent values are kept and conflicting ones are reported,
 never overwritten. On FITS export the merged metadata is copied next to the exported file.
 Original captures are never modified.
+
+
+## Audit-driven robustness items (2026-11-21)
+
+Shared scope: findings confirmed by source review in `reviews/informe_auditoria_AstroStudio.md`
+and by the other audits. Evidence-only claims from screenshot reviews were filtered out.
+
+- [x] **R1 — FITS inline comments**: strip ` / comment` from FITS cards so real files from
+  Siril/ASTAP/cameras are not rejected as `missing SIMPLE=T`; keep quoted values intact.
+- [x] **R2 — Preview generations**: unique job IDs and temporary PNGs per preview generation;
+  cancel/supersede pending previews and discard stale callbacks so overlapping stretch jobs
+  cannot overwrite each other or crash on `os.replace`.
+- [x] **R3 — Histogram debounce**: trailing debounce (restart timer on each move) for stretch
+  changes, shared with gamma, replacing the 1 s throttle that could launch several CLI jobs.
+- [x] **R4 — Undo and active document**: create undo snapshots only after a successful
+  transform; apply stretch and Close to the active image instead of the last opened one.

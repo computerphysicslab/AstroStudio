@@ -7,6 +7,7 @@ __pycache__/
 # Local context, private data and credentials
 Context/
 ai-context.md
+reviews/
 datasets/
 private/
 personal/

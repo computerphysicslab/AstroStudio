@@ -22,10 +22,23 @@ def _value(card: str) -> Any:
     if "=" not in card:
         return None
     raw = card.split("=", 1)[1].strip()
+    if raw.startswith("'"):
+        chars = []
+        index = 1
+        while index < len(raw):
+            if raw[index] == "'":
+                if index + 1 < len(raw) and raw[index + 1] == "'":
+                    chars.append("'")
+                    index += 2
+                    continue
+                break
+            chars.append(raw[index])
+            index += 1
+        return "".join(chars).strip()
+    if "/" in raw:
+        raw = raw.split("/", 1)[0].strip()
     if raw in ("T", "F"):
         return raw == "T"
-    if raw.startswith("'"):
-        return raw.strip("'").strip()
     try:
         return int(raw)
     except ValueError:

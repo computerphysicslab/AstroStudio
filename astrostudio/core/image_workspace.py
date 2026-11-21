@@ -68,6 +68,8 @@ class ImageWorkspace:
         self._redo: Dict[str, List[Snapshot]] = {}
         self._snapshot_counter: Dict[str, int] = {}
         self._pyramids: Dict[str, List[Tuple[str, float]]] = {}
+        self._preview_generation: Dict[str, int] = {}
+        self._preview_jobs: Dict[str, str] = {}
         self._counter = 0
 
     def ensure_pyramid(
@@ -287,7 +289,15 @@ class ImageWorkspace:
         on_error: ErrorCallback,
         on_log: Optional[LogCallback],
     ) -> None:
-        temporary_png = image.png_path + ".next"
+        generation = self._preview_generation.get(image.key, 0) + 1
+        self._preview_generation[image.key] = generation
+        previous = self._preview_jobs.get(image.key)
+        cancel = getattr(self.engine, "cancel", None)
+        if previous and cancel is not None:
+            cancel(previous)
+        job_id = "%s-preview-%d" % (image.key, generation)
+        self._preview_jobs[image.key] = job_id
+        temporary_png = "%s.%d.next" % (image.png_path, generation)
         argv = self.adapter.build_preview_argv(
             image.tiff_path,
             temporary_png,
@@ -298,11 +308,11 @@ class ImageWorkspace:
         if on_log:
             on_log("Preview PNG from TIFF: %s" % " ".join(argv))
         self.engine.run(
-            image.key + "-preview",
+            job_id,
             argv,
             on_log=on_log,
             on_done=lambda result: self._on_preview(
-                result, image, on_ready, on_error, on_log
+                result, image, generation, on_ready, on_error, on_log
             ),
         )
 
@@ -310,14 +320,22 @@ class ImageWorkspace:
         self,
         result: JobResult,
         image: WorkingImage,
+        generation: int,
         on_ready: ReadyCallback,
         on_error: ErrorCallback,
         on_log: Optional[LogCallback],
     ) -> None:
+        temporary_png = "%s.%d.next" % (image.png_path, generation)
+        if self._preview_generation.get(image.key) != generation:
+            if os.path.isfile(temporary_png):
+                os.remove(temporary_png)
+            return
+        if self._preview_jobs.get(image.key) == result.job_id:
+            self._preview_jobs.pop(image.key, None)
         if not result.ok:
             self._fail("PNG preview failed: %s" % (result.error or result.stderr), on_error, on_log)
             return
-        os.replace(image.png_path + ".next", image.png_path)
+        os.replace(temporary_png, image.png_path)
         if on_log:
             on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         on_ready(image)
@@ -343,8 +361,6 @@ class ImageWorkspace:
         next_tiff = os.path.join(image.directory, "working_next.tiff")
         argv = self.adapter.build_argv([image.tiff_path], next_tiff, params)
         cached = self._cached_artifact(image.tiff_path, argv)
-        self._snapshot(image, self._undo)
-        self._redo[image.key] = []
         if cached:
             shutil.copyfile(cached, next_tiff)
             if on_log:
@@ -380,8 +396,6 @@ class ImageWorkspace:
         """
         output_dir = os.path.join(image.directory, "sky_" + image_op)
         next_tiff = os.path.join(image.directory, "working_next.tiff")
-        self._snapshot(image, self._undo)
-        self._redo[image.key] = []
         argv = sky_adapter.build_image_op_argv(image.tiff_path, output_dir, image_op, flags)
         if on_log:
             on_log("CLI SkyStacker image-op: %s" % " ".join(argv))
@@ -464,6 +478,8 @@ class ImageWorkspace:
         on_error: ErrorCallback,
         on_log: Optional[LogCallback],
     ) -> None:
+        self._snapshot(image, self._undo)
+        self._redo[image.key] = []
         os.replace(next_tiff, image.tiff_path)
         if on_log:
             on_log("Replaced working TIFF: %s" % image.tiff_path)

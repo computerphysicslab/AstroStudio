@@ -85,6 +85,22 @@ def test_bintable_is_rejected(tmp_path):
     assert "BINTABLE" in info["error"]
 
 
+def test_inline_comments_are_stripped(tmp_path):
+    cards = [
+        "SIMPLE  =                    T / file does conform to FITS standard",
+        "BITPIX  =                  -32 / IEEE floating point",
+        "NAXIS   =                    2 / dimensionality of data",
+        "NAXIS1  =                    4 / length of first axis",
+        "NAXIS2  =                    4 / length of second axis",
+        "OBJECT  = 'M42 / Orion'         / name with a slash inside quotes",
+    ]
+    path = write(tmp_path, "commented.fits", [header(_end(cards)), b"\0" * 2880])
+    info = inspect_fits(path)
+    assert info["error"] is None
+    assert info["hdus"][0]["bitpix"] == -32
+    assert info["hdus"][0]["dimensions"] == (4, 4)
+
+
 def test_malformed_header_reports_error(tmp_path):
     path = write(tmp_path, "bad.fits", [b"not a fits header"])
     assert inspect_fits(path)["error"] is not None

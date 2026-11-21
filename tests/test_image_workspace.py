@@ -60,11 +60,11 @@ def test_prepare_creates_tiff_and_png_without_touching_source(tmp_path, monkeypa
     assert engine.calls[0][0] == "image-0001-import"
     assert engine.calls[0][1][0] == "convert"
     assert "-depth" in engine.calls[0][1] and "16" in engine.calls[0][1]
-    assert engine.calls[1][0] == "image-0001-preview"
+    assert engine.calls[1][0] == "image-0001-preview-1"
     assert "-depth" in engine.calls[1][1] and "8" in engine.calls[1][1]
     assert ready == [image]
     assert Path(image.tiff_path).read_bytes() == b"data:image-0001-import"
-    assert Path(image.png_path).read_bytes() == b"data:image-0001-preview"
+    assert Path(image.png_path).read_bytes() == b"data:image-0001-preview-1"
     assert source.read_bytes() == b"original"
 
 
@@ -85,10 +85,10 @@ def test_transform_replaces_tiff_and_regenerates_png(tmp_path, monkeypatch):
     assert engine.calls[-2][1][-1].endswith("working_next.tiff")
     assert "-resize" in engine.calls[-2][1]
     assert "50%" in engine.calls[-2][1]
-    assert engine.calls[-1][0] == "image-0001-preview"
+    assert engine.calls[-1][0].startswith("image-0001-preview-")
     assert ready == [image]
     assert Path(image.tiff_path).read_bytes() == b"data:image-0001-transform"
-    assert Path(image.png_path).read_bytes() == b"data:image-0001-preview"
+    assert Path(image.png_path).read_bytes() == b"data:image-0001-preview-2"
     assert not os.path.exists(os.path.join(image.directory, "working_next.tiff"))
 
 
@@ -200,7 +200,7 @@ def test_undo_and_redo_restore_both_artifacts(tmp_path, monkeypatch):
 
     workspace.redo(image, lambda *_: None, lambda message: pytest.fail(message))
     assert Path(image.tiff_path).read_bytes() == transformed_tiff
-    assert Path(image.png_path).read_bytes() == b"data:image-0001-preview"
+    assert Path(image.png_path).read_bytes() == b"data:image-0001-preview-2"
 
 
 def test_export_uses_png_copy_or_tiff_cli(tmp_path, monkeypatch):
@@ -281,7 +281,7 @@ def test_skystacker_filter_receives_working_tiff_directly(tmp_path, monkeypatch)
         calls.append((job_id, list(argv)))
         if job_id.endswith("-sky-tiff"):
             Path(_output_path(argv)).write_bytes(b"tiff")
-        if job_id.endswith("-preview"):
+        if "-preview-" in job_id:
             Path(_output_path(argv)).write_bytes(b"png")
         if on_done is not None:
             on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=0))
@@ -364,6 +364,43 @@ def test_hardlink_snapshots_respect_history_depth(tmp_path, monkeypatch):
     workspace.undo(image, lambda *_: None, lambda message: pytest.fail(message))
     assert Path(image.tiff_path).read_bytes() != original
     assert os.stat(image.tiff_path).st_nlink >= 2
+
+
+def test_stale_preview_callback_is_discarded(tmp_path, monkeypatch):
+    workspace = _workspace(tmp_path, monkeypatch, FakeEngine())
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    image = workspace.prepare(str(source), lambda *_: None, lambda m: pytest.fail(m))
+    pending = []
+
+    class DeferredEngine:
+        def run(self, job_id, argv, on_log=None, on_done=None):
+            Path(_output_path(argv)).write_bytes(job_id.encode())
+            pending.append(
+                (job_id, on_done, JobResult(job_id=job_id, argv=list(argv), exit_code=0))
+            )
+
+    workspace.engine = DeferredEngine()
+    ready = []
+    workspace.update_preview(image, ready.append, lambda m: pytest.fail(m))
+    workspace.update_preview(image, ready.append, lambda m: pytest.fail(m))
+    assert len(pending) == 2
+    pending[0][1](pending[0][2])
+    assert ready == []
+    pending[1][1](pending[1][2])
+    assert len(ready) == 1
+
+
+def test_failed_transform_keeps_undo_history_empty(tmp_path, monkeypatch):
+    workspace = _workspace(tmp_path, monkeypatch, FakeEngine(fail_on="-transform"))
+    source = tmp_path / "source.png"
+    source.write_bytes(b"source")
+    image = workspace.prepare(str(source), lambda *_: None, lambda m: pytest.fail(m))
+    workspace.transform(
+        image, {"resize": "50%"}, lambda *_: None, lambda message: None
+    )
+    assert not workspace.can_undo(image)
+    assert not workspace.can_redo(image)
 
 
 def test_prepare_can_force_display_stretch(tmp_path, monkeypatch):
