@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.32 — 2026-11-21
+
+- Roadmap items R5–R7: `WorkingImage` now records source bit depth, float-FITS origin and FITS scaling keywords; the terminal log warns about float rescaling/clamping, 8-bit promotion and `BZERO/BSCALE/BLANK/DATAMIN/DATAMAX`. `fits_hdus` parses floating-point header values. User cancellation now escalates SIGTERM to SIGKILL after `kill_grace_s` and logs `job_killed` with the correct cause.
+- Added four regression tests. Suite: 256 passed, 2 skipped; mypy clean on 53 modules.
+
 ## 0.3.31 — 2026-11-21
 
 - Audit-driven roadmap items R1–R4: FITS cards with inline ` / comment` are now parsed correctly (real Siril/ASTAP headers no longer fail as `missing SIMPLE=T`); preview jobs use per-generation IDs and temporary files, cancel/supersede older jobs and discard stale callbacks; histogram stretch uses a trailing 250 ms debounce shared with gamma; undo snapshots are created only after a successful transform; stretch and Close operate on the active document.

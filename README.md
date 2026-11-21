@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.3.31**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.3.32**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -116,7 +116,7 @@ A watch cursor is shown for the whole job lifecycle. The Backends
 panel lists installed connectors first (alphabetically), then the missing ones, and its
 View toggle stays enabled after closing the panel with X. FITS/RAW sources combine their RGB HDUs into one RGB TIFF and get a CLI display stretch
 for the PNG preview; exports stay linear. FITS files with multiple image HDUs or
-BINTABLE extensions are rejected before import with an explicit message. *Options > Backend Settings* persists enabled connectors,
+BINTABLE extensions are rejected before import with an explicit message. Float FITS (`BITPIX < 0`), `BZERO`/`BSCALE`/`BLANK` keywords and 8-bit sources are reported in the terminal log: ImageMagick may rescale or clamp float data, and promoting an 8-bit source to a 16-bit TIFF adds no real depth. *Options > Backend Settings* persists enabled connectors,
 language, theme, offline mode and thread limit under `$XDG_CONFIG_HOME`; the theme is
 actually applied to GTK (Yaru/Adwaita light or dark). View-menu toggles show On/Off,
 and the status bar always shows the active PNG/TIFF sizes plus transform/export time.

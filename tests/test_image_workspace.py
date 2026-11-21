@@ -366,6 +366,40 @@ def test_hardlink_snapshots_respect_history_depth(tmp_path, monkeypatch):
     assert os.stat(image.tiff_path).st_nlink >= 2
 
 
+def test_prepare_flags_8bit_source(tmp_path, monkeypatch):
+    workspace = _workspace(tmp_path, monkeypatch, FakeEngine())
+    source = tmp_path / "source.png"
+    header = bytearray(26)
+    header[:8] = b"\x89PNG\r\n\x1a\n"
+    header[24] = 8
+    source.write_bytes(bytes(header))
+    logs = []
+    image = workspace.prepare(str(source), lambda *_: None, lambda m: pytest.fail(m), on_log=logs.append)
+    assert image.source_depth == 8
+    assert any("8-bit source promoted" in line for line in logs)
+
+
+def test_prepare_flags_float_fits_and_scaling(tmp_path, monkeypatch):
+    workspace = _workspace(tmp_path, monkeypatch, FakeEngine())
+    cards = [
+        "SIMPLE  =                    T / ok",
+        "BITPIX  =                  -32 / float",
+        "NAXIS   =                    2",
+        "NAXIS1  =                    4",
+        "NAXIS2  =                    4",
+        "BZERO   =                  0.0",
+        "BSCALE  =                  1.0",
+    ]
+    source = tmp_path / "float.fits"
+    source.write_bytes(header_bytes(cards + ["END"]) + b"\0" * 2880)
+    logs = []
+    image = workspace.prepare(str(source), lambda *_: None, lambda m: pytest.fail(m), on_log=logs.append)
+    assert image.float_source is True
+    assert image.scaling == {"BZERO": 0.0, "BSCALE": 1.0}
+    assert any("FITS float source" in line for line in logs)
+    assert any("FITS scaling keywords" in line for line in logs)
+
+
 def test_stale_preview_callback_is_discarded(tmp_path, monkeypatch):
     workspace = _workspace(tmp_path, monkeypatch, FakeEngine())
     source = tmp_path / "source.png"

@@ -42,7 +42,10 @@ def _value(card: str) -> Any:
     try:
         return int(raw)
     except ValueError:
-        return raw
+        try:
+            return float(raw.replace("D", "E").replace("d", "e"))
+        except ValueError:
+            return raw
 
 
 def _read_header(handle: Any, offset: int) -> Tuple[List[str], int, bool]:
@@ -61,11 +64,19 @@ def _read_header(handle: Any, offset: int) -> Tuple[List[str], int, bool]:
 
 def inspect_fits(path: str) -> dict:
     """Return HDU metadata without decoding any pixels."""
-    result: Dict[str, Any] = {"hdus": [], "error": None, "unusual": False}
+    result: Dict[str, Any] = {
+        "hdus": [],
+        "error": None,
+        "unusual": False,
+        "float_source": False,
+        "source_depth": None,
+        "scaling": {},
+    }
     if not os.path.isfile(path):
         result["error"] = "FITS file not found: %s" % path
         return result
     hdus: List[FitsHdu] = []
+    first_values: Dict[str, Any] = {}
     offset = 0
     index = 0
     try:
@@ -80,8 +91,10 @@ def inspect_fits(path: str) -> dict:
                     key = card[:8].strip()
                     if key and key not in values and "=" in card:
                         values[key] = _value(card)
-                if index == 0 and values.get("SIMPLE") is not True:
-                    raise ValueError("missing SIMPLE=T primary header")
+                if index == 0:
+                    first_values = values
+                    if values.get("SIMPLE") is not True:
+                        raise ValueError("missing SIMPLE=T primary header")
                 extension = str(values.get("XTENSION", "PRIMARY")).strip()
                 bitpix = int(values.get("BITPIX", 0))
                 naxis = int(values.get("NAXIS", 0))
@@ -102,6 +115,15 @@ def inspect_fits(path: str) -> dict:
         result["error"] = "cannot inspect FITS HDUs: %s" % exc
         return result
     result["hdus"] = [vars(hdu) for hdu in hdus]
+    first_bitpix = first_values.get("BITPIX")
+    if isinstance(first_bitpix, int):
+        result["source_depth"] = abs(first_bitpix)
+        result["float_source"] = first_bitpix < 0
+    result["scaling"] = {
+        key: first_values[key]
+        for key in ("BZERO", "BSCALE", "BLANK", "DATAMIN", "DATAMAX")
+        if key in first_values
+    }
     if not hdus:
         result["error"] = "FITS file contains no HDU"
         return result

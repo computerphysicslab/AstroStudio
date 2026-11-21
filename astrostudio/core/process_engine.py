@@ -150,10 +150,14 @@ class ProcessEngine:
         except (GLib.Error, RuntimeError):
             pass
         handle.cancellable.cancel()
-        handle.error = "job killed after timeout"
+        handle.error = (
+            "job killed after cancel" if handle.cancelled else "job killed after timeout"
+        )
         if self.operation_log is not None:
             self.operation_log.record("job_killed", job_id=handle.job_id)
         handle.kill_source = None
+        handle.process_finished = True
+        self._maybe_finish(handle)
         return False
 
     def _should_record(self, job_id: str) -> bool:
@@ -215,7 +219,7 @@ class ProcessEngine:
             line, length = stream.read_line_finish_utf8(result)
         except GLib.Error as exc:
             line, length = "", 0
-            if not handle.timed_out:
+            if not handle.timed_out and not (handle.error or "").startswith("job killed"):
                 handle.error = (
                     "cancelled by user" if handle.cancelled else (handle.error or str(exc))
                 )
@@ -233,7 +237,7 @@ class ProcessEngine:
         try:
             process.wait_finish(result)
         except GLib.Error as exc:
-            if not handle.timed_out:
+            if not handle.timed_out and not (handle.error or "").startswith("job killed"):
                 handle.error = (
                     "cancelled by user" if handle.cancelled else (handle.error or str(exc))
                 )
@@ -281,6 +285,10 @@ class ProcessEngine:
                 handle.process.send_signal(signal.SIGTERM)
             except (GLib.Error, RuntimeError):
                 pass
+        if handle.kill_source is None:
+            handle.kill_source = GLib.timeout_add(
+                max(1, int(self.kill_grace_s * 1000)), self._force_kill, handle
+            )
         return True
 
     def cancel_all(self) -> None:

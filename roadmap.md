@@ -363,3 +363,10 @@ and by the other audits. Evidence-only claims from screenshot reviews were filte
   changes, shared with gamma, replacing the 1 s throttle that could launch several CLI jobs.
 - [x] **R4 — Undo and active document**: create undo snapshots only after a successful
   transform; apply stretch and Close to the active image instead of the last opened one.
+- [x] **R5 — Scientific-data warnings**: flag float FITS (`BITPIX < 0`) and 8-bit sources on
+  `WorkingImage`; log explicit warnings that IM may rescale/clamp float data and that an 8-bit
+  source promotes to 16-bit without adding real depth. Never modify the data silently.
+- [x] **R6 — Cancellation escalation**: user cancellation escalates from SIGTERM to SIGKILL after
+  `kill_grace_s`, with an accurate `job_killed` log event.
+- [x] **R7 — FITS metadata**: report `BZERO/BSCALE`, `BLANK` and `DATAMIN/DATAMAX` from headers
+  without decoding pixels, so photometric scaling is visible to the user.

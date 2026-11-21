@@ -61,6 +61,41 @@ def test_cancel_reports_cancelled_state():
     assert handle.finished
 
 
+def test_user_cancel_escalates_to_sigkill(monkeypatch, tmp_path):
+    import signal
+    from types import SimpleNamespace
+
+    log = OperationLog(str(tmp_path / "operations.jsonl"), session="cancel-kill")
+    engine = ProcessEngine(operation_log=log, kill_grace_s=0.1)
+    result = []
+    handle = engine.run("sleep", ["/bin/sleep", "10"], on_done=result.append)
+    assert engine.cancel("sleep")
+    assert handle.kill_source is not None
+
+    killed = []
+
+    class FakeProcess:
+        def send_signal(self, sig):
+            killed.append(sig)
+
+    fake = SimpleNamespace(
+        finished=False,
+        cancelled=True,
+        process=FakeProcess(),
+        cancellable=SimpleNamespace(cancel=lambda: None),
+        error="cancelled by user",
+        job_id="sleep",
+        kill_source=None,
+        process_finished=False,
+    )
+    monkeypatch.setattr(engine, "_maybe_finish", lambda _handle: None)
+    engine._force_kill(fake)
+    assert killed == [signal.SIGKILL]
+    assert fake.error == "job killed after cancel"
+    events = {entry["event"] for entry in log.entries()}
+    assert "job_killed" in events
+
+
 def test_job_timeout_escalates_and_reports(tmp_path):
     from astrostudio.core.operation_log import OperationLog
 

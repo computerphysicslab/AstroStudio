@@ -10,7 +10,7 @@ import hashlib
 import json
 import os
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 if TYPE_CHECKING:
@@ -41,6 +41,24 @@ class WorkingImage:
     display_stretch: bool = False
     stretch_points: Optional[Tuple[float, float]] = None
     gamma: Optional[float] = None
+    source_depth: Optional[int] = None
+    float_source: bool = False
+    scaling: Dict[str, Any] = field(default_factory=dict)
+
+
+def _raster_source_depth(path: str) -> Optional[int]:
+    lowered = path.lower()
+    if lowered.endswith((".jpg", ".jpeg", ".bmp", ".webp")):
+        return 8
+    if lowered.endswith(".png"):
+        try:
+            with open(path, "rb") as handle:
+                header = handle.read(26)
+            if header[:8] == b"\x89PNG\r\n\x1a\n":
+                return int(header[24])
+        except OSError:
+            pass
+    return None
 
 
 class ImageWorkspace:
@@ -191,8 +209,13 @@ class ImageWorkspace:
             tiff_path=os.path.join(directory, "working.tiff"),
             png_path=os.path.join(directory, "preview.png"),
             display_stretch=display_stretch,
+            source_depth=_raster_source_depth(source),
         )
         self.images[key] = image
+        if image.source_depth == 8 and on_log:
+            on_log(
+                "8-bit source promoted to 16-bit TIFF; no additional depth is gained"
+            )
 
         if source.lower().endswith((".fits", ".fit", ".fts")):
             from .fits_hdus import inspect_fits
@@ -205,6 +228,23 @@ class ImageWorkspace:
                     on_log,
                 )
                 return image
+            image.source_depth = layout.get("source_depth")
+            image.float_source = bool(layout.get("float_source"))
+            image.scaling = dict(layout.get("scaling") or {})
+            if on_log:
+                if image.float_source:
+                    on_log(
+                        "FITS float source (BITPIX<0): ImageMagick may rescale or "
+                        "clamp values; review before scientific use"
+                    )
+                if image.scaling:
+                    on_log(
+                        "FITS scaling keywords: %s"
+                        % ", ".join(
+                            "%s=%s" % (key, value)
+                            for key, value in sorted(image.scaling.items())
+                        )
+                    )
 
         if source.lower().endswith(".cr2"):
             from ..adapters.skystacker import SkyStackerAdapter

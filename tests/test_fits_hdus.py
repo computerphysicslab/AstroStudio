@@ -101,6 +101,31 @@ def test_inline_comments_are_stripped(tmp_path):
     assert info["hdus"][0]["dimensions"] == (4, 4)
 
 
+def test_float_source_and_scaling_keywords_are_reported(tmp_path):
+    cards = [
+        "SIMPLE  =                    T / conforms",
+        "BITPIX  =                  -32 / floating point",
+        "NAXIS   =                    2",
+        "NAXIS1  =                    4",
+        "NAXIS2  =                    4",
+        "BZERO   =                  0.0 / offset",
+        "BSCALE  =                  1.0 / scale",
+        "DATAMIN =                  0.0",
+        "DATAMAX =                  1.0",
+    ]
+    path = write(tmp_path, "float.fits", [header(_end(cards)), b"\0" * 2880])
+    info = inspect_fits(path)
+    assert info["error"] is None
+    assert info["float_source"] is True
+    assert info["source_depth"] == 32
+    assert info["scaling"] == {
+        "BZERO": 0.0,
+        "BSCALE": 1.0,
+        "DATAMIN": 0.0,
+        "DATAMAX": 1.0,
+    }
+
+
 def test_malformed_header_reports_error(tmp_path):
     path = write(tmp_path, "bad.fits", [b"not a fits header"])
     assert inspect_fits(path)["error"] is not None
