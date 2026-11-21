@@ -498,6 +498,101 @@ def test_plate_solve_dumbbell_filename_hint(monkeypatch):
     window.destroy()
 
 
+def test_sky_map_done_strips_titles_before_preview(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    output_dir = tmp_path / "job"
+    output_dir.mkdir()
+    (output_dir / "map.svg").write_text(
+        '<svg><circle cx="1" cy="2" r="3"><title>star</title></circle></svg>',
+        encoding="utf-8",
+    )
+    calls = []
+
+    class FakeEngine:
+        def run(self, job_id, argv, on_log=None, on_done=None):
+            calls.append((job_id, list(argv)))
+
+    monkeypatch.setattr(window, "engine", FakeEngine())
+    window._on_sky_map_done(JobResult("sky-map", [], 0), str(output_dir))
+    assert calls and calls[0][0] == "sky-map-preview"
+    assert "sky_map_display.svg" in calls[0][1][3]
+    assert "<title>" not in (output_dir / "sky_map_display.svg").read_text(
+        encoding="utf-8"
+    )
+    window.destroy()
+
+
+def test_prefetch_passes_catalog_dir_and_reports_failures(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    monkeypatch.setattr(window.registry, "available", lambda name: True)
+    captured = {}
+
+    def fake_plan(catalogs, source, output_dir, survey, catalog_dir=None):
+        captured["catalog_dir"] = catalog_dir
+        return [["job", "one"], ["job", "two"]]
+
+    monkeypatch.setattr("astrostudio.ui.main_window.prefetch_plan", fake_plan)
+
+    class FailingEngine:
+        def run(self, job_id, argv, on_log=None, on_done=None):
+            on_done(
+                JobResult(
+                    job_id, list(argv), exit_code=1, stderr="hips2fits HTTP 404"
+                )
+            )
+
+    monkeypatch.setattr(window, "engine", FailingEngine())
+    logs = []
+    statuses = []
+    monkeypatch.setattr(window, "_log", logs.append)
+    monkeypatch.setattr(window, "_status", statuses.append)
+    window.adapters["SkyStacker"].catalog_dir = "/catalogs"
+    window.action_prefetch_catalogs()
+    assert captured["catalog_dir"] == "/catalogs"
+    assert any("HTTP 404" in message for message in logs)
+    assert any("2 failure" in text for text in statuses)
+    window.destroy()
+
+
+def test_survey_cutout_hints_about_hips_outage(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    errors = []
+    monkeypatch.setattr(window, "_show_error", lambda *args: errors.append(args))
+    window._on_survey_cutout_done(
+        JobResult("survey-cutout", [], 1, stderr="skystacker: hips2fits HTTP 404"),
+        "/tmp/job",
+    )
+    assert errors and "CDS HiPS service" in str(errors[0])
+    window.destroy()
+
+
+def test_sky_map_image_inherits_plate_solution(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    output_dir = tmp_path / "job"
+    output_dir.mkdir()
+    svg = output_dir / "map.svg"
+    svg.write_text('<svg><circle cx="1" cy="2" r="3"/></svg>', encoding="utf-8")
+    (output_dir / "plate_solution.json").write_text("{}", encoding="utf-8")
+    png = tmp_path / "sky_map.png"
+    png.write_bytes(b"png")
+    monkeypatch.setattr(window, "_open_file", lambda path, **kwargs: None)
+    window.plate_centers["/orig.png"] = "299.901583,22.721028"
+    window.plate_options["/orig.png"] = {"solver": "auto"}
+    window._on_sky_map_preview(
+        JobResult("sky-map-preview", [], 0), str(png), str(svg), 5, "/orig.png"
+    )
+    assert window.plate_solutions[str(png)] == str(
+        output_dir / "plate_solution.json"
+    )
+    assert window.plate_centers[str(png)] == "299.901583,22.721028"
+    assert window.plate_options[str(png)] == {"solver": "auto"}
+    window.destroy()
+
+
 def test_sky_map_preview_opens_generated_image_in_canvas(monkeypatch, tmp_path):
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)

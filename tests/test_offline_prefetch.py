@@ -9,6 +9,16 @@ def test_catalog_download_argv():
     ]
 
 
+def test_prefetch_argv_uses_catalog_environment_when_configured():
+    env = ["/usr/bin/env", "SKYSTACKER_CATALOGS=/catalogs"]
+    assert catalog_download_argv("mag07", "/catalogs")[:2] == env
+    jobs = prefetch_plan(
+        ["mag07"], "sky.png", "/tmp/survey", "CDS/P/DSS2/color", "/catalogs"
+    )
+    assert all(job[:2] == env for job in jobs)
+    assert any(job[-3:-1] == ["--survey-timeout", "60"] for job in jobs)
+
+
 def test_prefetch_plan_deduplicates_and_adds_survey_when_source_given():
     jobs = prefetch_plan(["mag07", "mag07", "mag06"], "sky.png", "/tmp/survey", "CDS/P/DSS2/color")
     assert len(jobs) == 3

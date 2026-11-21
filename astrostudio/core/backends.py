@@ -49,7 +49,7 @@ BACKENDS: Tuple[BackendSpec, ...] = (
     BackendSpec("GIMP", "gimp", "Scripting", ("--version",)),
     BackendSpec("Hugin", "pto_gen", "Alignment", ("--version",)),
     BackendSpec("Enfuse", "enfuse", "Fusion", ("--version",)),
-    BackendSpec("LibRaw", "dcraw_emu", "RAW", ("-v",)),
+    BackendSpec("LibRaw", "dcraw_emu", "RAW", ()),
     BackendSpec("PhotoFlow", "photoflow-cli", "Pipelines", ("--version",)),
     BackendSpec("Siril", "siril-cli", "Astronomy", ("--version",)),
     BackendSpec("ASTAP", "astap_cli", "Astronomy", ("--version",)),
@@ -295,6 +295,10 @@ class BackendRegistry:
                 continue
             status.error = None
             status.version = None
+            if not spec.version_args:
+                status.version = "unknown"
+                self._notify(on_update)
+                continue
             argv = [status.binary] + list(spec.version_args)
             engine.run(
                 "probe-" + spec.name,

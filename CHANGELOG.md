@@ -8,6 +8,18 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.21 — 2026-11-21
+
+- Fixed three app-side errors from the last session log: the LibRaw backend probe no longer runs `dcraw_emu -v` (unsupported, exit 1); backends with no version flag are now reported as available/unknown without spawning a job. Offline prefetch jobs now carry the same `SKYSTACKER_CATALOGS` environment wrapper as other SkyStacker jobs (verified: catalog download now exits 0) and report stderr details plus a failure count instead of a bare "failed".
+- The generated Gaia sky-map image now inherits the parent plate solution, centre and solver options, so follow-up astrometry actions can reuse them. Survey-cutout failures caused by the CDS HiPS outage (HTTP 404) now include an actionable hint about changing `survey_hips` or retrying; the outage itself is external to AstroStudio.
+- Added six regression tests. Suite: 226 passed, 2 skipped; mypy clean on 52 modules.
+
+## 0.3.20 — 2026-11-21
+
+- Fixed the Gaia sky map appearing as a flat grey rectangle in the canvas. SkyStacker writes a `<title>` child in every star `<circle>`; ImageMagick 7's SVG renderer silently drops such circles, leaving only the dark background and footer text (verified: bright pixels 2,290 → 11,801 after the fix). `strip_svg_titles()` writes a display-only SVG copy without those tooltips and the PNG is rendered from that copy; the original SVG and source count are preserved and logged.
+- Added three regression tests: title stripping keeps circle geometry, a real ImageMagick render shows stars only without titles, and the GUI preview job uses the cleaned SVG.
+- Suite: 221 passed, 2 skipped; mypy clean on 52 modules.
+
 ## 0.3.19 — 2026-11-21
 
 - The Backends and Jobs dock panels now start hidden (`set_no_show_all(True)`, settings `show_backends`/`show_jobs` default to false). Their View toggles still work, now persist the preference, and the panels stay hidden after leaving fullscreen.

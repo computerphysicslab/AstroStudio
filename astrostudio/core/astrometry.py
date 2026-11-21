@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from typing import List, Optional
 
 PREFERRED_KEYS = ("fov", "field", "ra", "dec", "scale", "center", "width", "height")
@@ -21,6 +22,21 @@ def find_output(directory: str, suffixes: List[str]) -> Optional[str]:
             if name.lower().endswith(tuple(suffixes)):
                 return os.path.join(root, name)
     return None
+
+
+def strip_svg_titles(svg_path: str, output_path: str) -> str:
+    """Copy an SVG without <title> nodes, which ImageMagick 7 silently skips.
+
+    SkyStacker uses <title> children for star tooltips. Its MSVG renderer
+    drops the whole enclosing <circle> when a title is present, leaving an
+    apparently empty map. The visual geometry is unchanged.
+    """
+    with open(svg_path, "r", encoding="utf-8") as handle:
+        content = handle.read()
+    cleaned = re.sub(r"<title>.*?</title>", "", content, flags=re.DOTALL)
+    with open(output_path, "w", encoding="utf-8") as handle:
+        handle.write(cleaned)
+    return output_path
 
 
 def sky_map_source_count(svg_path: str) -> int:

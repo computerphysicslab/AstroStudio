@@ -42,6 +42,7 @@ from ..core import (  # noqa: E402
     unique_export_path,
     find_plate_solution,
     sky_map_source_count,
+    strip_svg_titles,
     histogram_argv,
     HotFolderWatcher,
     folders_from_files,
@@ -3436,25 +3437,37 @@ toolbutton.inactive-action {
         source = self.current_paths[-1] if self.current_paths else None
         output_dir = self._astrometry_job_dir("survey-prefetch") if source else None
         survey = self.settings.get("survey_hips", "CDS/P/DSS2/color")
-        jobs = prefetch_plan(catalogs, source, output_dir, survey)
+        jobs = prefetch_plan(
+            catalogs,
+            source,
+            output_dir,
+            survey,
+            self.adapters["SkyStacker"].catalog_dir,
+        )
         self._log("Prefetching %d offline catalog/survey job(s)" % len(jobs))
         self._run_prefetch_jobs(jobs, 0)
 
-    def _run_prefetch_jobs(self, jobs: list, index: int) -> None:
+    def _run_prefetch_jobs(self, jobs: list, index: int, failures: list = None) -> None:
+        failures = failures if failures is not None else []
         if index >= len(jobs):
-            self._status("Offline catalogs ready")
+            if failures:
+                self._status(
+                    "Offline prefetch finished with %d failure(s)" % len(failures)
+                )
+            else:
+                self._status("Offline catalogs ready")
             return
-        self.engine.run(
-            "prefetch-%d" % index,
-            jobs[index],
-            on_log=self._log,
-            on_done=lambda result: (
-                self._log(
-                    "Prefetch %d %s" % (index, "OK" if result.ok else "failed")
-                ),
-                self._run_prefetch_jobs(jobs, index + 1),
-            ),
-        )
+
+        def done(result) -> None:
+            if result.ok:
+                self._log("Prefetch %d OK" % index)
+            else:
+                detail = result.error or result.stderr or "unknown error"
+                failures.append(index)
+                self._log("Prefetch %d failed: %s" % (index, detail))
+            self._run_prefetch_jobs(jobs, index + 1, failures)
+
+        self.engine.run("prefetch-%d" % index, jobs[index], on_log=self._log, on_done=done)
 
     def action_export_stars(self) -> None:
         if not self.current_paths:
@@ -3607,13 +3620,13 @@ toolbutton.inactive-action {
             "sky-map",
             argv,
             output_dir,
-            lambda result: self._on_sky_map_done(result, output_dir),
+            lambda result: self._on_sky_map_done(result, output_dir, source),
         )
 
     def _sky_map_preview_argv(self, svg: str, png: str) -> List[str]:
         return [self._magick_adapter.binary, "-density", "144", svg, "png:" + png]
 
-    def _on_sky_map_done(self, result, output_dir: str) -> None:
+    def _on_sky_map_done(self, result, output_dir: str, source: str = None) -> None:
         if not result.ok:
             self._busy_end()
             self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
@@ -3633,17 +3646,25 @@ toolbutton.inactive-action {
                 "SkyStacker wrote an empty sky map (no catalogued sources).\n%s" % svg,
             )
             return
+        display_svg = strip_svg_titles(
+            svg, os.path.join(output_dir, "sky_map_display.svg")
+        )
+        self._log("Sky map display copy (SVG tooltips removed): %s" % display_svg)
         png = os.path.join(output_dir, "sky_map.png")
-        argv = self._sky_map_preview_argv(svg, png)
+        argv = self._sky_map_preview_argv(display_svg, png)
         self._log("CLI sky-map-preview: %s" % " ".join(argv))
         self.engine.run(
             "sky-map-preview",
             argv,
             on_log=self._log,
-            on_done=lambda preview: self._on_sky_map_preview(preview, png, svg, sources),
+            on_done=lambda preview: self._on_sky_map_preview(
+                preview, png, svg, sources, source
+            ),
         )
 
-    def _on_sky_map_preview(self, result, png: str, svg: str, sources: int) -> None:
+    def _on_sky_map_preview(
+        self, result, png: str, svg: str, sources: int, source: str = None
+    ) -> None:
         self._busy_end()
         if not result.ok:
             detail = result.error or result.stderr or "unknown renderer error"
@@ -3656,6 +3677,14 @@ toolbutton.inactive-action {
         if not os.path.isfile(png) or not os.path.getsize(png):
             self._show_error("Gaia sky map", "PNG renderer produced no image at %s" % png)
             return
+        if source:
+            solution = find_plate_solution(os.path.dirname(svg))
+            if solution:
+                self.plate_solutions[png] = solution
+                self._log("Sky map image inherits plate solution: %s" % solution)
+            for registry in (self.plate_centers, self.plate_options):
+                if source in registry:
+                    registry[png] = registry[source]
         self._log("Gaia sky map ready: %d sources | %s" % (sources, png))
         self._status("Gaia sky map: %d catalogued sources" % sources)
         self._open_file(png, display_stretch=True)
@@ -3683,8 +3712,15 @@ toolbutton.inactive-action {
     def _on_survey_cutout_done(self, result, output_dir: str) -> None:
         self._busy_end()
         if not result.ok:
-            self._log("CLI %s failed: %s" % (result.job_id, result.error or result.stderr))
-            self._show_error("Survey cutout failed: %s" % (result.error or result.stderr))
+            detail = result.error or result.stderr or "unknown error"
+            self._log("CLI %s failed: %s" % (result.job_id, detail))
+            hint = ""
+            if "hips2fits" in detail or "404" in detail:
+                hint = (
+                    "\n\nThe CDS HiPS service is unavailable for the configured survey. "
+                    "Change survey_hips in Options > Backend Settings or retry later."
+                )
+            self._show_error("Survey cutout failed: %s%s" % (detail, hint))
             return
         fits_file = find_output(output_dir, [".fits", ".fit"])
         text = "Survey cutout written to %s" % (fits_file or output_dir)

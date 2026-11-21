@@ -256,3 +256,33 @@ def test_skystaker_filter_pipeline_updates_working_image(tmp_path, monkeypatch):
     assert done == [working]
     assert Path(working.tiff_path).read_bytes() != before_tiff
     assert Path(working.png_path).read_bytes() != before_png
+
+
+@pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick required")
+def test_svg_tooltip_titles_hide_stars_until_removed(tmp_path):
+    from astrostudio.core import strip_svg_titles
+
+    adapter = ImageMagickAdapter()
+    svg = tmp_path / "map.svg"
+    svg.write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">'
+        '<rect width="100" height="100" fill="#05070d"/>'
+        '<circle cx="50" cy="50" r="20" fill="#ffe9b0">'
+        "<title>Gaia source</title></circle></svg>",
+        encoding="utf-8",
+    )
+    display = tmp_path / "display.svg"
+    strip_svg_titles(str(svg), str(display))
+
+    def bright_pixels(source, name):
+        png = tmp_path / (name + ".png")
+        subprocess.run(
+            [adapter.binary, "-density", "144", str(source), "png:" + str(png)],
+            check=True,
+        )
+        with Image.open(str(png)) as image:
+            colours = image.convert("RGB").getcolors(maxcolors=10000)
+            return sum(count for count, colour in colours if sum(colour) > 150)
+
+    assert bright_pixels(svg, "raw") == 0
+    assert bright_pixels(display, "clean") > 100

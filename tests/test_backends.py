@@ -52,6 +52,18 @@ def test_version_query_failure_keeps_available_status(monkeypatch):
     assert registry.version("Fake") == "unknown"
 
 
+def test_backend_without_version_flag_is_available_without_a_job(monkeypatch):
+    monkeypatch.setattr(backends.shutil, "which", lambda binary: "/usr/bin/" + binary)
+    monkeypatch.setattr(backends.GLib, "idle_add", lambda function, *args: function(*args))
+    registry = BackendRegistry((BackendSpec("LibRaw", "dcraw_emu", "RAW", ()),))
+    engine = FakeEngine(output="Using 8 threads", exit_code=1)
+    registry.probe(engine)
+    assert engine.calls == []
+    assert registry.available("LibRaw")
+    assert registry.version("LibRaw") == "unknown"
+    assert registry.status["LibRaw"].error is None
+
+
 def test_alternative_binary_is_detected(monkeypatch):
     monkeypatch.setattr(
         backends.shutil,

@@ -8,6 +8,7 @@ from astrostudio.core.astrometry import (
     find_output,
     find_plate_solution,
     sky_map_source_count,
+    strip_svg_titles,
     summarize_solution,
 )
 from astrostudio.core.plate_solution import load_solution
@@ -98,6 +99,21 @@ def test_sky_map_source_count_detects_empty_maps(tmp_path):
     assert sky_map_source_count(str(populated)) == 2
     assert sky_map_source_count(str(empty)) == 0
     assert sky_map_source_count(str(tmp_path / "missing.svg")) == 0
+
+
+def test_svg_title_stripping_keeps_visual_geometry(tmp_path):
+    source = tmp_path / "map.svg"
+    source.write_text(
+        '<svg><circle cx="1" cy="2" r="3" fill="red"><title>star 1</title></circle>'
+        '<circle cx="4" cy="5" r="6" fill="blue"/></svg>',
+        encoding="utf-8",
+    )
+    display = tmp_path / "display.svg"
+    assert strip_svg_titles(str(source), str(display)) == str(display)
+    text = display.read_text(encoding="utf-8")
+    assert "<title>" not in text
+    assert text.count("<circle") == 2
+    assert 'r="3"' in text and 'r="6"' in text
 
 
 def test_solution_parser_computes_fov_from_cd(tmp_path):

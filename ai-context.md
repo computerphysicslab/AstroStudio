@@ -20,8 +20,8 @@
 - **Repo:** public `computerphysicslab/AstroStudio`, branch `main` (English commit messages;
   **never** push/tag/merge/rewrite history without an explicit request).
 - **HEAD:** `3f63f9d` ("Fix CI Python environment and complete roadmap items 1-9").
-- **Version:** `0.3.19` in the working tree (`astrostudio/__init__.py:3`), but **HEAD still has
-  0.3.14**: uncommitted changes span 0.3.15 to 0.3.19 (see §10). `BUILD_DATE = "2026-11-21"`.
+- **Version:** `0.3.21` in the working tree (`astrostudio/__init__.py:3`), but **HEAD is
+  `9442050` (0.3.19)**: the 0.3.20–0.3.21 fixes are uncommitted (see §10). `BUILD_DATE = "2026-11-21"`.
 - **Stack:** Python 3.8-compatible runtime (mypy targets 3.9; CI uses system Python 3.10 on
   Ubuntu 22.04), PyGObject, **GTK 3.24 only** (GTK4 not installed), `Gio.Subprocess`,
   `GdkPixbuf`, Cairo.
@@ -196,7 +196,7 @@ desktop-file validation. `mypy.ini` has documented pragmatic exceptions and
 `ignore_missing_imports` for `gi`, `numpy`, `PIL`. Current local environment: Python 3.14.4,
 pytest 9.0.2, GTK 3.24.52 with glycin loaders, ImageMagick 7.1.2-18. Dev tools installed from apt
 via `~/install-astrostudio-dev-tools.sh`: mypy 1.19.1, pytest-cov 5.0.0, pre-commit 4.5.1.
-Latest verification: **218 passed, 2 skipped**, real GUI launch without GError, mypy clean on 52
+Latest verification: **226 passed, 2 skipped**, real GUI launch without GError, mypy clean on 52
 modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% gate. With
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, add `-p pytest_cov` so the coverage plugin loads.
 
@@ -207,8 +207,12 @@ modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% ga
 
 ## 10. Work state and known discrepancies
 
-- **Uncommitted:** `CHANGELOG.md`, `README.md`, `astrostudio/__init__.py`,
-  `packaging/appimage/AppImageBuilder.yml`, `requirements-dev.txt` (0.3.15 added numpy/Pillow/
+- **Committed:** `9442050` (0.3.15–0.3.19 work, 25 files). **Uncommitted 0.3.20:** `CHANGELOG.md`,
+  `README.md`, `astrostudio/__init__.py`, `packaging/appimage/AppImageBuilder.yml`,
+  `astrostudio/core/astrometry.py`, `astrostudio/core/__init__.py`, `astrostudio/ui/main_window.py`,
+  `tests/test_astrometry.py`, `tests/test_integration_cli.py`, `tests/test_ui_interactions.py` and
+  both context files. Earlier uncommitted history (already in `9442050`): `requirements-dev.txt`
+  (0.3.15 added numpy/Pillow/
   PyYAML; 0.3.16 replaced fixed pins with bounded ranges) plus, for 0.3.16–0.3.18,
   `astrostudio/adapters/magick.py`, `astrostudio/core/image_workspace.py`,
   `astrostudio/core/catalog_hints.py`, `astrostudio/ui/preview.py`, `astrostudio/ui/main_window.py`,
@@ -265,3 +269,9 @@ modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% ga
 - **2026-11-21:** Backends and Jobs panels now start hidden with persisted View toggles; Gaia Sky
   Map output is opened as a new canvas image with display stretch and explicit source-count/
   failure reporting instead of a dark floating window. Suite 218 passed/2 skipped (§79).
+- **2026-11-21:** fixed the flat grey sky map (v0.3.20): IM7 drops SVG circles that contain
+  `<title>` tooltips, so a cleaned display copy is rendered instead; 221 passed/2 skipped (§80).
+- **2026-11-21:** reviewed the last session log (`9a930bea`): fixed the spurious LibRaw probe,
+  the missing catalog environment in prefetch jobs, prefetch error reporting and plate-solution
+  inheritance for the generated sky-map image. The remaining HiPS HTTP 404 is an external CDS
+  outage and is now reported with a hint. Suite 226 passed/2 skipped (§81).

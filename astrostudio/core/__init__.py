@@ -4,6 +4,7 @@ from .astrometry import (
     find_output,
     find_plate_solution,
     sky_map_source_count,
+    strip_svg_titles,
     summarize_solution,
 )
 from .backends import BackendRegistry, BackendSpec, BackendStatus
@@ -95,6 +96,7 @@ __all__ = [
     "find_output",
     "find_plate_solution",
     "sky_map_source_count",
+    "strip_svg_titles",
     "summarize_solution",
     "EXPORT_FORMATS",
     "ExportFormat",
