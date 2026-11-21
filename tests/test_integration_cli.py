@@ -210,6 +210,9 @@ def test_workspace_rotation_end_to_end_regenerates_preview(tmp_path, monkeypatch
         assert preview.size != (80, 60)
 
 
+@pytest.mark.skipif(
+    shutil.which("skystacker") is None, reason="SkyStacker CLI not installed"
+)
 def test_skystaker_filter_pipeline_updates_working_image(tmp_path, monkeypatch):
     from gi.repository import GLib
     from PIL import Image

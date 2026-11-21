@@ -22,7 +22,13 @@ def test_appimage_recipe_is_valid():
 
 def test_ci_workflow_installs_test_dependencies():
     text = open(".github/workflows/ci.yml", encoding="utf-8").read()
-    for dependency in ("python3-cairo", "python3-gi", "xvfb", "desktop-file-utils"):
+    for dependency in (
+        "python3-cairo",
+        "python3-gi",
+        "python3-gi-cairo",
+        "xvfb",
+        "desktop-file-utils",
+    ):
         assert dependency in text
     assert "mypy --config-file mypy.ini" in text
     assert "--cov-fail-under=70" in text

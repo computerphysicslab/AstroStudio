@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.26 — 2026-11-21
+
+- Completed the CI repair: added `python3-gi-cairo` (PyGObject Cairo foreign types) to the workflow apt dependencies, since the pixel-level Cairo tests need both bindings and headers. Skipped the SkyStacker CLI integration test when the binary is absent in CI instead of failing on ENOENT. Extended the workflow-guard test with the new dependency.
+- Verified locally with a PATH without `skystacker`: 14 passed/1 skipped in the affected files; full suite 235 passed/2 skipped, mypy clean.
+
 ## 0.3.25 — 2026-11-21
 
 - Fixed the GitHub CI failure: `tests/test_preview_pyramid.py` imports `cairo` for pixel-level rendering assertions, but the workflow only installed `libcairo2-dev` (C headers), not the Python bindings. Added `python3-cairo` to the apt dependencies in `.github/workflows/ci.yml`.
