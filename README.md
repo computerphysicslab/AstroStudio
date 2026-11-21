@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.3.29**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.3.30**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -107,8 +107,12 @@ time, full `argv` and the backend's response/exit code; it no longer repeats bac
 installation status or metadata output, and scrolls to the newest line automatically.
 It has its own X button and can be restored from *View > Toggle Terminal Drawer*.
 Scroll the mouse wheel over the preview to zoom; drag with the left mouse button to pan
-when the image is larger than the window. Transforms and Undo/Redo keep the same zoom
-and pan position. A watch cursor is shown for the whole job lifecycle. The Backends
+when the image is larger than the window. Double-click fits the image; *View > Zoom Modes* also
+offers **Fill Window** (covers the whole canvas), **Fit Width** and **Fit Height**, useful for
+tall or wide frames. Transforms and Undo/Redo keep the same zoom mode and pan position.
+The right dock is split by a draggable separator between the histogram/resources area and the
+Terminal, and the toolbar groups file, zoom and edit actions with a red Stop button at the end.
+A watch cursor is shown for the whole job lifecycle. The Backends
 panel lists installed connectors first (alphabetically), then the missing ones, and its
 View toggle stays enabled after closing the panel with X. FITS/RAW sources combine their RGB HDUs into one RGB TIFF and get a CLI display stretch
 for the PNG preview; exports stay linear. FITS files with multiple image HDUs or

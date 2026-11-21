@@ -30,6 +30,7 @@ class PreviewPane(Gtk.DrawingArea):
         self.path = None
         self.zoom = 1.0
         self.fit = True
+        self.fit_mode = "fit"
         self.pan_x = 0.0
         self.pan_y = 0.0
         self._dragging = False
@@ -85,6 +86,7 @@ class PreviewPane(Gtk.DrawingArea):
         self.level_scale = 1.0
         self.pyramid_levels = []
         self.fit = True
+        self.fit_mode = "fit"
         self.zoom = 1.0
         self.star_layer = []
         self.object_layer = []
@@ -97,14 +99,26 @@ class PreviewPane(Gtk.DrawingArea):
             self.logical_size = tuple(full_size)
         self._refresh_level()
 
+    def _scale_for_fit(self, allocation, width: int, height: int):
+        if not self.fit or not allocation.width or not allocation.height:
+            return None
+        scale_x = allocation.width / width
+        scale_y = allocation.height / height
+        if self.fit_mode == "fill":
+            return max(scale_x, scale_y)
+        if self.fit_mode == "width":
+            return scale_x
+        if self.fit_mode == "height":
+            return scale_y
+        return min(scale_x, scale_y)
+
     def _refresh_level(self) -> None:
         if not self.pyramid_levels or self.logical_size is None:
             return
         width, height = self.logical_size
         allocation = self.get_allocation()
-        if self.fit and allocation.width and allocation.height:
-            display_scale = min(allocation.width / width, allocation.height / height)
-        else:
+        display_scale = self._scale_for_fit(allocation, width, height)
+        if display_scale is None:
             display_scale = self.zoom
         level = choose_level(self.pyramid_levels, display_scale)
         if level is None or level[0] == self.path:
@@ -145,6 +159,7 @@ class PreviewPane(Gtk.DrawingArea):
         self.pyramid_levels = []
         self.logical_size = None
         self.level_scale = 1.0
+        self.fit_mode = "fit"
         self.reset_pan()
         self.queue_draw()
 
@@ -341,12 +356,27 @@ class PreviewPane(Gtk.DrawingArea):
         self._refresh_level()
         self.queue_draw()
 
-    def zoom_fit(self) -> None:
+    def set_fit_mode(self, mode: str) -> None:
+        if mode not in ("fit", "fill", "width", "height"):
+            return
+        self.fit_mode = mode
         self.fit = True
         self.zoom = 1.0
         self.reset_pan()
         self._refresh_level()
         self.queue_draw()
+
+    def zoom_fit(self) -> None:
+        self.set_fit_mode("fit")
+
+    def zoom_fill(self) -> None:
+        self.set_fit_mode("fill")
+
+    def zoom_width(self) -> None:
+        self.set_fit_mode("width")
+
+    def zoom_height(self) -> None:
+        self.set_fit_mode("height")
 
     def set_zoom_scale(self, scale: float) -> None:
         self.fit = False
@@ -361,10 +391,8 @@ class PreviewPane(Gtk.DrawingArea):
         width, height = self.logical_size or (
             self.pixbuf.get_width(), self.pixbuf.get_height()
         )
-        if self.fit:
-            scale = min(allocation.width / width, allocation.height / height)
-        else:
-            scale = self.zoom
+        fitted = self._scale_for_fit(allocation, width, height)
+        scale = self.zoom if fitted is None else fitted
         offset_x = (allocation.width - width * scale) / 2.0 + self.pan_x
         offset_y = (allocation.height - height * scale) / 2.0 + self.pan_y
         return allocation, scale, offset_x, offset_y

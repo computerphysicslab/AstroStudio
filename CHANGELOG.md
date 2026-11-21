@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.30 — 2026-11-21
+
+- Canvas framing: added View > Zoom Modes with Fit to Window, Fill Window, Fit Width and Fit Height. The mode is stored in the view state and survives transforms/Undo-Redo; all five UI languages have the new labels.
+- Right dock: the histogram/resources area and the Terminal are now separated by a draggable vertical paned divider whose position is persisted (`right_dock_split`).
+- Toolbar: grouped file/zoom/edit actions with separators, 32 px icons, clearer disabled styling and a red Stop button at the end.
+- Added four regression tests. Suite: 246 passed, 2 skipped; mypy clean on 53 modules.
+
 ## 0.3.29 — 2026-11-21
 
 - Documented the histogram's yellow shadow loupe (levels 0–13/255, one vertical line per level) in README and `Context/GUI-specifications.md`. Added a circular `i` button to the histogram panel header whose GTK tooltip explains it in the configured UI language (EN/ES/DE/JA/RU/ZH) and updates when the language changes.

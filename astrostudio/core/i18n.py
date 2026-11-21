@@ -1143,18 +1143,28 @@ SHADOW_LOUPE_HELP = (
 HELP_TRANSLATIONS = {
     'de': {
         SHADOW_LOUPE_HELP: 'Die gelbe Lupe vergrößert die Helligkeitsstufen 0–13 von 255, in denen sich das schwache lineare astronomische Signal befindet. Jede vertikale Linie zeigt die Pixelanzahl einer Stufe. Die cyanfarbene und die orange Linie legen Schwarz- und Weißpunkt fest.',
+        'Zoom Modes': 'Zoom-Modi', 'Fill Window': 'Fenster füllen', 'Fit Width': 'Breite anpassen', 'Fit Height': 'Höhe anpassen',
+        'fill window': 'Fenster füllen', 'fit width': 'Breite anpassen', 'fit height': 'Höhe anpassen',
     },
     'es': {
         SHADOW_LOUPE_HELP: 'La lupa amarilla amplía los niveles de brillo 0–13 de 255, donde se concentra la señal astronómica lineal débil. Cada línea vertical es el recuento de píxeles de un nivel. Las líneas cian y naranja fijan el punto negro y el punto blanco.',
+        'Zoom Modes': 'Modos de zoom', 'Fill Window': 'Llenar ventana', 'Fit Width': 'Ajustar ancho', 'Fit Height': 'Ajustar alto',
+        'fill window': 'llenar ventana', 'fit width': 'ajustar ancho', 'fit height': 'ajustar alto',
     },
     'ja': {
         SHADOW_LOUPE_HELP: '黄色いルーペは、微弱なリニア天体信号が集中する輝度レベル 0～13/255 を拡大します。縦線は各レベルのピクセル数です。シアンとオレンジの線が黒点と白点を設定します。',
+        'Zoom Modes': 'ズームモード', 'Fill Window': 'ウィンドウを埋める', 'Fit Width': '幅に合わせる', 'Fit Height': '高さに合わせる',
+        'fill window': 'ウィンドウを埋める', 'fit width': '幅に合わせる', 'fit height': '高さに合わせる',
     },
     'ru': {
         SHADOW_LOUPE_HELP: 'Жёлтая лупа увеличивает уровни яркости 0–13 из 255, где находится слабый линейный астрономический сигнал. Каждая вертикальная линия показывает количество пикселей для одного уровня. Голубая и оранжевая линии задают чёрную и белую точки.',
+        'Zoom Modes': 'Режимы масштаба', 'Fill Window': 'Заполнить окно', 'Fit Width': 'По ширине', 'Fit Height': 'По высоте',
+        'fill window': 'заполнить окно', 'fit width': 'по ширине', 'fit height': 'по высоте',
     },
     'zh': {
         SHADOW_LOUPE_HELP: '黄色放大镜显示 0–13/255 的亮度级别，这里集中了微弱的线性天文信号。每条竖线表示该级别的像素计数。青色和橙色线分别设置黑点和白点。',
+        'Zoom Modes': '缩放模式', 'Fill Window': '填满窗口', 'Fit Width': '适应宽度', 'Fit Height': '适应高度',
+        'fill window': '填满窗口', 'fit width': '适应宽度', 'fit height': '适应高度',
     },
 }
 

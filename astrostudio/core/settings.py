@@ -20,6 +20,7 @@ DEFAULTS: Dict[str, Any] = {
     "show_resources": True,
     "show_backends": False,
     "show_jobs": False,
+    "right_dock_split": 360,
     "recent_transforms": [],
     "binary_overrides": {},
     "scratch_dir": "",

@@ -262,6 +262,16 @@ MENU_LAYOUT = (
             ("Zoom In", "zoom-in"),
             ("Zoom Out", "zoom-out"),
             ("Fit to Window", "zoom-fit"),
+            (
+                "Zoom Modes",
+                None,
+                (
+                    ("Fit to Window", "zoom-fit"),
+                    ("Fill Window", "zoom-fill"),
+                    ("Fit Width", "zoom-width"),
+                    ("Fit Height", "zoom-height"),
+                ),
+            ),
             (None, None),
             ("Histogram", "histogram"),
             ("Quality Dashboard...", "quality-dashboard"),
@@ -331,14 +341,17 @@ TOOL_ITEMS = (
     ("document-open", "Open", "open"),
     ("document-save-as", "Export", "export"),
     ("dialog-information", "Metadata", "metadata"),
+    None,
     ("zoom-in", "Zoom in", "zoom-in"),
     ("zoom-out", "Zoom out", "zoom-out"),
     ("zoom-fit-best", "Fit to window", "zoom-fit"),
+    ("view-fullscreen", "FullScreen", "fullscreen"),
+    None,
     ("edit-select-all", "Select Area", "select-area"),
     ("edit-undo", "Undo", "undo"),
     ("edit-redo", "Redo", "redo"),
+    None,
     ("process-stop", "Stop job", "cancel"),
-    ("view-fullscreen", "FullScreen", "fullscreen"),
 )
 
 
@@ -614,13 +627,20 @@ class MainWindow(Gtk.ApplicationWindow):
         self.job_panel = JobPanel(self.app.job_manager, self._retry_job)
         self.job_panel.set_no_show_all(True)
         right.pack_start(self.job_panel, False, False, 0)
-        right.pack_start(self.terminal_panel, True, True, 0)
+        terminal_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        terminal_box.set_border_width(6)
+        terminal_box.pack_start(self.terminal_panel, True, True, 0)
+        self.right_dock = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
+        self.right_dock.pack1(right, True, False)
+        self.right_dock.pack2(terminal_box, False, True)
+        self.right_dock.set_position(int(self.settings.get("right_dock_split", 360)))
+        self.right_dock.connect("notify::position", self._on_right_dock_resized)
         self.right_scroll = Gtk.ScrolledWindow()
         right_scroll = self.right_scroll
         right_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         right_scroll.set_min_content_width(320)
         right_scroll.set_min_content_height(140)
-        right_scroll.add(right)
+        right_scroll.add(self.right_dock)
         paned.pack2(right_scroll, False, True)
         root.pack_start(paned, True, True, 0)
 
@@ -655,12 +675,19 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _build_toolbar(self) -> Gtk.Widget:
         toolbar = Gtk.Toolbar()
-        for icon, label, action in TOOL_ITEMS:
+        toolbar.set_icon_size(Gtk.IconSize.DIALOG)
+        for item in TOOL_ITEMS:
+            if item is None:
+                toolbar.insert(Gtk.SeparatorToolItem(), -1)
+                continue
+            icon, label, action = item
             button = Gtk.ToolButton.new(
-                Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON),
+                Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.DIALOG),
                 self.translator.tr(label),
             )
             button.set_tooltip_text(self.translator.tr(label))
+            if action == "cancel":
+                button.get_style_context().add_class("stop-action")
             button.connect("clicked", lambda *_widget, name=action: self._activate(name))
             self.toolbar_buttons[action] = button
             self.toolbar_labels[action] = label
@@ -842,8 +869,13 @@ progressbar text {
     color: #ffffff;
 }
 toolbutton.inactive-action {
-    opacity: 0.35;
-    color: #888888;
+    opacity: 0.55;
+    color: #aab2bd;
+}
+toolbutton.stop-action {
+    background-color: #7d2020;
+    border-radius: 4px;
+    color: #ffffff;
 }
 button.info-circle {
     border-radius: 9px;
@@ -872,6 +904,9 @@ button.info-circle {
             return
         size = int(self.settings.get("font_size", 9))
         gtk_settings.set_property("gtk-font-name", "Sans %d" % max(7, min(18, size)))
+
+    def _on_right_dock_resized(self, paned, _property) -> None:
+        self.settings.set("right_dock_split", paned.get_position())
 
     def _apply_panel_visibility(self) -> None:
         self.thumbnail_scroll.set_visible(bool(self.settings.get("show_thumbnails", False)))
@@ -1134,6 +1169,7 @@ button.info-circle {
         return {
             "zoom": self.preview.zoom,
             "fit": self.preview.fit,
+            "mode": self.preview.fit_mode,
             "pan_x": self.preview.pan_x,
             "pan_y": self.preview.pan_y,
             "x": self.preview_scroll.get_hadjustment().get_value(),
@@ -1144,7 +1180,7 @@ button.info-circle {
         if state is None:
             return
         if state["fit"]:
-            self.preview.zoom_fit()
+            self.preview.set_fit_mode(state.get("mode", "fit"))
         else:
             self.preview.set_zoom_scale(state["zoom"])
         self.preview.pan_x = state["pan_x"]
@@ -4098,6 +4134,18 @@ button.info-circle {
     def action_zoom_fit(self) -> None:
         self.preview.zoom_fit()
         self._status("%s: %s" % (self.translator.tr("Zoom"), self.translator.tr("fit to window")))
+
+    def action_zoom_fill(self) -> None:
+        self.preview.zoom_fill()
+        self._status("%s: %s" % (self.translator.tr("Zoom"), self.translator.tr("fill window")))
+
+    def action_zoom_width(self) -> None:
+        self.preview.zoom_width()
+        self._status("%s: %s" % (self.translator.tr("Zoom"), self.translator.tr("fit width")))
+
+    def action_zoom_height(self) -> None:
+        self.preview.zoom_height()
+        self._status("%s: %s" % (self.translator.tr("Zoom"), self.translator.tr("fit height")))
 
     def _set_zoom(self, scale: float, label: str) -> None:
         self.preview.set_zoom_scale(scale)

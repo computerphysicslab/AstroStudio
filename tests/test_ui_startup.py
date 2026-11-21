@@ -12,7 +12,7 @@ from gi.repository import Gtk
 from astrostudio.app import ACTION_NAMES, AstroStudioApplication
 from astrostudio.core import SHADOW_LOUPE_HELP, Translator
 from astrostudio.ui import MainWindow
-from astrostudio.ui.main_window import geometry_warning
+from astrostudio.ui.main_window import TOOL_ITEMS, geometry_warning
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("DISPLAY"), reason="GTK display required"
@@ -45,6 +45,38 @@ def test_main_window_builds_with_small_minimum_size():
     file_menu = window.menu_bar.get_children()[0].get_submenu()
     labels = [item.get_label() for item in file_menu.get_children()]
     assert labels[:2] == ["Open", "Open Recent"]
+    window.destroy()
+
+
+def test_toolbar_groups_and_stop_is_last():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    children = window.toolbar.get_children()
+    separators = [item for item in children if isinstance(item, Gtk.SeparatorToolItem)]
+    assert len(separators) == 3
+    assert children[-1] is window.toolbar_buttons["cancel"]
+    assert "stop-action" in window.toolbar_buttons["cancel"].get_style_context().list_classes()
+    assert TOOL_ITEMS[-1][2] == "cancel"
+    window.destroy()
+
+
+def test_right_dock_split_is_resizable_and_persisted():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    assert isinstance(window.right_dock, Gtk.Paned)
+    assert window.right_dock.get_position() == app.settings.get("right_dock_split")
+    window.right_dock.set_position(250)
+    assert app.settings.get("right_dock_split") == 250
+    window.destroy()
+
+
+def test_zoom_mode_actions_are_available():
+    for action in ("zoom-fill", "zoom-width", "zoom-height"):
+        assert action in ACTION_NAMES
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    for method in ("action_zoom_fill", "action_zoom_width", "action_zoom_height"):
+        assert callable(getattr(window, method))
     window.destroy()
 
 

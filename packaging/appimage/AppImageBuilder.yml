@@ -8,7 +8,7 @@ AppDir:
     id: astro-studio
     name: Astro Studio
     icon: astro-studio
-    version: "0.3.29"
+    version: "0.3.30"
     exec: usr/bin/python3
     exec_args: -m astrostudio
   apt:

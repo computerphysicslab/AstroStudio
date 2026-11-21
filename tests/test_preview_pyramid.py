@@ -211,6 +211,24 @@ def test_fit_with_real_pyramid_level_stays_inside_canvas(tmp_path, monkeypatch):
     assert pixel(250, 395)[0] < 40
 
 
+def test_zoom_modes_use_canvas_allocation(monkeypatch):
+    pane = PreviewPane()
+    allocation = SimpleNamespace(width=500, height=400)
+    monkeypatch.setattr(pane, "get_allocation", lambda: allocation)
+    pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 800, 600)
+    pane.set_pixbuf(pixbuf)
+
+    pane.set_fit_mode("fit")
+    assert abs(pane._view_parameters()[1] - 0.625) < 1e-9
+    pane.set_fit_mode("width")
+    assert abs(pane._view_parameters()[1] - 0.625) < 1e-9
+    pane.set_fit_mode("height")
+    assert abs(pane._view_parameters()[1] - 400.0 / 600.0) < 1e-9
+    pane.set_fit_mode("fill")
+    assert abs(pane._view_parameters()[1] - 400.0 / 600.0) < 1e-9
+    assert pane.fit is True
+
+
 def test_double_click_zoom_fit_resets_manual_zoom():
     from astrostudio.app import AstroStudioApplication
     from astrostudio.ui import MainWindow
