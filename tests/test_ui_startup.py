@@ -58,9 +58,10 @@ def test_toolbar_and_thumbnails_are_dock_panels():
     terminal_children = window.terminal_box.get_children()
     assert window.thumbnail_panel in terminal_children
     assert terminal_children[-1] is window.progress_bar
-    assert window.toolbar.get_icon_size() == Gtk.IconSize.MENU
+    assert len(window.toolbar_rows) == 2
+    assert all(row.get_icon_size() == Gtk.IconSize.MENU for row in window.toolbar_rows)
     fit = window.toolbar_buttons["zoom-fit"]
-    assert fit.get_icon_widget().get_pixel_size() == 24
+    assert fit.get_icon_widget().get_property("icon-size") == Gtk.IconSize.MENU
     window.destroy()
 
 
@@ -92,10 +93,15 @@ def test_arabic_language_is_rtl_and_translated():
 def test_toolbar_groups_and_stop_is_last():
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)
-    children = window.toolbar.get_children()
-    separators = [item for item in children if isinstance(item, Gtk.SeparatorToolItem)]
-    assert len(separators) == 3
-    assert children[-1] is window.toolbar_buttons["cancel"]
+    rows = window.toolbar_rows
+    separators = [
+        item
+        for row in rows
+        for item in row.get_children()
+        if isinstance(item, Gtk.SeparatorToolItem)
+    ]
+    assert len(separators) == 2
+    assert rows[-1].get_children()[-1] is window.toolbar_buttons["cancel"]
     assert "stop-action" in window.toolbar_buttons["cancel"].get_style_context().list_classes()
     assert TOOL_ITEMS[-1][2] == "cancel"
     window.destroy()

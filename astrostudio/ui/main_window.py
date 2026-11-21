@@ -354,6 +354,8 @@ TOOL_ITEMS = (
     ("process-stop", "Stop job", "cancel"),
 )
 
+TOOL_ROWS = (TOOL_ITEMS[:8], TOOL_ITEMS[9:])
+
 
 def log_segments(line: str):
     """Split a terminal line into (text, tag) pairs for syntax highlighting."""
@@ -500,6 +502,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.panel_labels: dict = {}
         self.toolbar_buttons: dict = {}
         self.toolbar_labels: dict = {}
+        self.toolbar_rows: list = []
         self._accent_provider = None
         self._busy_count = 0
         self.metadata_pending = 0
@@ -710,25 +713,32 @@ class MainWindow(Gtk.ApplicationWindow):
         self.menu_bar.show_all()
 
     def _build_toolbar(self) -> Gtk.Widget:
-        toolbar = Gtk.Toolbar()
-        toolbar.set_icon_size(Gtk.IconSize.MENU)
-        for item in TOOL_ITEMS:
-            if item is None:
-                toolbar.insert(Gtk.SeparatorToolItem(), -1)
-                continue
-            icon, label, action = item
-            image = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU)
-            if action == "zoom-fit":
-                image.set_pixel_size(24)
-            button = Gtk.ToolButton.new(image, self.translator.tr(label))
-            button.set_tooltip_text(self.translator.tr(label))
-            if action == "cancel":
-                button.get_style_context().add_class("stop-action")
-            button.connect("clicked", lambda *_widget, name=action: self._activate(name))
-            self.toolbar_buttons[action] = button
-            self.toolbar_labels[action] = label
-            toolbar.insert(button, -1)
-        return toolbar
+        container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.toolbar_rows = []
+        for items in TOOL_ROWS:
+            row = Gtk.Toolbar()
+            row.set_icon_size(Gtk.IconSize.MENU)
+            for item in items:
+                if item is None:
+                    row.insert(Gtk.SeparatorToolItem(), -1)
+                    continue
+                icon, label, action = item
+                button = Gtk.ToolButton.new(
+                    Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU),
+                    self.translator.tr(label),
+                )
+                button.set_tooltip_text(self.translator.tr(label))
+                if action == "cancel":
+                    button.get_style_context().add_class("stop-action")
+                button.connect(
+                    "clicked", lambda *_widget, name=action: self._activate(name)
+                )
+                self.toolbar_buttons[action] = button
+                self.toolbar_labels[action] = label
+                row.insert(button, -1)
+            self.toolbar_rows.append(row)
+            container.pack_start(row, False, False, 0)
+        return container
 
     def _panel_with_close(self, title: str, content: Gtk.Widget) -> Gtk.Widget:
         return self.docks.panel_with_close(title, content)

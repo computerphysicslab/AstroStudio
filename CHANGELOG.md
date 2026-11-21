@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.35 — 2026-11-21
+
+- Toolbar buttons are now split into two stacked rows in the dock panel and every icon, including Fit to Window, uses the same 12 px size. Documentation was audited and updated to match the current layout.
+- Updated toolbar tests for the two-row layout. Suite: 261 passed, 2 skipped; mypy clean on 54 modules.
+
 ## 0.3.34 — 2026-11-21
 
 - Visual refinement: toolbar buttons now use 12 px symbolic icons (Fit to Window stays at 24 px), CPU/RAM meters are smaller, thumbnails show only the image, the preview frame label and the wide top status bar were removed, and the status bar now lives at the bottom of the right dock.

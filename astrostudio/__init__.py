@@ -1,4 +1,4 @@
 """Astro Studio: zero-processing GTK front-end for external CLI backends."""
 
-__version__ = "0.3.34"
+__version__ = "0.3.35"
 BUILD_DATE = "2026-11-21"
