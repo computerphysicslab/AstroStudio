@@ -286,4 +286,4 @@ modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% ga
 - **2026-11-21:** fixed GitHub CI by installing `python3-cairo` (the Cairo pixel test needs Python
   bindings, not just C headers); added a workflow-guard test; 235 passed/2 skipped (§85).
 - **2026-11-21:** added `python3-gi-cairo` for PyGObject Cairo foreign types and skipped the
-  SkyStacker CLI integration test when its binary is absent; CI re-run pending (§86).
+  SkyStacker CLI integration test when its binary is absent; CI run `44906773088` green (§86).
