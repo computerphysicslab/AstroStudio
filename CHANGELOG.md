@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.22 — 2026-11-21
+
+- Fixed the `-convolve` transform failures: ImageMagick 7 needs the input image before the operation, so `ImageMagickAdapter.build_argv()` now moves `-convolve` and its kernel after the inputs (verified with a real CLI round-trip).
+- Fixed the survey prefetch job that failed with "image needs a plate solution": it now receives `--plate-solve --plate-center` from the current plate solution when available (reproduced: only the external CDS 404 remains).
+- Implemented the missing Asinh Stretch handler (`filter-stretch`), which previously logged "Action pending CLI adapter" and did nothing; it delegates to the SkyStacker `stretch` image op.
+- Survey cutout/prefetch still report the external CDS HiPS outage with the actionable hint. Added six regression tests; suite 229 passed, 2 skipped, mypy clean on 52 modules.
+
 ## 0.3.21 — 2026-11-21
 
 - Fixed three app-side errors from the last session log: the LibRaw backend probe no longer runs `dcraw_emu -v` (unsupported, exit 1); backends with no version flag are now reported as available/unknown without spawning a job. Offline prefetch jobs now carry the same `SKYSTACKER_CATALOGS` environment wrapper as other SkyStacker jobs (verified: catalog download now exits 0) and report stderr details plus a failure count instead of a bare "failed".

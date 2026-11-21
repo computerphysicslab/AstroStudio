@@ -198,6 +198,22 @@ def test_pyramid_argv_requests_downscaled_png():
     assert "-resize" in adapter.build_pyramid_argv("w.tiff", "p.png", 0.5)
 
 
+def test_convolve_flag_is_serialised_after_input():
+    adapter = ImageMagickAdapter(binary="convert")
+    argv = adapter.build_argv(
+        ["/tmp/job/working.tiff"],
+        "/tmp/job/next.tiff",
+        {"convolve": "0,-1,0,-1,5,-1,0,-1,0"},
+    )
+    assert argv == [
+        "convert",
+        "/tmp/job/working.tiff",
+        "-convolve",
+        "0,-1,0,-1,5,-1,0,-1,0",
+        "/tmp/job/next.tiff",
+    ]
+
+
 def test_display_export_includes_gamma_and_level():
     from astrostudio.adapters import ImageMagickAdapter
     from astrostudio.core.export_formats import find_format

@@ -20,8 +20,8 @@
 - **Repo:** public `computerphysicslab/AstroStudio`, branch `main` (English commit messages;
   **never** push/tag/merge/rewrite history without an explicit request).
 - **HEAD:** `3f63f9d` ("Fix CI Python environment and complete roadmap items 1-9").
-- **Version:** `0.3.21` in the working tree (`astrostudio/__init__.py:3`), but **HEAD is
-  `9442050` (0.3.19)**: the 0.3.20–0.3.21 fixes are uncommitted (see §10). `BUILD_DATE = "2026-11-21"`.
+- **Version:** `0.3.22` in the working tree (`astrostudio/__init__.py:3`), but **HEAD is
+  `6fe1505` (0.3.21)**: the 0.3.22 fixes are uncommitted (see §10). `BUILD_DATE = "2026-11-21"`.
 - **Stack:** Python 3.8-compatible runtime (mypy targets 3.9; CI uses system Python 3.10 on
   Ubuntu 22.04), PyGObject, **GTK 3.24 only** (GTK4 not installed), `Gio.Subprocess`,
   `GdkPixbuf`, Cairo.
@@ -196,7 +196,7 @@ desktop-file validation. `mypy.ini` has documented pragmatic exceptions and
 `ignore_missing_imports` for `gi`, `numpy`, `PIL`. Current local environment: Python 3.14.4,
 pytest 9.0.2, GTK 3.24.52 with glycin loaders, ImageMagick 7.1.2-18. Dev tools installed from apt
 via `~/install-astrostudio-dev-tools.sh`: mypy 1.19.1, pytest-cov 5.0.0, pre-commit 4.5.1.
-Latest verification: **226 passed, 2 skipped**, real GUI launch without GError, mypy clean on 52
+Latest verification: **229 passed, 2 skipped**, real GUI launch without GError, mypy clean on 52
 modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% gate. With
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, add `-p pytest_cov` so the coverage plugin loads.
 
@@ -275,3 +275,6 @@ modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% ga
   the missing catalog environment in prefetch jobs, prefetch error reporting and plate-solution
   inheritance for the generated sky-map image. The remaining HiPS HTTP 404 is an external CDS
   outage and is now reported with a hint. Suite 226 passed/2 skipped (§81).
+- **2026-11-21:** fixed three app-side errors from session `e0b66680`: IM7 `-convolve` flag order,
+  survey prefetch without a plate center and the missing `filter-stretch` handler; 229 passed/
+  2 skipped (§82).

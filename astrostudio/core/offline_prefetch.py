@@ -29,16 +29,21 @@ def survey_prefetch_argv(
     survey: str,
     catalog_id: str,
     catalog_dir: str = None,
+    plate_center: str = None,
 ) -> List[str]:
-    return _with_catalog_env(
-        [
-            "skystacker",
-            "--process-image",
-            source,
-            "--image-op",
-            "survey-cutout",
-            "--image-output",
-            output_dir,
+    argv = [
+        "skystacker",
+        "--process-image",
+        source,
+        "--image-op",
+        "survey-cutout",
+        "--image-output",
+        output_dir,
+    ]
+    if plate_center:
+        argv.extend(("--plate-solve", "--plate-center", plate_center))
+    argv.extend(
+        (
             "--survey-hips",
             survey,
             "--blind-catalog",
@@ -46,9 +51,9 @@ def survey_prefetch_argv(
             "--survey-timeout",
             "60",
             "--no-donation",
-        ],
-        catalog_dir,
+        )
     )
+    return _with_catalog_env(argv, catalog_dir)
 
 
 def prefetch_plan(
@@ -57,10 +62,13 @@ def prefetch_plan(
     output_dir: str = None,
     survey: str = None,
     catalog_dir: str = None,
+    plate_center: str = None,
 ) -> List[List[str]]:
     jobs = [catalog_download_argv(item, catalog_dir) for item in dict.fromkeys(catalogs)]
     if source and output_dir and survey:
         jobs.append(
-            survey_prefetch_argv(source, output_dir, survey, catalogs[0], catalog_dir)
+            survey_prefetch_argv(
+                source, output_dir, survey, catalogs[0], catalog_dir, plate_center
+            )
         )
     return jobs

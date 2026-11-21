@@ -2185,6 +2185,9 @@ toolbutton.inactive-action {
         )
         self.app.update_action_sensitivity()
 
+    def action_filter_stretch(self) -> None:
+        self._run_sky_filter("stretch", [], "Asinh Stretch")
+
     def action_filter_sharpen(self) -> None:
         self._run_filter({"sharpen": "0x1"}, "Sharpen filter")
 
@@ -3443,6 +3446,7 @@ toolbutton.inactive-action {
             output_dir,
             survey,
             self.adapters["SkyStacker"].catalog_dir,
+            self.plate_centers.get(source) if source else None,
         )
         self._log("Prefetching %d offline catalog/survey job(s)" % len(jobs))
         self._run_prefetch_jobs(jobs, 0)

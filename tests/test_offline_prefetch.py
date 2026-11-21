@@ -20,7 +20,10 @@ def test_prefetch_argv_uses_catalog_environment_when_configured():
 
 
 def test_prefetch_plan_deduplicates_and_adds_survey_when_source_given():
-    jobs = prefetch_plan(["mag07", "mag07", "mag06"], "sky.png", "/tmp/survey", "CDS/P/DSS2/color")
+    jobs = prefetch_plan(["mag07", "mag07", "mag06"], "sky.png", "/tmp/survey", "CDS/P/DSS2/color", None, "299.9,22.7")
+    survey_job = jobs[-1]
+    assert survey_job[survey_job.index("--plate-center") + 1] == "299.9,22.7"
+    assert "--plate-solve" in survey_job
     assert len(jobs) == 3
     assert jobs[0][2] == "mag07"
     assert jobs[1][2] == "mag06"

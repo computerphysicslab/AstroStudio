@@ -51,7 +51,15 @@ class ImageMagickAdapter(CliAdapter):
         return result
 
     def build_argv(self, inputs, output=None, params=None):
-        return self._with_threads(super().build_argv(inputs, output, params))
+        argv = list(super().build_argv(inputs, output, params))
+        if "-convolve" in argv:
+            # ImageMagick 7 requires a loaded image before -convolve.
+            index = argv.index("-convolve")
+            flag = argv[index:index + 2]
+            argv = argv[:index] + argv[index + 2:]
+            insert_at = len(argv) - (1 if output else 0)
+            argv[insert_at:insert_at] = flag
+        return self._with_threads(argv)
 
     def build_import_argv(self, source: str, tiff_path: str) -> Sequence[str]:
         """Import a source file into the high-depth working TIFF."""

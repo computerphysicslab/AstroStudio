@@ -523,14 +523,29 @@ def test_sky_map_done_strips_titles_before_preview(monkeypatch, tmp_path):
     window.destroy()
 
 
+def test_filter_stretch_action_delegates_to_skystacker(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    calls = []
+    monkeypatch.setattr(
+        window, "_run_sky_filter", lambda op, flags, label: calls.append((op, flags, label))
+    )
+    window.action_filter_stretch()
+    assert calls == [("stretch", [], "Asinh Stretch")]
+    window.destroy()
+
+
 def test_prefetch_passes_catalog_dir_and_reports_failures(monkeypatch):
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)
     monkeypatch.setattr(window.registry, "available", lambda name: True)
     captured = {}
 
-    def fake_plan(catalogs, source, output_dir, survey, catalog_dir=None):
+    def fake_plan(
+        catalogs, source, output_dir, survey, catalog_dir=None, plate_center=None
+    ):
         captured["catalog_dir"] = catalog_dir
+        captured["plate_center"] = plate_center
         return [["job", "one"], ["job", "two"]]
 
     monkeypatch.setattr("astrostudio.ui.main_window.prefetch_plan", fake_plan)
@@ -549,8 +564,11 @@ def test_prefetch_passes_catalog_dir_and_reports_failures(monkeypatch):
     monkeypatch.setattr(window, "_log", logs.append)
     monkeypatch.setattr(window, "_status", statuses.append)
     window.adapters["SkyStacker"].catalog_dir = "/catalogs"
+    window.plate_centers["/orig.png"] = "299.901583,22.721028"
+    window.current_paths.append("/orig.png")
     window.action_prefetch_catalogs()
     assert captured["catalog_dir"] == "/catalogs"
+    assert captured["plate_center"] == "299.901583,22.721028"
     assert any("HTTP 404" in message for message in logs)
     assert any("2 failure" in text for text in statuses)
     window.destroy()
