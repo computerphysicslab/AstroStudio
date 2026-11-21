@@ -1,6 +1,7 @@
 """Core orchestration components."""
 
 from .astrometry import (
+    classify_backend_failure,
     find_output,
     find_plate_solution,
     sky_map_source_count,
@@ -93,6 +94,7 @@ __all__ = [
     "tile_count",
     "check_linear_guard",
     "parse_measurements",
+    "classify_backend_failure",
     "find_output",
     "find_plate_solution",
     "sky_map_source_count",

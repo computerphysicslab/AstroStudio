@@ -18,7 +18,7 @@
 - Show a busy cursor for the whole job lifecycle and keep dock-toggle actions enabled after panels are closed. FITS/RAW previews need first-HDU selection and a CLI display stretch; scientific exports stay linear.
 - Backends panel sorts installed-first alphabetically; canvas supports drag-to-pan and preserves zoom/pan across transforms. Open dialog must include upper/lowercase astronomical extensions. GTK 3.24 has no `set_min_content_size()` on ScrolledWindow.
 - Version control is active (`main` branch, English commit messages). Every implementation commit bumps `PATCH` at minimum (MAJOR.MINOR.PATCH) and adds a `CHANGELOG.md` entry; `MINOR` marks roadmap milestones. Never push, tag, merge or rewrite history without explicit user request.
-- All CLI jobs and GUI operations append to the persistent JSONL operation log (`$XDG_DATA_HOME/astro-studio/operations.jsonl`) with timing and argv for later cost estimation. Benchmark: `PYTHONPATH=. python3 tests/benchmark_operations.py`; analyzer: `PYTHONPATH=. python3 scripts/analyze_operations.py`.
+- All CLI jobs and GUI operations append to the persistent JSONL operation log (`$XDG_DATA_HOME/astro-studio/operations.jsonl`) with timing and argv for later cost estimation. At the start of every iteration, review the latest session in that log: fix app-side errors, add regression tests, and report external backend failures without fabricating results. Benchmark: `PYTHONPATH=. python3 tests/benchmark_operations.py`; analyzer: `PYTHONPATH=. python3 scripts/analyze_operations.py`.
 - `roadmap.md` tracks milestones v0.1.0-v1.0.0; update it and `Context/AstroStudio_ai_project_context.md` in the same change whenever status changes.
 - Code, comments, identifiers, and documentation in English.
 

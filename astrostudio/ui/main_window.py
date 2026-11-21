@@ -41,6 +41,7 @@ from ..core import (  # noqa: E402
     find_output,
     unique_export_path,
     find_plate_solution,
+    classify_backend_failure,
     sky_map_source_count,
     strip_svg_titles,
     histogram_argv,
@@ -3468,7 +3469,11 @@ toolbutton.inactive-action {
             else:
                 detail = result.error or result.stderr or "unknown error"
                 failures.append(index)
-                self._log("Prefetch %d failed: %s" % (index, detail))
+                category, _hint = classify_backend_failure(detail)
+                self.operation_log.record(
+                    "external_failure", job_id=result.job_id, category=category
+                )
+                self._log("Prefetch %d failed (%s): %s" % (index, category, detail))
             self._run_prefetch_jobs(jobs, index + 1, failures)
 
         self.engine.run("prefetch-%d" % index, jobs[index], on_log=self._log, on_done=done)
@@ -3567,18 +3572,14 @@ toolbutton.inactive-action {
         if not result.ok:
             detail = result.error or result.stderr or ""
             self._log("CLI %s failed: %s" % (result.job_id, detail))
-            hints = []
-            if "solve-field" in detail:
-                hints.append("Install astrometry.net with index files, or use --plate-solver native")
-            if "ASTAP" in detail:
-                hints.append("Install ASTAP with a D05-D80 database")
-            if "API key" in detail:
-                hints.append("Set AN_API_KEY for the web solver")
-            if "no consistent transform" in detail:
-                hints.append("Use a linear frame and a precise RA/Dec seed; processed JPEGs may have too few reliable stars")
-            summary = "Plate solving failed (SkyStacker backend)."
-            if hints:
-                summary += "\n" + "\n".join("- " + hint for hint in hints)
+            category, hint = classify_backend_failure(detail)
+            self.operation_log.record(
+                "external_failure", job_id=result.job_id, category=category
+            )
+            summary = "Plate solving failed (SkyStacker backend, %s).\n%s" % (
+                category,
+                hint,
+            )
             self._show_error(summary + "\n\n" + detail[:1500])
         else:
             solution = find_plate_solution(output_dir)
@@ -3718,13 +3719,13 @@ toolbutton.inactive-action {
         if not result.ok:
             detail = result.error or result.stderr or "unknown error"
             self._log("CLI %s failed: %s" % (result.job_id, detail))
-            hint = ""
-            if "hips2fits" in detail or "404" in detail:
-                hint = (
-                    "\n\nThe CDS HiPS service is unavailable for the configured survey. "
-                    "Change survey_hips in Options > Backend Settings or retry later."
-                )
-            self._show_error("Survey cutout failed: %s%s" % (detail, hint))
+            category, hint = classify_backend_failure(detail)
+            self.operation_log.record(
+                "external_failure", job_id=result.job_id, category=category
+            )
+            self._show_error(
+                "Survey cutout failed (%s): %s\n\n%s" % (category, detail, hint)
+            )
             return
         fits_file = find_output(output_dir, [".fits", ".fit"])
         text = "Survey cutout written to %s" % (fits_file or output_dir)

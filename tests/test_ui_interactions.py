@@ -498,6 +498,34 @@ def test_plate_solve_dumbbell_filename_hint(monkeypatch):
     window.destroy()
 
 
+def test_plate_solve_failure_is_classified_as_external(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+
+    class StubLog:
+        def __init__(self):
+            self.records = []
+
+        def record(self, event, **kwargs):
+            self.records.append((event, kwargs))
+
+    errors = []
+    log = StubLog()
+    monkeypatch.setattr(window, "_show_error", lambda *args: errors.append(args))
+    monkeypatch.setattr(window, "operation_log", log)
+    detail = (
+        "gaia: tile nside=64 [cache hit]\n"
+        "plate: seeded Gaia solve failed (plate solve: no consistent transform (0 matched pairs))\n"
+        "plate: local astrometry.net unavailable"
+    )
+    window._on_plate_solve_done(
+        JobResult("plate-solve", [], 1, stderr=detail), "/tmp/job"
+    )
+    assert errors and "solver-matching" in str(errors[0])
+    assert ("external_failure", {"job_id": "plate-solve", "category": "solver-matching"}) in log.records
+    window.destroy()
+
+
 def test_sky_map_done_strips_titles_before_preview(monkeypatch, tmp_path):
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)
@@ -583,7 +611,7 @@ def test_survey_cutout_hints_about_hips_outage(monkeypatch):
         JobResult("survey-cutout", [], 1, stderr="skystacker: hips2fits HTTP 404"),
         "/tmp/job",
     )
-    assert errors and "CDS HiPS service" in str(errors[0])
+    assert errors and "hips-service" in str(errors[0]) and "CDS HiPS" in str(errors[0])
     window.destroy()
 
 

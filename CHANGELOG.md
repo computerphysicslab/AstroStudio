@@ -8,6 +8,12 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.23 — 2026-11-21
+
+- Added structured classification of backend failures (`classify_backend_failure()`): HiPS service outages, star-matching failures, missing catalog manifests and argv-order errors now produce categories and actionable hints. Plate solving, survey cutouts and prefetch record `external_failure` events with the category in the persistent operation log, so later iterations can distinguish app bugs from external outages without rereading raw stderr.
+- The permanent rule to review the latest operation-log session at the start of every iteration was added to `AGENTS.md` and the global context.
+- Session `21f9df83` had only external failures (CDS HiPS HTTP 404, M31 seeded solve with 0 matched pairs and no blind fallback); no app-side regression was found. Added two regression tests; suite 231 passed, 2 skipped, mypy clean on 52 modules.
+
 ## 0.3.22 — 2026-11-21
 
 - Fixed the `-convolve` transform failures: ImageMagick 7 needs the input image before the operation, so `ImageMagickAdapter.build_argv()` now moves `-convolve` and its kernel after the inputs (verified with a real CLI round-trip).

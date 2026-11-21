@@ -7,6 +7,7 @@ from astrostudio.adapters import SkyStackerAdapter
 from astrostudio.core.astrometry import (
     find_output,
     find_plate_solution,
+    classify_backend_failure,
     sky_map_source_count,
     strip_svg_titles,
     summarize_solution,
@@ -86,6 +87,19 @@ def test_sky_map_argv_requests_solve_and_uses_layered_product():
     assert argv[argv.index("--image-op") + 1] == "sky-map"
     assert "--plate-solve" in argv
     assert "--plate-solver" in argv
+
+
+def test_classify_backend_failure_returns_actionable_hints():
+    category, hint = classify_backend_failure("skystacker: hips2fits HTTP 404")
+    assert category == "hips-service"
+    assert "CDS HiPS" in hint
+    category, hint = classify_backend_failure(
+        "plate solve: no consistent transform (0 matched pairs)"
+    )
+    assert category == "solver-matching"
+    assert "astrometry.net" in hint
+    assert classify_backend_failure("no catalog manifest found")[0] == "catalog-env"
+    assert classify_backend_failure("something unexpected")[0] == "backend-error"
 
 
 def test_sky_map_source_count_detects_empty_maps(tmp_path):
