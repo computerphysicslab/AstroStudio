@@ -19,9 +19,9 @@
 - **Path:** `/home/jips/datos/datos-juan/proyectos/astronomia/AstroStudio`
 - **Repo:** public `computerphysicslab/AstroStudio`, branch `main` (English commit messages;
   **never** push/tag/merge/rewrite history without an explicit request).
-- **HEAD:** `2968af4` ("Generalise ImageMagick flag ordering for all transforms").
-- **Version:** `0.3.27` (`astrostudio/__init__.py:3`), committed on `main` and pushed to
-  `origin/main`; CI run `44911133696` green. `BUILD_DATE = "2026-11-21"`.
+- **HEAD:** the 0.3.28 metadata-enrichment commit on `main`, pushed to `origin/main`.
+- **Version:** `0.3.28` (`astrostudio/__init__.py:3`), committed on `main` and pushed to
+  `origin/main`. `BUILD_DATE = "2026-11-21"`.
 - **Stack:** Python 3.8-compatible runtime (mypy targets 3.9; CI uses system Python 3.10 on
   Ubuntu 22.04), PyGObject, **GTK 3.24 only** (GTK4 not installed), `Gio.Subprocess`,
   `GdkPixbuf`, Cairo.
@@ -196,7 +196,7 @@ desktop-file validation. `mypy.ini` has documented pragmatic exceptions and
 `ignore_missing_imports` for `gi`, `numpy`, `PIL`. Current local environment: Python 3.14.4,
 pytest 9.0.2, GTK 3.24.52 with glycin loaders, ImageMagick 7.1.2-18. Dev tools installed from apt
 via `~/install-astrostudio-dev-tools.sh`: mypy 1.19.1, pytest-cov 5.0.0, pre-commit 4.5.1.
-Latest verification: **236 passed, 2 skipped** (with `skystacker` present; 1 extra skip when the PATH excludes it), real GUI launch without GError, mypy clean on 52
+Latest verification: **240 passed, 2 skipped** (with `skystacker` present; 1 extra skip when the PATH excludes it), real GUI launch without GError, mypy clean on 53
 modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% gate. With
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, add `-p pytest_cov` so the coverage plugin loads.
 
@@ -289,3 +289,5 @@ modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% ga
   SkyStacker CLI integration test when its binary is absent; CI run `44906773088` green (§86).
 - **2026-11-21:** session `5f86382b` failed `-rotate`/`-crop` transforms; generalised the IM7
   flag-ordering fix so all transform flags follow the input path; 236 passed/2 skipped (§87).
+- **2026-11-21:** added roadmap item 6a and non-destructive RA/Dec metadata sidecars after a
+  successful plate solve; existing tags are preserved and conflicts reported; 240 passed/2 skipped (§88).

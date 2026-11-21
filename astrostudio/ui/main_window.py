@@ -41,6 +41,10 @@ from ..core import (  # noqa: E402
     find_output,
     unique_export_path,
     find_plate_solution,
+    load_sidecar,
+    merge_metadata,
+    proposed_tags,
+    write_metadata_sidecar,
     classify_backend_failure,
     sky_map_source_count,
     strip_svg_titles,
@@ -1881,6 +1885,30 @@ toolbutton.inactive-action {
                     self._log("WCS sidecar written: %s" % sidecar)
                 except (OSError, ValueError, KeyError):
                     self._log("Could not write WCS sidecar")
+                source = getattr(self, "_export_source", "")
+                image = next(
+                    (item for item in self.current_images if item.source == source), None
+                )
+                if image is not None:
+                    source_base = os.path.splitext(os.path.basename(source))[0]
+                    metadata = load_sidecar(image.directory, source_base)
+                    if metadata:
+                        target_base = os.path.splitext(
+                            os.path.basename(destination)
+                        )[0]
+                        directory = os.path.dirname(destination)
+                        merged, added, conflicts = merge_metadata(
+                            load_sidecar(directory, target_base), metadata
+                        )
+                        meta_path = write_metadata_sidecar(
+                            directory,
+                            target_base,
+                            merged,
+                            added,
+                            conflicts,
+                            solution_path,
+                        )
+                        self._log("Metadata sidecar written: %s" % meta_path)
         self._log("Exported copy to %s" % destination)
         self._status(
             "%s: %s (%.2f MB, %.1f s)"
@@ -3649,6 +3677,30 @@ toolbutton.inactive-action {
                 text = summarize_solution(solution) if solution else "No plate_solution.json was written (check star field and seed)."
                 text = "Solution could not be parsed:\n" + text
             self._log("CLI %s exit %d; %s" % (result.job_id, result.exit_code, text.splitlines()[0]))
+            if parsed is not None and solution and self.current_images:
+                source = self.current_paths[-1]
+                image = next(
+                    (item for item in self.current_images if item.source == source), None
+                )
+                if image is not None:
+                    base = os.path.splitext(os.path.basename(source))[0]
+                    existing = load_sidecar(image.directory, base)
+                    merged, added, conflicts = merge_metadata(
+                        existing, proposed_tags(parsed)
+                    )
+                    sidecar = write_metadata_sidecar(
+                        image.directory, base, merged, added, conflicts, solution
+                    )
+                    self._log(
+                        "Metadata sidecar %s: added %s; conflicts %s"
+                        % (
+                            sidecar,
+                            ", ".join(added) or "none",
+                            ", ".join(conflicts) or "none",
+                        )
+                    )
+                    if added:
+                        self._status("Metadata enriched: " + ", ".join(added))
             self._show_info("Plate solution / field of view", text)
         self.app.update_action_sensitivity()
 

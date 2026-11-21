@@ -1,5 +1,7 @@
 """UI interaction regressions requiring a GTK display."""
 
+import json
+import math
 import os
 from pathlib import Path
 
@@ -495,6 +497,46 @@ def test_plate_solve_dumbbell_filename_hint(monkeypatch):
     center = window._filename_hint("Dumbell-86x30s-refr150-crop_2.png")
     assert center == "299.901583,22.721028"
     assert any("Catalog hint" in message for message in messages)
+    window.destroy()
+
+
+def test_plate_solve_enriches_metadata_without_modifying_source(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    solution = {
+        "WCS": {
+            "CRVAL1": math.radians(83.822),
+            "CRVAL2": math.radians(-5.391),
+            "CRPIX1": 0.0,
+            "CRPIX2": 0.0,
+            "CD": [[math.radians(-0.01), 0.0], [0.0, math.radians(0.01)]],
+        },
+        "Method": "header",
+    }
+    (tmp_path / "plate_solution.json").write_text(
+        json.dumps(solution), encoding="utf-8"
+    )
+    source = str(tmp_path / "M42.png")
+    (tmp_path / "M42.png").write_bytes(b"original")
+    image = WorkingImage(
+        "img", source, str(tmp_path), str(tmp_path / "w.tiff"), str(tmp_path / "p.png")
+    )
+    window.current_images.append(image)
+    window.current_paths.append(source)
+    monkeypatch.setattr(window, "_show_info", lambda *args: None)
+    logs = []
+    monkeypatch.setattr(window, "_log", logs.append)
+    window._on_plate_solve_done(
+        JobResult("plate-solve", [], 0), str(tmp_path)
+    )
+    sidecar = tmp_path / "M42.metadata.json"
+    assert sidecar.exists()
+    data = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert abs(data["metadata"]["RA_DEG"] - 83.822) < 0.001
+    assert abs(data["metadata"]["DEC_DEG"] + 5.391) < 0.001
+    assert "RA_DEG" in data["added"] and "DEC_DEG" in data["added"]
+    assert (tmp_path / "M42.png").read_bytes() == b"original"
+    assert any("Metadata sidecar" in line for line in logs)
     window.destroy()
 
 

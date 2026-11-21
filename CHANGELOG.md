@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.28 — 2026-11-21
+
+- Added roadmap item 6a and its implementation: after a successful plate solve, RA/Dec, pixel scale and FOV are proposed from the solution and merged into a `.metadata.json` sidecar in the image's scratch directory (and next to FITS exports). `core/metadata_enrichment.py` never deletes or overwrites existing keys: coherent values are kept and conflicts are reported. Original captures are never modified.
+- Added four regression tests. Suite: 240 passed, 2 skipped; mypy clean on 53 modules.
+
 ## 0.3.27 — 2026-11-21
 
 - Session `5f86382b` failed on `-rotate` and `-crop` with the same IM7 ordering problem already fixed for `-convolve`. Generalised `ImageMagickAdapter.build_argv()`: all image-operation flags now follow the input paths (only `-limit thread` stays before them), so rotate/crop/convolve/morphology/unsharp/resize work uniformly. Verified with real CLI round-trips.

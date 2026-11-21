@@ -115,9 +115,13 @@ difficulty-ordered and move completed items into the v0.2.1 changelog.
 4. [x] Siril adapter with calibration/stacking script generation, gated on siril-cli
        availability (binary not installed in this environment).
 5. [x] BPM automation via SkyStacker `--bpm-auto` with 0.1% sanity-cap validation.
-6. [x] WCS values from plate_solution.json exported as a `.wcs.json` sidecar next to
-       FITS outputs (installed tools cannot edit FITS headers directly).
-7. [x] Direct ASTAP/solve-field adapters with seeds, scale hints and blind-scan warnings.
+ 6. [x] WCS values from plate_solution.json exported as a `.wcs.json` sidecar next to
+        FITS outputs (installed tools cannot edit FITS headers directly).
+ 6a. [x] After a successful plate solve, enrich the image metadata with RA/Dec, pixel scale and
+        field of view when those tags are absent. Never modify original files or delete existing
+        tags: merge into a `.metadata.json` sidecar in scratch (and next to exports), keep existing
+        coherent values and report conflicts instead of overwriting.
+ 7. [x] Direct ASTAP/solve-field adapters with seeds, scale hints and blind-scan warnings.
 7a. [x] Native wide-field blind solve with `--plate-solver native --blind-catalog mag07`
        and automatic catalog discovery (v0.2.15).
 8. [x] Gaia cache management with configurable nside, cache path and offline mode.
@@ -334,3 +338,12 @@ elongated stars and low quality.
 startup. `RemoteAdapter` builds SSH or HTTP-API argv lists for remote jobs. Flatpak and
 AppImage manifests under `packaging/` declare the runtime, optional backends and license
 notes; actual bundle builds remain a release-time step.
+
+
+### Medium-difficulty item 6a completion note
+
+`core/metadata_enrichment.py` proposes RA/Dec, pixel scale and FOV from a successful plate
+solution and merges them into a `.metadata.json` sidecar in the image's scratch directory.
+Existing keys are always preserved; coherent values are kept and conflicting ones are reported,
+never overwritten. On FITS export the merged metadata is copied next to the exported file.
+Original captures are never modified.
