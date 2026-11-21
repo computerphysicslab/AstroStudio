@@ -55,8 +55,25 @@ def test_toolbar_and_thumbnails_are_dock_panels():
     assert top.get_children()[0] is window.toolbar_panel
     assert top.get_children()[1] is window.resources_panel
     assert bottom is window.terminal_box
-    assert window.terminal_box.get_children()[-1] is window.thumbnail_panel
-    assert window.toolbar.get_icon_size() == Gtk.IconSize.LARGE_TOOLBAR
+    terminal_children = window.terminal_box.get_children()
+    assert window.thumbnail_panel in terminal_children
+    assert terminal_children[-1] is window.progress_bar
+    assert window.toolbar.get_icon_size() == Gtk.IconSize.MENU
+    fit = window.toolbar_buttons["zoom-fit"]
+    assert fit.get_icon_widget().get_pixel_size() == 24
+    window.destroy()
+
+
+def test_compact_widget_details():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    titlebar = window.get_titlebar()
+    assert titlebar is not None
+    assert len(titlebar.get_children()[0].get_children()) == 3
+    assert window.preview_frame.get_label_widget() is None
+    assert window.thumbnail_view.get_text_column() == -1
+    assert window.resource_monitor.cpu_meter.get_size_request()[1] <= 44
+    assert window.progress_bar in window.terminal_box.get_children()
     window.destroy()
 
 

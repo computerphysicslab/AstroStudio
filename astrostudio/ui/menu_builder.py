@@ -5,8 +5,9 @@ import os
 from gi.repository import Gio, Gtk  # noqa: E402
 
 
-def toggle_label(action: str, label: str, visible: bool) -> str:
-    state = "On" if visible else "Off"
+def toggle_label(action: str, label: str, visible: bool, tr=None) -> str:
+    translate = tr or (lambda text: text)
+    state = translate("On") if visible else translate("Off")
     return "%s: %s" % (label, state)
 
 
@@ -53,6 +54,7 @@ class MenuBuilder:
                             item[1],
                             self.window.translator.tr(self.toggle_panels[item[1]]),
                             visible,
+                            self.window.translator.tr,
                         ),
                         item[1],
                     )

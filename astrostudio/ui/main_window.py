@@ -541,6 +541,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect("key-press-event", self._on_key_press)
         self.connect("window-state-event", self._on_window_state)
 
+        self._last_status = "Astro Studio v%s ready" % __version__
+        self.set_titlebar(self._build_compact_titlebar())
         self._build_layout()
         self._apply_panel_visibility()
         self._apply_theme()
@@ -548,6 +550,35 @@ class MainWindow(Gtk.ApplicationWindow):
         self._apply_language()
         self.connect("destroy", lambda *_widget: self.resource_monitor.stop())
         self.on_backends_updated(registry)
+
+    def _build_compact_titlebar(self) -> Gtk.Widget:
+        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        bar.set_size_request(-1, 28)
+        bar.get_style_context().add_class("compact-titlebar")
+        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        buttons.set_halign(Gtk.Align.END)
+        actions = (
+            ("window-minimize-symbolic", lambda *_: self.iconify()),
+            ("window-maximize-symbolic", lambda *_: self._toggle_maximized()),
+            ("window-close-symbolic", lambda *_: self.close()),
+        )
+        for icon, callback in actions:
+            button = Gtk.Button.new_from_icon_name(icon, Gtk.IconSize.MENU)
+            button.set_relief(Gtk.ReliefStyle.NONE)
+            button.set_size_request(28, 28)
+            button.connect("clicked", callback)
+            buttons.pack_start(button, False, False, 0)
+        bar.pack_end(buttons, False, False, 0)
+        make_draggable(self, bar)
+        return bar
+
+    def _toggle_maximized(self) -> None:
+        window = self.get_window()
+        maximized = bool(window and window.get_state() & Gdk.WindowState.MAXIMIZED)
+        if maximized:
+            self.unmaximize()
+        else:
+            self.maximize()
 
     def _build_layout(self) -> None:
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -560,7 +591,7 @@ class MainWindow(Gtk.ApplicationWindow):
         paned.set_position(740)
 
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.preview_frame = Gtk.Frame(label="Preview (PNG rendered from TIFF)")
+        self.preview_frame = Gtk.Frame()
         self.preview_scroll = Gtk.ScrolledWindow()
         self.preview_scroll.add(self.preview)
         self.preview_frame.add(self.preview_scroll)
@@ -569,7 +600,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.thumbnail_store = Gtk.ListStore(GdkPixbuf.Pixbuf, str)
         self.thumbnail_view = Gtk.IconView(model=self.thumbnail_store)
         self.thumbnail_view.set_pixbuf_column(0)
-        self.thumbnail_view.set_text_column(1)
+        self.thumbnail_view.set_text_column(-1)
         self.thumbnail_view.connect("selection-changed", self._on_thumbnail_selected)
         self.thumbnail_view.connect("item-activated", self._on_thumbnail_activated)
         self.thumbnail_scroll = Gtk.ScrolledWindow()
@@ -636,6 +667,12 @@ class MainWindow(Gtk.ApplicationWindow):
         terminal_box.set_border_width(6)
         terminal_box.pack_start(self.terminal_panel, True, True, 0)
         terminal_box.pack_start(self.thumbnail_panel, False, False, 0)
+        self.progress_bar = Gtk.ProgressBar()
+        self.progress_bar.set_size_request(-1, 16)
+        self.progress_bar.set_show_text(True)
+        self.progress_bar.override_font(Pango.FontDescription("Sans 9"))
+        self.progress_bar.set_text(self._last_status)
+        terminal_box.pack_start(self.progress_bar, False, False, 0)
         self.right_dock = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
         self.right_dock.pack1(right, True, False)
         self.right_dock.pack2(terminal_box, False, True)
@@ -651,13 +688,6 @@ class MainWindow(Gtk.ApplicationWindow):
         root.pack_start(paned, True, True, 0)
 
         self._apply_progress_css()
-        self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_size_request(-1, 18)
-        self.progress_bar.set_show_text(True)
-        self.progress_bar.override_font(Pango.FontDescription("Sans 11"))
-        self._last_status = "Astro Studio v%s ready" % __version__
-        self.progress_bar.set_text(self._last_status)
-        root.pack_start(self.progress_bar, False, False, 0)
         self._rebuild_menu_bar()
 
     def _dynamic_entries(self, entries):
@@ -681,16 +711,16 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _build_toolbar(self) -> Gtk.Widget:
         toolbar = Gtk.Toolbar()
-        toolbar.set_icon_size(Gtk.IconSize.LARGE_TOOLBAR)
+        toolbar.set_icon_size(Gtk.IconSize.MENU)
         for item in TOOL_ITEMS:
             if item is None:
                 toolbar.insert(Gtk.SeparatorToolItem(), -1)
                 continue
             icon, label, action = item
-            button = Gtk.ToolButton.new(
-                Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.LARGE_TOOLBAR),
-                self.translator.tr(label),
-            )
+            image = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU)
+            if action == "zoom-fit":
+                image.set_pixel_size(24)
+            button = Gtk.ToolButton.new(image, self.translator.tr(label))
             button.set_tooltip_text(self.translator.tr(label))
             if action == "cancel":
                 button.get_style_context().add_class("stop-action")
@@ -796,7 +826,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "clicked",
             lambda *_: Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(command, -1),
         )
-        grid.attach(Gtk.Label(label="Shell command", xalign=0.0), 0, len(facts), 1, 1)
+        grid.attach(Gtk.Label(label=self.translator.tr("Shell command"), xalign=0.0), 0, len(facts), 1, 1)
         grid.attach(command_entry, 1, len(facts), 1, 1)
         grid.attach(copy_button, 1, len(facts) + 1, 1, 1)
         window.add(grid)
@@ -815,7 +845,11 @@ class MainWindow(Gtk.ApplicationWindow):
             ("TIFF working", "tiff"),
         ):
             buffer = Gtk.TextBuffer()
-            buffer.set_text("Press the (i) Metadata button to read ExifTool tags.")
+            buffer.set_text(
+                self.translator.tr(
+                    "Press the (i) Metadata button to read ExifTool tags."
+                )
+            )
             view = Gtk.TextView(buffer=buffer)
             view.set_editable(False)
             view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
@@ -824,7 +858,7 @@ class MainWindow(Gtk.ApplicationWindow):
             scroll.set_min_content_width(360)
             scroll.set_min_content_height(80)
             scroll.add(view)
-            notebook.append_page(scroll, Gtk.Label(label=label))
+            notebook.append_page(scroll, Gtk.Label(label=self.translator.tr(label)))
             self.metadata_buffers[key] = buffer
         return notebook
 
@@ -882,6 +916,10 @@ toolbutton.stop-action {
     background-color: #7d2020;
     border-radius: 4px;
     color: #ffffff;
+}
+.compact-titlebar {
+    background-color: #242424;
+    min-height: 28px;
 }
 button.info-circle {
     border-radius: 9px;
@@ -2070,7 +2108,7 @@ button.info-circle {
         entry.set_text("50")
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         box.set_border_width(12)
-        box.pack_start(Gtk.Label(label="Scale (%)"), False, False, 0)
+        box.pack_start(Gtk.Label(label=self.translator.tr("Scale (%)")), False, False, 0)
         box.pack_start(entry, True, True, 0)
         window.add(box)
 
@@ -2445,7 +2483,9 @@ button.info-circle {
         window.set_default_size(560, 380)
         header = Gtk.HeaderBar()
         header.set_show_close_button(False)
-        header.set_title("Metadata (ExifTool, literal output)")
+        header.set_title(
+            self.translator.tr("Metadata (ExifTool, literal output)")
+        )
         close_button = Gtk.Button.new_from_icon_name(
             "window-close-symbolic", Gtk.IconSize.BUTTON
         )
@@ -2682,11 +2722,11 @@ button.info-circle {
             self._show_error("ImageMagick is required to burn in annotations.")
             return
         window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
-        window.set_title("Annotations")
+        window.set_title(self.translator.tr("Annotations"))
         window.set_transient_for(self)
         window.set_default_size(520, 360)
         header = Gtk.HeaderBar()
-        header.set_title("Annotations")
+        header.set_title(self.translator.tr("Annotations"))
         header.set_show_close_button(True)
         window.set_titlebar(header)
         make_draggable(window, header)
@@ -4047,7 +4087,7 @@ button.info-circle {
             for status in self.registry.status.values()
             if self.registry.installed(status.name)
         ]
-        grid.attach(Gtk.Label(label="Installed connectors", xalign=0.0), 0, row, 2, 1)
+        grid.attach(Gtk.Label(label=self.translator.tr("Installed connectors"), xalign=0.0), 0, row, 2, 1)
         row += 1
         checkboxes = {}
         overrides = {}

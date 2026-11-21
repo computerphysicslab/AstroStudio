@@ -1185,6 +1185,64 @@ from .i18n_ar import TRANSLATIONS_AR  # noqa: E402
 
 TRANSLATIONS['ar'] = TRANSLATIONS_AR
 
+EXTRA_TRANSLATIONS = {
+    'de': {
+        'On': 'Ein', 'Off': 'Aus', 'Scale (%)': 'Skala (%)', 'Shell command': 'Shell-Befehl',
+        'Installed connectors': 'Installierte Konnektoren',
+        'Metadata (ExifTool, literal output)': 'Metadaten (ExifTool, Rohausgabe)',
+        'Annotations': 'Anmerkungen',
+        'Press the (i) Metadata button to read ExifTool tags.': 'Klicke auf (i) Metadaten, um ExifTool-Tags zu lesen.',
+    },
+    'es': {
+        'On': 'Activado', 'Off': 'Desactivado', 'Scale (%)': 'Escala (%)', 'Shell command': 'Comando de shell',
+        'Installed connectors': 'Conectores instalados',
+        'Metadata (ExifTool, literal output)': 'Metadatos (ExifTool, salida literal)',
+        'Annotations': 'Anotaciones',
+        'Press the (i) Metadata button to read ExifTool tags.': 'Pulsa (i) Metadatos para leer las etiquetas ExifTool.',
+    },
+    'ja': {
+        'On': 'オン', 'Off': 'オフ', 'Scale (%)': '倍率 (%)', 'Shell command': 'シェルコマンド',
+        'Installed connectors': 'インストール済みコネクタ',
+        'Metadata (ExifTool, literal output)': 'メタデータ (ExifTool 生出力)',
+        'Annotations': '注釈',
+        'Press the (i) Metadata button to read ExifTool tags.': '(i) メタデータを押して ExifTool タグを読み込んでください。',
+    },
+    'ru': {
+        'On': 'Вкл', 'Off': 'Выкл', 'Scale (%)': 'Масштаб (%)', 'Shell command': 'Команда оболочки',
+        'Installed connectors': 'Установленные коннекторы',
+        'Metadata (ExifTool, literal output)': 'Метаданные (ExifTool, вывод)',
+        'Annotations': 'Аннотации',
+        'Press the (i) Metadata button to read ExifTool tags.': 'Нажмите (i) Метаданные для чтения тегов ExifTool.',
+    },
+    'zh': {
+        'On': '开', 'Off': '关', 'Scale (%)': '缩放 (%)', 'Shell command': 'Shell 命令',
+        'Installed connectors': '已安装的连接器',
+        'Metadata (ExifTool, literal output)': '元数据（ExifTool 原始输出）',
+        'Annotations': '注释',
+        'Press the (i) Metadata button to read ExifTool tags.': '点击 (i) 元数据以读取 ExifTool 标签。',
+    },
+    'ar': {
+        'On': 'تشغيل', 'Off': 'إيقاف', 'Scale (%)': 'المقياس (%)', 'Shell command': 'أمر الصدفة',
+        'Installed connectors': 'الموصلات المثبّتة',
+        'Metadata (ExifTool, literal output)': 'البيانات الوصفية (مخرج ExifTool الخام)',
+        'Annotations': 'التعليقات',
+        'Press the (i) Metadata button to read ExifTool tags.': 'اضغط (i) البيانات الوصفية لقراءة وسوم ExifTool.',
+    },
+}
+for _language, _entries in EXTRA_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_language, {}).update(_entries)
+
+MORE_TRANSLATIONS = {
+    'de': {'PNG preview': 'PNG-Vorschau', 'TIFF working': 'TIFF-Arbeit'},
+    'es': {'PNG preview': 'Vista PNG', 'TIFF working': 'TIFF de trabajo'},
+    'ja': {'PNG preview': 'PNG プレビュー', 'TIFF working': '作業 TIFF'},
+    'ru': {'PNG preview': 'PNG-предпросмотр', 'TIFF working': 'Рабочий TIFF'},
+    'zh': {'PNG preview': 'PNG 预览', 'TIFF working': '工作 TIFF'},
+    'ar': {'PNG preview': 'معاينة PNG', 'TIFF working': 'TIFF العمل'},
+}
+for _language, _entries in MORE_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_language, {}).update(_entries)
+
 
 class Translator:
     def __init__(self, language: str = "en") -> None:

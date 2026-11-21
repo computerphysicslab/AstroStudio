@@ -65,7 +65,7 @@ class MeterWidget(Gtk.DrawingArea):
         self.history = []
         self.per_core = []
         self.set_app_paintable(True)
-        self.set_size_request(120 if title == "CPU" else 84, 56)
+        self.set_size_request(78 if title == "CPU" else 54, 44)
         self.connect("draw", self._on_draw)
 
     def update(self, value: float, per_core: list = None) -> None:
@@ -82,8 +82,8 @@ class MeterWidget(Gtk.DrawingArea):
         height = self.get_allocated_height()
         cr.set_source_rgb(0.08, 0.08, 0.10)
         cr.paint()
-        cx, cy, radius = 28, 29, 22
-        cr.set_line_width(7)
+        cx, cy, radius = 20, 21, 15
+        cr.set_line_width(5)
         cr.set_source_rgb(0.22, 0.22, 0.26)
         cr.arc(cx, cy, radius, -math.pi / 2, 1.5 * math.pi)
         cr.stroke()
@@ -93,17 +93,17 @@ class MeterWidget(Gtk.DrawingArea):
         cr.stroke()
 
         cr.set_source_rgb(1.0, 1.0, 1.0)
-        cr.set_font_size(12)
+        cr.set_font_size(10)
         text = "%.0f%%" % self.value
         extents = cr.text_extents(text)
         cr.move_to(cx - extents.width / 2.0, cy - 1)
         cr.show_text(text)
-        cr.set_font_size(8)
+        cr.set_font_size(7)
         label_extents = cr.text_extents(self.title)
-        cr.move_to(cx - label_extents.width / 2.0, cy + 12)
+        cr.move_to(cx - label_extents.width / 2.0, cy + 9)
         cr.show_text(self.title)
 
-        bar_x, bar_y, bar_w, bar_h = 64, 22, max(10, width - 74), 12
+        bar_x, bar_y, bar_w, bar_h = 42, 17, max(10, width - 48), 9
         if self.show_bar:
             cr.set_source_rgb(0.22, 0.22, 0.26)
             cr.rectangle(bar_x, bar_y, bar_w, bar_h)
@@ -113,8 +113,8 @@ class MeterWidget(Gtk.DrawingArea):
             cr.fill()
 
         if self.per_core:
-            core_y = 40
-            core_h = 9
+            core_y = 30
+            core_h = 7
             core_w = max(2, bar_w / len(self.per_core) - 2)
             for index, core in enumerate(self.per_core):
                 x = bar_x + index * (core_w + 2)

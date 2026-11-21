@@ -79,5 +79,18 @@ def test_shadow_loupe_help_is_translated():
         assert "255" in translated or "٢٥٥" in translated, language
 
 
+def test_toggle_and_dialog_strings_are_translated():
+    from astrostudio.ui.menu_builder import toggle_label
+
+    for language in ("es", "de", "ja", "ru", "zh", "ar"):
+        translator = Translator(language)
+        assert toggle_label("x", "Panel", True, translator.tr).endswith(
+            translator.tr("On")
+        )
+        assert translator.tr("Scale (%)") != "Scale (%)"
+        assert translator.tr("Installed connectors") != "Installed connectors"
+        assert translator.tr("On") != "On"
+
+
 def test_rotating_by_hint_translated():
     assert Translator("es").tr("Rotating by") == "Rotando"
