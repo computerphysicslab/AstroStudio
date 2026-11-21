@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.3.32**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.3.33**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -105,7 +105,7 @@ it then shows two tabs (PNG preview and TIFF working) filled by ExifTool, and ca
 closed with its X button. The **Terminal Drawer** logs each CLI invocation with date,
 time, full `argv` and the backend's response/exit code; it no longer repeats backend
 installation status or metadata output, and scrolls to the newest line automatically.
-It has its own X button and can be restored from *View > Toggle Terminal Drawer*.
+It has its own X button and can be restored from *View > Toggle Terminal Drawer*. The toolbar is a right-dock panel above Resources, with uniform small icons; the thumbnail strip is a panel at the bottom of the dock, below the Terminal. The UI is available in EN/ES/DE/JA/RU/ZH/AR; Arabic switches the window to RTL.
 Scroll the mouse wheel over the preview to zoom; drag with the left mouse button to pan
 when the image is larger than the window. Double-click fits the image; *View > Zoom Modes* also
 offers **Fill Window** (covers the whole canvas), **Fit Width** and **Fit Height**, useful for

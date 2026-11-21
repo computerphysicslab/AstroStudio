@@ -250,6 +250,7 @@ class ProcessEngine:
             return
         handle.finished = True
         self._clear_timers(handle)
+        self._active.pop(handle.job_id, None)
         self._notify_job_end(handle)
         for stream in handle.streams:
             try:
@@ -258,7 +259,6 @@ class ProcessEngine:
                 pass
         handle.streams.clear()
         self._record_end(handle)
-        self._active.pop(handle.job_id, None)
         on_done = getattr(handle, "on_done", None)
         if on_done:
             GLib.idle_add(on_done, self._result(handle))

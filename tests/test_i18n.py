@@ -27,7 +27,7 @@ def test_all_languages_cover_menus_and_panels():
         "Open Recent",
         "No recent images",
     }
-    for language in ("es", "de", "ja", "ru", "zh"):
+    for language in ("es", "de", "ja", "ru", "zh", "ar"):
         missing = [
             key for key in labels | panels
             if not key.endswith("%") and key not in TRANSLATIONS[language]
@@ -61,7 +61,7 @@ def test_external_failure_messages_are_localised():
         "Invalid CLI argument order",
         "External backend error",
     )
-    for language in ("es", "de", "ja", "ru", "zh"):
+    for language in ("es", "de", "ja", "ru", "zh", "ar"):
         translator = Translator(language)
         for key in keys:
             translated = translator.tr(key)
@@ -73,10 +73,10 @@ def test_shadow_loupe_help_is_translated():
     from astrostudio.core.i18n import SHADOW_LOUPE_HELP
 
     assert Translator("en").tr(SHADOW_LOUPE_HELP) == SHADOW_LOUPE_HELP
-    for language in ("es", "de", "ja", "ru", "zh"):
+    for language in ("es", "de", "ja", "ru", "zh", "ar"):
         translated = Translator(language).tr(SHADOW_LOUPE_HELP)
         assert translated != SHADOW_LOUPE_HELP, language
-        assert "255" in translated, language
+        assert "255" in translated or "٢٥٥" in translated, language
 
 
 def test_rotating_by_hint_translated():

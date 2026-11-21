@@ -61,6 +61,14 @@ def test_cancel_reports_cancelled_state():
     assert handle.finished
 
 
+def test_job_end_callback_sees_no_active_jobs():
+    seen = []
+    engine = ProcessEngine(on_job_end=lambda job_id, result: seen.append(engine.active_jobs))
+    engine.run("echo-end", ["/bin/echo", "done"])
+    _wait_for_callbacks()
+    assert seen == [[]]
+
+
 def test_user_cancel_escalates_to_sigkill(monkeypatch, tmp_path):
     import signal
     from types import SimpleNamespace

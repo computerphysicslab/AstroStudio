@@ -1171,6 +1171,20 @@ HELP_TRANSLATIONS = {
 for _language, _entries in HELP_TRANSLATIONS.items():
     TRANSLATIONS.setdefault(_language, {}).update(_entries)
 
+PANEL_TRANSLATIONS = {
+    'de': {'Toolbar': 'Werkzeugleiste', 'Documents': 'Dokumente'},
+    'es': {'Toolbar': 'Barra de herramientas', 'Documents': 'Documentos'},
+    'ja': {'Toolbar': 'ツールバー', 'Documents': 'ドキュメント'},
+    'ru': {'Toolbar': 'Панель инструментов', 'Documents': 'Документы'},
+    'zh': {'Toolbar': '工具栏', 'Documents': '文档'},
+}
+for _language, _entries in PANEL_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_language, {}).update(_entries)
+
+from .i18n_ar import TRANSLATIONS_AR  # noqa: E402
+
+TRANSLATIONS['ar'] = TRANSLATIONS_AR
+
 
 class Translator:
     def __init__(self, language: str = "en") -> None:

@@ -34,7 +34,7 @@ def test_main_window_builds_with_small_minimum_size():
     assert window.backends_panel is not None
     assert window.histogram_panel is not None
     assert "fullscreen" in ACTION_NAMES
-    assert window.thumbnail_scroll.get_visible() is False
+    assert window.thumbnail_panel.get_visible() is False
     assert window.resources_panel is not None
     window.show_all()
     minimum, _natural = window.get_preferred_size()
@@ -45,6 +45,30 @@ def test_main_window_builds_with_small_minimum_size():
     file_menu = window.menu_bar.get_children()[0].get_submenu()
     labels = [item.get_label() for item in file_menu.get_children()]
     assert labels[:2] == ["Open", "Open Recent"]
+    window.destroy()
+
+
+def test_toolbar_and_thumbnails_are_dock_panels():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    top, bottom = window.right_dock.get_children()
+    assert top.get_children()[0] is window.toolbar_panel
+    assert top.get_children()[1] is window.resources_panel
+    assert bottom is window.terminal_box
+    assert window.terminal_box.get_children()[-1] is window.thumbnail_panel
+    assert window.toolbar.get_icon_size() == Gtk.IconSize.LARGE_TOOLBAR
+    window.destroy()
+
+
+def test_arabic_language_is_rtl_and_translated():
+    app = AstroStudioApplication()
+    app.settings.set("language", "ar")
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    assert window.get_direction() == Gtk.TextDirection.RTL
+    assert window.translator.tr("Open") == "فتح"
+    app.settings.set("language", "en")
+    window._apply_language()
+    assert window.get_direction() == Gtk.TextDirection.LTR
     window.destroy()
 
 

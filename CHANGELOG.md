@@ -8,6 +8,13 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.33 — 2026-11-21
+
+- Toolbar and thumbnail strip are now right-dock panels: toolbar above Resources, thumbnails below the Terminal. All toolbar icons use the same smaller `LARGE_TOOLBAR` size.
+- Fixed the Stop button staying enabled after a job finished: the engine removes the job from `_active` before firing `on_job_end`, so action sensitivity sees the correct empty state.
+- Added Arabic (`ar`) as a UI language with a complete translation table and RTL window direction.
+- Added three regression tests. Suite: 259 passed, 2 skipped; mypy clean on 54 modules.
+
 ## 0.3.32 — 2026-11-21
 
 - Roadmap items R5–R7: `WorkingImage` now records source bit depth, float-FITS origin and FITS scaling keywords; the terminal log warns about float rescaling/clamping, 8-bit promotion and `BZERO/BSCALE/BLANK/DATAMIN/DATAMAX`. `fits_hdus` parses floating-point header values. User cancellation now escalates SIGTERM to SIGKILL after `kill_grace_s` and logs `job_killed` with the correct cause.

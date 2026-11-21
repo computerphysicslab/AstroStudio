@@ -545,6 +545,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._apply_panel_visibility()
         self._apply_theme()
         self._apply_font()
+        self._apply_language()
         self.connect("destroy", lambda *_widget: self.resource_monitor.stop())
         self.on_backends_updated(registry)
 
@@ -554,8 +555,6 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.menu_bar = self._build_menu_bar()
         root.pack_start(self.menu_bar, False, False, 0)
-        self.toolbar = self._build_toolbar()
-        root.pack_start(self.toolbar, False, False, 0)
 
         paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         paned.set_position(740)
@@ -576,11 +575,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self.thumbnail_scroll = Gtk.ScrolledWindow()
         self.thumbnail_scroll.set_size_request(-1, 96)
         self.thumbnail_scroll.add(self.thumbnail_view)
-        left.pack_start(self.thumbnail_scroll, False, False, 0)
         paned.pack1(left, True, False)
 
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         right.set_border_width(6)
+        self.toolbar = self._build_toolbar()
+        self.toolbar_panel = self.docks.panel_with_close("Toolbar", self.toolbar)
+        right.pack_start(self.toolbar_panel, False, False, 0)
         self.resource_monitor = ResourceMonitor()
         self.resources_panel = self.docks.panel_with_close(
             "Resources (CPU / RAM)", self.resource_monitor
@@ -627,9 +628,14 @@ class MainWindow(Gtk.ApplicationWindow):
         self.job_panel = JobPanel(self.app.job_manager, self._retry_job)
         self.job_panel.set_no_show_all(True)
         right.pack_start(self.job_panel, False, False, 0)
+        self.thumbnail_panel = self.docks.panel_with_close(
+            "Documents", self.thumbnail_scroll
+        )
         terminal_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.terminal_box = terminal_box
         terminal_box.set_border_width(6)
         terminal_box.pack_start(self.terminal_panel, True, True, 0)
+        terminal_box.pack_start(self.thumbnail_panel, False, False, 0)
         self.right_dock = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
         self.right_dock.pack1(right, True, False)
         self.right_dock.pack2(terminal_box, False, True)
@@ -675,14 +681,14 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _build_toolbar(self) -> Gtk.Widget:
         toolbar = Gtk.Toolbar()
-        toolbar.set_icon_size(Gtk.IconSize.DIALOG)
+        toolbar.set_icon_size(Gtk.IconSize.LARGE_TOOLBAR)
         for item in TOOL_ITEMS:
             if item is None:
                 toolbar.insert(Gtk.SeparatorToolItem(), -1)
                 continue
             icon, label, action = item
             button = Gtk.ToolButton.new(
-                Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.DIALOG),
+                Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.LARGE_TOOLBAR),
                 self.translator.tr(label),
             )
             button.set_tooltip_text(self.translator.tr(label))
@@ -909,7 +915,7 @@ button.info-circle {
         self.settings.set("right_dock_split", paned.get_position())
 
     def _apply_panel_visibility(self) -> None:
-        self.thumbnail_scroll.set_visible(bool(self.settings.get("show_thumbnails", False)))
+        self.thumbnail_panel.set_visible(bool(self.settings.get("show_thumbnails", False)))
         self.resources_panel.set_visible(bool(self.settings.get("show_resources", True)))
         self.backends_panel.set_visible(bool(self.settings.get("show_backends", False)))
         self.job_panel.set_visible(bool(self.settings.get("show_jobs", False)))
@@ -931,6 +937,11 @@ button.info-circle {
 
     def _apply_language(self) -> None:
         self.translator = Translator(self.settings.get("language", "en"))
+        self.set_direction(
+            Gtk.TextDirection.RTL
+            if self.translator.language == "ar"
+            else Gtk.TextDirection.LTR
+        )
         for title, label in self.panel_labels.items():
             label.set_text(self.translator.tr(title))
         for action, button in self.toolbar_buttons.items():
@@ -1298,14 +1309,14 @@ button.info-circle {
     def _set_chrome_visible(self, visible: bool) -> None:
         for widget in (
             self.menu_bar,
-            self.toolbar,
+            self.toolbar_panel,
             self.backends_panel,
             self.metadata_panel,
             self.histogram_panel,
             self.job_panel,
             self.terminal_panel,
             self.resources_panel,
-            self.thumbnail_scroll,
+            self.thumbnail_panel,
         ):
             widget.set_visible(visible)
         self.right_scroll.set_visible(visible)
@@ -3940,7 +3951,7 @@ button.info-circle {
         grid.set_column_spacing(8)
 
         language = Gtk.ComboBoxText()
-        languages = ("en", "es", "de", "ja", "ru", "zh")
+        languages = ("en", "es", "de", "ja", "ru", "zh", "ar")
         for code in languages:
             language.append_text(code)
         current_language = self.settings.get("language", "en")
