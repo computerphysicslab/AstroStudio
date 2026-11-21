@@ -19,9 +19,9 @@
 - **Path:** `/home/jips/datos/datos-juan/proyectos/astronomia/AstroStudio`
 - **Repo:** public `computerphysicslab/AstroStudio`, branch `main` (English commit messages;
   **never** push/tag/merge/rewrite history without an explicit request).
-- **HEAD:** `8d01abd` ("Record green CI run in project context") before the pending 0.3.27 commit.
-- **Version:** `0.3.27` in the working tree (`astrostudio/__init__.py:3`); HEAD is 0.3.26. The
-  ImageMagick flag-ordering fix is pending commit/push. `BUILD_DATE = "2026-11-21"`.
+- **HEAD:** `2968af4` ("Generalise ImageMagick flag ordering for all transforms").
+- **Version:** `0.3.27` (`astrostudio/__init__.py:3`), committed on `main` and pushed to
+  `origin/main`; CI run `44911133696` green. `BUILD_DATE = "2026-11-21"`.
 - **Stack:** Python 3.8-compatible runtime (mypy targets 3.9; CI uses system Python 3.10 on
   Ubuntu 22.04), PyGObject, **GTK 3.24 only** (GTK4 not installed), `Gio.Subprocess`,
   `GdkPixbuf`, Cairo.
