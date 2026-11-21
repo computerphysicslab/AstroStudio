@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.25 — 2026-11-21
+
+- Fixed the GitHub CI failure: `tests/test_preview_pyramid.py` imports `cairo` for pixel-level rendering assertions, but the workflow only installed `libcairo2-dev` (C headers), not the Python bindings. Added `python3-cairo` to the apt dependencies in `.github/workflows/ci.yml`.
+- Added a packaging test that guards the workflow's required dependencies and quality steps. Suite: 235 passed, 2 skipped; mypy clean on 52 modules.
+
 ## 0.3.24 — 2026-11-21
 
 - External backend failures now show a clear, localised explanation (EN/ES/DE/JA/RU/ZH) with the connector's literal stderr below in smaller text, via `_show_external_failure()`. Failure titles/hints were added to `i18n.py` for all five non-English UI languages.

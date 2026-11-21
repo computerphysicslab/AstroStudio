@@ -20,6 +20,14 @@ def test_appimage_recipe_is_valid():
     assert "python3-gi" in data["AppDir"]["apt"]["include"]
 
 
+def test_ci_workflow_installs_test_dependencies():
+    text = open(".github/workflows/ci.yml", encoding="utf-8").read()
+    for dependency in ("python3-cairo", "python3-gi", "xvfb", "desktop-file-utils"):
+        assert dependency in text
+    assert "mypy --config-file mypy.ini" in text
+    assert "--cov-fail-under=70" in text
+
+
 def test_optional_dependencies_declared():
     text = open("packaging/OPTIONAL_DEPENDENCIES.md", encoding="utf-8").read()
     for binary in ("skystacker", "siril-cli", "solve-field", "exiftool"):
