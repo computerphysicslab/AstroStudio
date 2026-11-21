@@ -10,6 +10,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from astrostudio.app import ACTION_NAMES, AstroStudioApplication
+from astrostudio.core import SHADOW_LOUPE_HELP, Translator
 from astrostudio.ui import MainWindow
 from astrostudio.ui.main_window import geometry_warning
 
@@ -44,6 +45,19 @@ def test_main_window_builds_with_small_minimum_size():
     file_menu = window.menu_bar.get_children()[0].get_submenu()
     labels = [item.get_label() for item in file_menu.get_children()]
     assert labels[:2] == ["Open", "Open Recent"]
+    window.destroy()
+
+
+def test_histogram_info_button_explains_shadow_loupe_in_ui_language():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    button = window.histogram_info
+    assert button in window.histogram_header.get_children()
+    assert button.get_tooltip_text() == SHADOW_LOUPE_HELP
+    app.settings.set("language", "es")
+    window._apply_language()
+    assert button.get_tooltip_text() == Translator("es").tr(SHADOW_LOUPE_HELP)
+    assert button.get_tooltip_text() != SHADOW_LOUPE_HELP
     window.destroy()
 
 

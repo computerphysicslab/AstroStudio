@@ -1134,6 +1134,34 @@ for _language, _entries in FAILURE_TRANSLATIONS.items():
     TRANSLATIONS.setdefault(_language, {}).update(_entries)
 
 
+SHADOW_LOUPE_HELP = (
+    "The yellow loupe magnifies brightness levels 0-13 of 255, where faint "
+    "linear astro signal lives. Each vertical line is the pixel count for one "
+    "level. The cyan and orange lines set the black and white points."
+)
+
+HELP_TRANSLATIONS = {
+    'de': {
+        SHADOW_LOUPE_HELP: 'Die gelbe Lupe vergrößert die Helligkeitsstufen 0–13 von 255, in denen sich das schwache lineare astronomische Signal befindet. Jede vertikale Linie zeigt die Pixelanzahl einer Stufe. Die cyanfarbene und die orange Linie legen Schwarz- und Weißpunkt fest.',
+    },
+    'es': {
+        SHADOW_LOUPE_HELP: 'La lupa amarilla amplía los niveles de brillo 0–13 de 255, donde se concentra la señal astronómica lineal débil. Cada línea vertical es el recuento de píxeles de un nivel. Las líneas cian y naranja fijan el punto negro y el punto blanco.',
+    },
+    'ja': {
+        SHADOW_LOUPE_HELP: '黄色いルーペは、微弱なリニア天体信号が集中する輝度レベル 0～13/255 を拡大します。縦線は各レベルのピクセル数です。シアンとオレンジの線が黒点と白点を設定します。',
+    },
+    'ru': {
+        SHADOW_LOUPE_HELP: 'Жёлтая лупа увеличивает уровни яркости 0–13 из 255, где находится слабый линейный астрономический сигнал. Каждая вертикальная линия показывает количество пикселей для одного уровня. Голубая и оранжевая линии задают чёрную и белую точки.',
+    },
+    'zh': {
+        SHADOW_LOUPE_HELP: '黄色放大镜显示 0–13/255 的亮度级别，这里集中了微弱的线性天文信号。每条竖线表示该级别的像素计数。青色和橙色线分别设置黑点和白点。',
+    },
+}
+
+for _language, _entries in HELP_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_language, {}).update(_entries)
+
+
 class Translator:
     def __init__(self, language: str = "en") -> None:
         self.language = language if language in TRANSLATIONS else "en"

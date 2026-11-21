@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.29 — 2026-11-21
+
+- Documented the histogram's yellow shadow loupe (levels 0–13/255, one vertical line per level) in README and `Context/GUI-specifications.md`. Added a circular `i` button to the histogram panel header whose GTK tooltip explains it in the configured UI language (EN/ES/DE/JA/RU/ZH) and updates when the language changes.
+- Added two regression tests. Suite: 242 passed, 2 skipped; mypy clean on 53 modules.
+
 ## 0.3.28 — 2026-11-21
 
 - Added roadmap item 6a and its implementation: after a successful plate solve, RA/Dec, pixel scale and FOV are proposed from the solution and merged into a `.metadata.json` sidecar in the image's scratch directory (and next to FITS exports). `core/metadata_enrichment.py` never deletes or overwrites existing keys: coherent values are kept and conflicts are reported. Original captures are never modified.

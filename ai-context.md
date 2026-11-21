@@ -19,8 +19,8 @@
 - **Path:** `/home/jips/datos/datos-juan/proyectos/astronomia/AstroStudio`
 - **Repo:** public `computerphysicslab/AstroStudio`, branch `main` (English commit messages;
   **never** push/tag/merge/rewrite history without an explicit request).
-- **HEAD:** the 0.3.28 metadata-enrichment commit on `main`, pushed to `origin/main`.
-- **Version:** `0.3.28` (`astrostudio/__init__.py:3`), committed on `main` and pushed to
+- **HEAD:** the 0.3.29 shadow-loupe-help commit on `main`, pushed to `origin/main`.
+- **Version:** `0.3.29` (`astrostudio/__init__.py:3`), committed on `main` and pushed to
   `origin/main`. `BUILD_DATE = "2026-11-21"`.
 - **Stack:** Python 3.8-compatible runtime (mypy targets 3.9; CI uses system Python 3.10 on
   Ubuntu 22.04), PyGObject, **GTK 3.24 only** (GTK4 not installed), `Gio.Subprocess`,
@@ -132,7 +132,7 @@ Top to bottom (`main_window.py:_build_layout()`, ~561-604):
 | CPU/RAM Resources | visible | `action_toggle_resources`; 1 s `GLib.timeout_add`; `CPU <overall>% (core <peak>%)` |
 | Backends | **hidden** (`show_backends=false`) | `action_toggle_backends` (persisted); installed-first alphabetically; X and restorable; menu gating |
 | Metadata | **hidden** (`set_no_show_all(True)`) | (i) opens a floating ExifTool window with PNG/TIFF tabs; secondary docked panel exists |
-| Histogram | visible since v0.2.10 | `action_toggle_histogram`; between CPU/RAM and Terminal; 256 colours; low/high and gamma via CLI |
+| Histogram | visible since v0.2.10 | `action_toggle_histogram`; between CPU/RAM and Terminal; 256 colours; low/high and gamma via CLI; yellow shadow loupe (levels 0–13/255) with a localised `i` tooltip |
 | Jobs | **hidden** (`show_jobs=false`) | job list with state/duration and retry by original argv; `action_toggle_jobs` persisted |
 | Terminal Drawer | visible | `action_toggle_terminal`; syntax-highlighted timestamped argv/responses; auto-scroll; X and restorable |
 
@@ -196,7 +196,7 @@ desktop-file validation. `mypy.ini` has documented pragmatic exceptions and
 `ignore_missing_imports` for `gi`, `numpy`, `PIL`. Current local environment: Python 3.14.4,
 pytest 9.0.2, GTK 3.24.52 with glycin loaders, ImageMagick 7.1.2-18. Dev tools installed from apt
 via `~/install-astrostudio-dev-tools.sh`: mypy 1.19.1, pytest-cov 5.0.0, pre-commit 4.5.1.
-Latest verification: **240 passed, 2 skipped** (with `skystacker` present; 1 extra skip when the PATH excludes it), real GUI launch without GError, mypy clean on 53
+Latest verification: **242 passed, 2 skipped** (with `skystacker` present; 1 extra skip when the PATH excludes it), real GUI launch without GError, mypy clean on 53
 modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% gate. With
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, add `-p pytest_cov` so the coverage plugin loads.
 
@@ -291,3 +291,5 @@ modules (target 3.9 because mypy 1.19 dropped 3.8), 89% coverage with the 70% ga
   flag-ordering fix so all transform flags follow the input path; 236 passed/2 skipped (§87).
 - **2026-11-21:** added roadmap item 6a and non-destructive RA/Dec metadata sidecars after a
   successful plate solve; existing tags are preserved and conflicts reported; 240 passed/2 skipped (§88).
+- **2026-11-21:** documented the shadow loupe and added a localised circular `i` tooltip in the
+  histogram header; 242 passed/2 skipped (§89).

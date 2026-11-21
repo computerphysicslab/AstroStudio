@@ -1,7 +1,7 @@
 # Astro Studio
 
 A zero-processing GTK desktop front-end for astronomical and photographic CLI
-backends (current version **0.3.28**). The GUI loads and displays images, collects parameters, builds sanitized
+backends (current version **0.3.29**). The GUI loads and displays images, collects parameters, builds sanitized
 `argv` vectors, spawns external tools asynchronously, and renders the files those
 tools wrote. It never implements calibration, stacking, demosaicing, stretching or
 any other pixel algorithm.
@@ -124,8 +124,11 @@ there with their level and fields. Long-running jobs are terminated after
 after a short grace period, with `job_timeout`/`job_killed` events recorded. View > Histogram fills the docked panel
 between CPU/RAM and the Terminal with CLI-generated distributions (bounded to 256 colours
 for speed). Drag its two handles to set low/high cut points: the CLI regenerates only the
-preview PNG with `-level`, leaving the high-depth TIFF untouched. The CPU bar shows both
-overall and peak-core usage.
+preview PNG with `-level`, leaving the high-depth TIFF untouched. The yellow rectangle in the
+upper right is a **shadow loupe**: it magnifies brightness levels 0–13 of 255, where the faint
+linear astro signal lives; each vertical line is the pixel count for one level. Its `i` button
+shows the same explanation as a tooltip in the configured UI language. The cyan and orange lines
+are the draggable black/white points. The CPU bar shows both overall and peak-core usage.
 
 ## Benchmarks and time estimates
 

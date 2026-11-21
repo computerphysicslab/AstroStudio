@@ -39,7 +39,7 @@ from .export_formats import EXPORT_FORMATS, ExportFormat, find_format
 from .export_paths import unique_export_path
 from .histogram import histogram_argv, parse_histogram_text
 from .hot_folder import HotFolderWatcher, folders_from_files
-from .i18n import Translator
+from .i18n import SHADOW_LOUPE_HELP, Translator
 from .job_manager import JobManager, JobState
 from .image_workspace import ImageWorkspace, Snapshot, WorkingImage
 from .fits_hdus import FitsHdu, inspect_fits
@@ -123,6 +123,7 @@ __all__ = [
     "folders_from_files",
     "parse_histogram_text",
     "Translator",
+    "SHADOW_LOUPE_HELP",
     "JobManager",
     "JobState",
     "unique_export_path",

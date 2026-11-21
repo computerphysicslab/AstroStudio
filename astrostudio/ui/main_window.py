@@ -36,6 +36,7 @@ from ..core import (  # noqa: E402
     flatten,
     ExportFormat,
     ImageWorkspace,
+    SHADOW_LOUPE_HELP,
     Translator,
     WorkingImage,
     find_output,
@@ -594,6 +595,16 @@ class MainWindow(Gtk.ApplicationWindow):
         self.histogram_panel = self.docks.panel_with_close(
             "Histogram (CLI data, click handles to stretch)", hist_box
         )
+        self.histogram_info = Gtk.Button(label="i")
+        self.histogram_info.set_relief(Gtk.ReliefStyle.NONE)
+        self.histogram_info.set_size_request(18, 18)
+        self.histogram_info.get_style_context().add_class("info-circle")
+        self.histogram_info.set_tooltip_text(
+            self.translator.tr(SHADOW_LOUPE_HELP)
+        )
+        self.histogram_header = self.histogram_panel.get_children()[0]
+        self.histogram_header.pack_start(self.histogram_info, False, False, 0)
+        self.histogram_header.reorder_child(self.histogram_info, 1)
         self.terminal_panel = self.docks.panel_with_close(
             "Terminal Drawer", self._build_log_content()
         )
@@ -834,6 +845,15 @@ toolbutton.inactive-action {
     opacity: 0.35;
     color: #888888;
 }
+button.info-circle {
+    border-radius: 9px;
+    min-width: 18px;
+    min-height: 18px;
+    padding: 0;
+    background-color: #2b5b78;
+    color: #ffffff;
+    font-weight: bold;
+}
 """ % colour
         provider = Gtk.CssProvider()
         provider.load_from_data(css.encode("utf-8"))
@@ -882,6 +902,10 @@ toolbutton.inactive-action {
             text = self.translator.tr(self.toolbar_labels[action])
             button.set_label(text)
             button.set_tooltip_text(text)
+        if hasattr(self, "histogram_info"):
+            self.histogram_info.set_tooltip_text(
+                self.translator.tr(SHADOW_LOUPE_HELP)
+            )
         self._rebuild_menu_bar()
 
     def _apply_theme(self) -> None:

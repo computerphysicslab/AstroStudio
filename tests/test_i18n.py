@@ -69,5 +69,15 @@ def test_external_failure_messages_are_localised():
             assert translated.strip()
 
 
+def test_shadow_loupe_help_is_translated():
+    from astrostudio.core.i18n import SHADOW_LOUPE_HELP
+
+    assert Translator("en").tr(SHADOW_LOUPE_HELP) == SHADOW_LOUPE_HELP
+    for language in ("es", "de", "ja", "ru", "zh"):
+        translated = Translator(language).tr(SHADOW_LOUPE_HELP)
+        assert translated != SHADOW_LOUPE_HELP, language
+        assert "255" in translated, language
+
+
 def test_rotating_by_hint_translated():
     assert Translator("es").tr("Rotating by") == "Rotando"
