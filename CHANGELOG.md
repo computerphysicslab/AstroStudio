@@ -8,6 +8,11 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.27 — 2026-11-21
+
+- Session `5f86382b` failed on `-rotate` and `-crop` with the same IM7 ordering problem already fixed for `-convolve`. Generalised `ImageMagickAdapter.build_argv()`: all image-operation flags now follow the input paths (only `-limit thread` stays before them), so rotate/crop/convolve/morphology/unsharp/resize work uniformly. Verified with real CLI round-trips.
+- Updated argv expectations and added an integration test for rotate and crop. Suite: 236 passed, 2 skipped; mypy clean on 52 modules. GitHub CI was green before this change.
+
 ## 0.3.26 — 2026-11-21
 
 - Completed the CI repair: added `python3-gi-cairo` (PyGObject Cairo foreign types) to the workflow apt dependencies, since the pixel-level Cairo tests need both bindings and headers. Skipped the SkyStacker CLI integration test when the binary is absent in CI instead of failing on ENOENT. Extended the workflow-guard test with the new dependency.

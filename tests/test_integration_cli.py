@@ -276,6 +276,24 @@ def test_convolve_transform_runs_with_input_before_flag(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick required")
+def test_rotate_and_crop_transforms_run_with_input_before_flag(tmp_path):
+    adapter = ImageMagickAdapter()
+    source = tmp_path / "source.png"
+    Image.fromarray(np.full((30, 40, 3), 120, dtype="uint8"), "RGB").save(str(source))
+    tiff = tmp_path / "working.tiff"
+    subprocess.run(adapter.build_import_argv(str(source), str(tiff)), check=True)
+    for label, params, size in (
+        ("rotate", {"rotate": "-1.87363"}, None),
+        ("crop", {"crop": "20x15+4+6"}, (20, 15)),
+    ):
+        output = tmp_path / (label + ".tiff")
+        subprocess.run(adapter.build_argv([str(tiff)], str(output), params), check=True)
+        with Image.open(str(output)) as image:
+            if size is not None:
+                assert image.size == size
+
+
+@pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick required")
 def test_svg_tooltip_titles_hide_stars_until_removed(tmp_path):
     from astrostudio.core import strip_svg_titles
 

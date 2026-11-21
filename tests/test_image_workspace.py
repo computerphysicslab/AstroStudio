@@ -81,7 +81,7 @@ def test_transform_replaces_tiff_and_regenerates_png(tmp_path, monkeypatch):
     )
 
     assert engine.calls[-2][0] == "image-0001-transform"
-    assert engine.calls[-2][1][-2] == image.tiff_path
+    assert engine.calls[-2][1][1] == image.tiff_path
     assert engine.calls[-2][1][-1].endswith("working_next.tiff")
     assert "-resize" in engine.calls[-2][1]
     assert "50%" in engine.calls[-2][1]

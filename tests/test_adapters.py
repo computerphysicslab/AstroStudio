@@ -14,11 +14,11 @@ def test_imagemagick_argv_and_output_path():
     )
     assert argv == [
         "magick",
+        "/data/M42 capture.cr2",
         "-resize",
         "50%",
         "-unsharp",
         "1.5x1+0.7+0.02",
-        "/data/M42 capture.cr2",
         "/tmp/job/M42_processed.png",
     ]
     assert (
@@ -87,12 +87,12 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         {"morphology": "Erode Disk:1", "edge": "1"},
     ) == [
         "convert",
+        "/tmp/job/working.tiff",
         "-morphology",
         "Erode",
         "Disk:1",
         "-edge",
         "1",
-        "/tmp/job/working.tiff",
         "/tmp/job/next.tiff",
     ]
     assert list(

@@ -51,14 +51,15 @@ class ImageMagickAdapter(CliAdapter):
         return result
 
     def build_argv(self, inputs, output=None, params=None):
-        argv = list(super().build_argv(inputs, output, params))
-        if "-convolve" in argv:
-            # ImageMagick 7 requires a loaded image before -convolve.
-            index = argv.index("-convolve")
-            flag = argv[index:index + 2]
-            argv = argv[:index] + argv[index + 2:]
-            insert_at = len(argv) - (1 if output else 0)
-            argv[insert_at:insert_at] = flag
+        # ImageMagick 7 needs a loaded image before any image operation
+        # (-rotate, -crop, -convolve, ...). Build flags separately so inputs
+        # always precede them; -limit thread is inserted before the input.
+        flags = super().build_argv((), None, params)
+        argv = [self.binary]
+        argv.extend(inputs)
+        argv.extend(flags[1:])
+        if output:
+            argv.append(output)
         return self._with_threads(argv)
 
     def build_import_argv(self, source: str, tiff_path: str) -> Sequence[str]:
