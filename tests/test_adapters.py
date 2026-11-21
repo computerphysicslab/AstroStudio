@@ -43,7 +43,7 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "/tmp/job/working.tiff",
         "-depth",
         "8",
-        "/tmp/job/preview.png",
+        "png:/tmp/job/preview.png",
     ]
     assert list(
         adapter.build_import_argv("/data/light.psd", "/tmp/job/working.tiff")
@@ -51,6 +51,8 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "convert",
         "/data/light.psd",
         "-flatten",
+        "-alpha",
+        "off",
         "-depth",
         "16",
         "/tmp/job/working.tiff",
@@ -77,7 +79,7 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "0.45",
         "-depth",
         "8",
-        "/tmp/job/preview.png",
+        "png:/tmp/job/preview.png",
     ]
     assert adapter.build_argv(
         ["/tmp/job/working.tiff"],
@@ -110,7 +112,7 @@ def test_imagemagick_workspace_argv_uses_tiff_and_png():
         "10.0%,80.0%",
         "-depth",
         "8",
-        "/tmp/job/preview.png",
+        "png:/tmp/job/preview.png",
     ]
     assert adapter.build_export_argv("/tmp/job/working.tiff", "/tmp/out.tif") == [
         "convert",
@@ -180,6 +182,20 @@ def test_gamma_preview_flag():
     argv = adapter.build_preview_argv("w.tiff", "p.png", gamma=1.4)
     assert argv[2:4] == ["-evaluate", "Pow"]
     assert argv[4] == "1.400"
+
+
+def test_pyramid_argv_requests_downscaled_png():
+    adapter = ImageMagickAdapter(binary="convert")
+    assert list(adapter.build_pyramid_argv("w.tiff", "p.png", 0.25)) == [
+        "convert",
+        "w.tiff",
+        "-depth",
+        "8",
+        "-resize",
+        "25%",
+        "png:p.png",
+    ]
+    assert "-resize" in adapter.build_pyramid_argv("w.tiff", "p.png", 0.5)
 
 
 def test_display_export_includes_gamma_and_level():

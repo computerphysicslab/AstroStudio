@@ -7,6 +7,7 @@ from astrostudio.adapters import SkyStackerAdapter
 from astrostudio.core.astrometry import (
     find_output,
     find_plate_solution,
+    sky_map_source_count,
     summarize_solution,
 )
 from astrostudio.core.plate_solution import load_solution
@@ -84,6 +85,19 @@ def test_sky_map_argv_requests_solve_and_uses_layered_product():
     assert argv[argv.index("--image-op") + 1] == "sky-map"
     assert "--plate-solve" in argv
     assert "--plate-solver" in argv
+
+
+def test_sky_map_source_count_detects_empty_maps(tmp_path):
+    populated = tmp_path / "map.svg"
+    populated.write_text(
+        '<svg><circle cx="1" cy="2" r="3"/><circle cx="4" cy="5" r="3"/></svg>',
+        encoding="utf-8",
+    )
+    empty = tmp_path / "empty.svg"
+    empty.write_text('<svg><g id="gaia-stars"></g></svg>', encoding="utf-8")
+    assert sky_map_source_count(str(populated)) == 2
+    assert sky_map_source_count(str(empty)) == 0
+    assert sky_map_source_count(str(tmp_path / "missing.svg")) == 0
 
 
 def test_solution_parser_computes_fov_from_cd(tmp_path):

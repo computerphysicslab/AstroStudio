@@ -41,6 +41,7 @@ from ..core import (  # noqa: E402
     find_output,
     unique_export_path,
     find_plate_solution,
+    sky_map_source_count,
     histogram_argv,
     HotFolderWatcher,
     folders_from_files,
@@ -568,6 +569,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.backends_panel = self.docks.panel_with_close(
             "Backends (startup discovery)", self._build_backend_content()
         )
+        self.backends_panel.set_no_show_all(True)
         self.metadata_panel = self.docks.panel_with_close(
             "Metadata (ExifTool, read-only)", self._build_metadata_content()
         )
@@ -593,6 +595,7 @@ class MainWindow(Gtk.ApplicationWindow):
         right.pack_start(self.metadata_panel, False, False, 0)
         right.pack_start(self.histogram_panel, False, False, 0)
         self.job_panel = JobPanel(self.app.job_manager, self._retry_job)
+        self.job_panel.set_no_show_all(True)
         right.pack_start(self.job_panel, False, False, 0)
         right.pack_start(self.terminal_panel, True, True, 0)
         self.right_scroll = Gtk.ScrolledWindow()
@@ -847,6 +850,8 @@ toolbutton.inactive-action {
     def _apply_panel_visibility(self) -> None:
         self.thumbnail_scroll.set_visible(bool(self.settings.get("show_thumbnails", False)))
         self.resources_panel.set_visible(bool(self.settings.get("show_resources", True)))
+        self.backends_panel.set_visible(bool(self.settings.get("show_backends", False)))
+        self.job_panel.set_visible(bool(self.settings.get("show_jobs", False)))
 
     def validate_geometry(self) -> None:
         minimum, _natural = self.get_preferred_size()
@@ -1149,6 +1154,9 @@ toolbutton.inactive-action {
         if button == 3:
             self._show_context_menu(event)
             return True
+        if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
+            self.action_zoom_fit()
+            return True
         if self.preview.rotation_mode and button == 1:
             if time.monotonic() - self._rotation_enabled_at < 0.12:
                 return True
@@ -1157,9 +1165,6 @@ toolbutton.inactive-action {
             return True
         if self.preview.select_mode and button == 1:
             self.preview.start_selection(event.x, event.y)
-            return True
-        if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS and button == 1:
-            self.action_zoom_fit()
             return True
         position = self.preview.image_coordinates(event.x, event.y)
         if position:
@@ -1455,7 +1460,7 @@ toolbutton.inactive-action {
         else:
             self._log("Recent file no longer exists: %s" % path)
 
-    def _open_file(self, path: str) -> None:
+    def _open_file(self, path: str, display_stretch: bool = None) -> None:
         if not self.registry.available("ImageMagick"):
             self._log("Backend unavailable: ImageMagick is required for the TIFF workspace")
             return
@@ -1471,6 +1476,7 @@ toolbutton.inactive-action {
             on_ready=self._on_image_ready,
             on_error=self._on_workspace_error,
             on_log=self._log,
+            display_stretch=display_stretch,
         )
         self.current_images.append(image)
         self._begin_estimate(
@@ -3604,6 +3610,9 @@ toolbutton.inactive-action {
             lambda result: self._on_sky_map_done(result, output_dir),
         )
 
+    def _sky_map_preview_argv(self, svg: str, png: str) -> List[str]:
+        return [self._magick_adapter.binary, "-density", "144", svg, "png:" + png]
+
     def _on_sky_map_done(self, result, output_dir: str) -> None:
         if not result.ok:
             self._busy_end()
@@ -3611,26 +3620,45 @@ toolbutton.inactive-action {
             self._show_error("Gaia sky map failed: %s" % (result.error or result.stderr))
             return
         svg = find_output(output_dir, [".svg"])
-        if not svg:
+        if not svg or not os.path.getsize(svg):
             self._busy_end()
-            self._show_info("Gaia sky map", "No SVG sky map was written by SkyStacker.")
+            self._show_error("Gaia sky map", "No SVG sky map was written by SkyStacker.")
+            return
+        sources = sky_map_source_count(svg)
+        if sources == 0:
+            self._busy_end()
+            self._log("Gaia sky map contains no plotted sources: %s" % svg)
+            self._show_error(
+                "Gaia sky map",
+                "SkyStacker wrote an empty sky map (no catalogued sources).\n%s" % svg,
+            )
             return
         png = os.path.join(output_dir, "sky_map.png")
-        argv = [self._magick_adapter.binary, svg, png]
+        argv = self._sky_map_preview_argv(svg, png)
         self._log("CLI sky-map-preview: %s" % " ".join(argv))
         self.engine.run(
             "sky-map-preview",
             argv,
             on_log=self._log,
-            on_done=lambda preview: self._on_sky_map_preview(preview, png, svg),
+            on_done=lambda preview: self._on_sky_map_preview(preview, png, svg, sources),
         )
 
-    def _on_sky_map_preview(self, result, png: str, svg: str) -> None:
+    def _on_sky_map_preview(self, result, png: str, svg: str, sources: int) -> None:
         self._busy_end()
-        if result.ok:
-            self._show_image("Gaia sky map", png)
-        else:
-            self._show_info("Gaia sky map", "SVG written at %s (PNG preview failed)" % svg)
+        if not result.ok:
+            detail = result.error or result.stderr or "unknown renderer error"
+            self._log("Gaia sky map preview failed: %s" % detail)
+            self._show_error(
+                "Gaia sky map",
+                "SVG written at %s, but PNG rendering failed: %s" % (svg, detail),
+            )
+            return
+        if not os.path.isfile(png) or not os.path.getsize(png):
+            self._show_error("Gaia sky map", "PNG renderer produced no image at %s" % png)
+            return
+        self._log("Gaia sky map ready: %d sources | %s" % (sources, png))
+        self._status("Gaia sky map: %d catalogued sources" % sources)
+        self._open_file(png, display_stretch=True)
 
     def action_survey_cutout(self) -> None:
         if not self.current_paths:

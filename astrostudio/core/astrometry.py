@@ -23,6 +23,15 @@ def find_output(directory: str, suffixes: List[str]) -> Optional[str]:
     return None
 
 
+def sky_map_source_count(svg_path: str) -> int:
+    """Count plotted point-source markers in a SkyStacker sky-map SVG."""
+    try:
+        with open(svg_path, "r", encoding="utf-8") as handle:
+            return handle.read().count("<circle")
+    except OSError:
+        return 0
+
+
 def summarize_solution(path: str) -> str:
     """Return a readable summary of a plate-solution JSON report."""
     try:

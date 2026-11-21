@@ -1,10 +1,12 @@
 """Startup and geometry regressions for MainWindow."""
 
 import os
-from pathlib import Path
 
 import pytest
 
+import gi
+
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from astrostudio.app import ACTION_NAMES, AstroStudioApplication
@@ -45,7 +47,24 @@ def test_main_window_builds_with_small_minimum_size():
     window.destroy()
 
 
-def test_undo_redo_buttons_reflect_history():
+def test_backends_and_jobs_are_hidden_by_default():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    window.show_all()
+    assert window.backends_panel.get_no_show_all()
+    assert window.job_panel.get_no_show_all()
+    assert not window.backends_panel.get_visible()
+    assert not window.job_panel.get_visible()
+    window.docks.toggle("toggle-backends")
+    window.docks.toggle("toggle-jobs")
+    assert window.backends_panel.get_visible()
+    assert window.job_panel.get_visible()
+    assert app.settings.get("show_backends") is True
+    assert app.settings.get("show_jobs") is True
+    window.destroy()
+
+
+def test_undo_redo_buttons_reflect_history(tmp_path):
     app = AstroStudioApplication()
     app.settings.set("show_thumbnails", False)
     window = MainWindow(app, app.registry, app.scratch, app.engine)
@@ -56,10 +75,12 @@ def test_undo_redo_buttons_reflect_history():
     assert not window.toolbar_buttons["redo"].get_sensitive()
     from astrostudio.core import WorkingImage
 
-    image = WorkingImage("img", "source.fits", "/tmp", "/tmp/w.tiff", "/tmp/p.png")
+    tiff = tmp_path / "w.tiff"
+    png = tmp_path / "p.png"
+    image = WorkingImage("img", "source.fits", str(tmp_path), str(tiff), str(png))
     window.current_images.append(image)
-    Path("/tmp/w.tiff").write_bytes(b"tiff")
-    Path("/tmp/p.png").write_bytes(b"png")
+    tiff.write_bytes(b"tiff")
+    png.write_bytes(b"png")
     window.workspace._snapshot(image, window.workspace._undo)
     window.transform_history.append("resize-down")
     app.update_action_sensitivity()

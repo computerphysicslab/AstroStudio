@@ -79,8 +79,23 @@ def test_preview_stretch_flag_is_serialised():
         "0.45",
         "-depth",
         "8",
-        "out.png",
+        "png:out.png",
     ]
+
+
+def test_preview_temp_suffix_is_still_written_as_png(tmp_path):
+    adapter = ImageMagickAdapter()
+    source = tmp_path / "source.png"
+    Image.fromarray(np.full((16, 16, 3), 128, dtype="uint8"), "RGB").save(str(source))
+    tiff = tmp_path / "working.tiff"
+    subprocess.run(adapter.build_import_argv(str(source), str(tiff)), check=True)
+
+    preview = tmp_path / "preview.png.next"
+    subprocess.run(adapter.build_preview_argv(str(tiff), str(preview)), check=True)
+
+    assert preview.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+    with Image.open(str(preview)) as image:
+        assert image.format == "PNG"
 
 
 def test_arbitrary_rotation_writes_tiff_with_repage(tmp_path):
@@ -191,6 +206,7 @@ def test_workspace_rotation_end_to_end_regenerates_preview(tmp_path, monkeypatch
     after = Path(working.png_path).read_bytes()
     assert after != before
     with Image.open(working.png_path) as preview:
+        assert preview.format == "PNG"
         assert preview.size != (80, 60)
 
 

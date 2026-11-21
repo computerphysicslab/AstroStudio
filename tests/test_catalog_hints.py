@@ -34,6 +34,29 @@ def test_common_name_and_ngc_alias():
     assert round(by_name.obj.dec, 3) == round(by_ngc.obj.dec, 3)
 
 
+def test_dumbbell_filename_with_typo_resolves_m27():
+    hint = unique_hint("Dumbell-86x30s-refr150-crop_2.png")
+    assert hint is not None
+    assert hint.obj.label == "M27"
+    assert hint.token == "Dumbbell Nebula"
+    assert abs(hint.obj.ra - 299.901583) < 0.001
+    assert abs(hint.obj.dec - 22.721028) < 0.001
+
+
+def test_dumbbell_name_variants_and_little_dumbbell_guard():
+    spelled = unique_hint("Dumbbell.png")
+    ngc = unique_hint("NGC6853-Dumbbell.png")
+    assert spelled is not None and ngc is not None
+    assert round(spelled.obj.ra, 3) == round(ngc.obj.ra, 3)
+    assert round(spelled.obj.dec, 3) == round(ngc.obj.dec, 3)
+    assert unique_hint("Little-Dumbbell.png") is None
+
+
+def test_generic_catalog_word_alone_is_not_a_hint():
+    assert unique_hint("Nebula.png") is None
+    assert unique_hint("Galaxy-2026.png") is None
+
+
 def test_ambiguous_filename_has_no_unique_hint():
     hints = resolve_filename("M42-and-M31.png")
     coordinates = {(round(h.obj.ra, 3), round(h.obj.dec, 3)) for h in hints}

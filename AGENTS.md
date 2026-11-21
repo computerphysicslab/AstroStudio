@@ -24,7 +24,7 @@
 
 ## Stack and layout
 
-- Python 3.8, PyGObject (GTK **3.24** only; GTK4 not installed), `Gio.Subprocess`, `GdkPixbuf`.
+- Python 3.8-compatible runtime (type checking targets 3.9 because mypy 1.19 dropped 3.8), PyGObject (GTK **3.24** only; GTK4 not installed), `Gio.Subprocess`, `GdkPixbuf`.
 - `astrostudio/` package: GTK views, CLI adapters, command builder, process engine, scratch manager.
 - `tests/` for `argv` serialization, ENOENT, exit codes, cleanup.
 - Entry point: `python3 -m astrostudio`.

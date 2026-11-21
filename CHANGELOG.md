@@ -8,6 +8,40 @@ Version scheme: `MAJOR.MINOR.PATCH`.
 
 Every implementation commit must bump `PATCH` at minimum and add an entry here.
 
+## 0.3.19 — 2026-11-21
+
+- The Backends and Jobs dock panels now start hidden (`set_no_show_all(True)`, settings `show_backends`/`show_jobs` default to false). Their View toggles still work, now persist the preference, and the panels stay hidden after leaving fullscreen.
+- Gaia Sky Map results no longer open in a floating dialog: the generated PNG is opened through the normal workspace flow as a new image in the canvas, with a display stretch so the dark SVG map is readable. Rendering uses an explicit `png:` coder at 144 dpi (2×) and reports the number of catalogued sources in the log/status.
+- Empty or failed sky maps are now reported with the backend stderr and artifact path instead of silently showing a black image. Added `sky_map_source_count()` and explicit `display_stretch` support in `ImageWorkspace.prepare()`.
+- Added tests for dock defaults, sky-map argv/source validation, success/failure callbacks and forced display stretch. Suite: 218 passed, 2 skipped; mypy clean on 52 modules.
+
+## 0.3.18 — 2026-11-21
+
+- Fixed filename catalog hints for common object names. The last opened capture was named `Dumbell-86x30s-refr150-crop_2.png`; two causes prevented a seed: the misspelling `Dumbell`, and `resolve_filename()` requiring the full catalog phrase `dumbbell nebula` verbatim in the filename, so even `Dumbbell.png` produced no hint. The bundled OpenNGC data did contain M27/NGC 6853 at 299.901583, 22.721028.
+- Name matching now accepts all distinctive words of a catalog name as whole words (ignoring generic words such as "nebula") with a one-character typo tolerance, prefers exact full-name matches over fuzzy ones, and skips fuzzy names when an explicit catalog ID is present. `Little Dumbbell` stays ambiguous instead of being forced to M27.
+- Added four unit tests and a GUI test for the real misspelled filename. Suite: 211 passed, 2 skipped; mypy clean on 52 modules.
+
+## 0.3.17 — 2026-11-21
+
+- Fixed the fit-to-window regression: `ImageWorkspace._run_pyramid_job()` generated `preview_25.png`/`preview_50.png` with the normal preview argv (no `-resize`) while labelling them 0.25/0.5, so `PreviewPane._on_draw()` divided by `level_scale` and drew the image 2–4× too large. Added `ImageMagickAdapter.build_pyramid_argv()` with an explicit `-resize` percentage; adapters that cannot downscale now report no pyramid instead of mislabelled full-size levels.
+- `PreviewPane` rejects any level whose pixbuf dimensions do not match `logical_size × level_scale`, and refreshes the selected level on `size-allocate` (resize, panel toggles, fullscreen). Double-click Fit to Window now takes precedence over rotation/selection modes.
+- Nine regression tests: real-CLI level dimensions, workspace-generated level sizes, unsupported-adapter fallback, mislabelled-level rejection, Cairo pixel-level fit footprint, real-allocation open flow, and double-click fit in rotation mode.
+- Verification: 207 passed, 2 skipped; mypy clean on 52 modules.
+
+## 0.3.16 — 2026-11-21
+
+- Fixed the Ubuntu 24.04 regression that broke every preview: ImageMagick 7 infers the output coder from the last extension, so `preview.png.next` was written as TIFF and GdkPixbuf/glycin rejected it with "Invalid PNG signature". `build_preview_argv()` now forces the `png:` coder explicitly and `_on_preview()` no longer derives the temporary path from `argv[-1]`.
+- PSD/PSB imports now drop alpha after flattening, so the 16-bit working TIFF stays RGB with ImageMagick 7 (the previous IM6-only behaviour).
+- Added a real-CLI regression test that checks the PNG signature of a `.png.next` output, a `format == "PNG"` assertion in the rotation test, and isolated the undo/redo UI test from stale `/tmp` files. UI tests now pin GTK 3 before importing `gi.repository.Gtk`.
+- Refreshed `requirements-dev.txt`: fixed pins became compatible ranges (pytest <10, mypy <2, pytest-cov <6, pre-commit <5, numpy <3, Pillow <13, PyYAML <7) so the same file installs on both the CI Python 3.10 and the current Python 3.14 environment.
+- `mypy.ini` now targets Python 3.9 because mypy 1.19 dropped 3.8; strict checks still pass on all 52 core/adapter modules.
+- Verification: 198 passed, 2 skipped (Python 3.14.4, pytest 9.0.2, GTK 3.24.52, ImageMagick 7.1.2-18); a real GUI launch opening M31.jpg no longer raises a GError.
+
+## 0.3.15 — 2026-11-20
+
+- Added `numpy`, `Pillow` and `PyYAML` to CI dev requirements; the previous run failed collecting `test_integration_cli.py` and `test_packaging.py` because those imports were missing.
+- Local verification: 197 tests pass with 90% coverage and mypy clean on 52 modules.
+
 ## 0.3.14 — 2026-11-20
 
 - Roadmap high-difficulty items 7-9 implemented at adapter/manifest scope.

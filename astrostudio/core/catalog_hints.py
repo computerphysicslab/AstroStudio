@@ -4,6 +4,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Dict, List, Optional, Tuple
 
 DEFAULT_CATALOG = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "openngc_hints.json")
@@ -13,6 +14,13 @@ CATALOG_PATTERNS = (
     ("NGC", re.compile(r"\bNGC\s*0*(\d{1,5})\b", re.IGNORECASE)),
     ("IC", re.compile(r"\bIC\s*0*(\d{1,5})\b", re.IGNORECASE)),
     ("C", re.compile(r"\bC(?:aldwell)?\s*0*(\d{1,3})\b", re.IGNORECASE)),
+)
+
+GENERIC_NAME_WORDS = frozenset(
+    (
+        "nebula", "galaxy", "cluster", "open", "globular", "planetary",
+        "reflection", "emission", "dark", "diffuse", "the", "and", "of",
+    )
 )
 
 
@@ -67,6 +75,27 @@ def extract_tokens(filename: str) -> Tuple[List[Tuple[str, str, str]], str]:
     return tokens, normalized
 
 
+def _distinctive_words(name: str) -> List[str]:
+    return [
+        word
+        for word in re.findall(r"[a-z0-9]+", name.lower())
+        if len(word) >= 4 and word not in GENERIC_NAME_WORDS
+    ]
+
+
+def _word_present(word: str, words: List[str]) -> bool:
+    for candidate in words:
+        if word == candidate:
+            return True
+        if (
+            len(word) >= 6
+            and abs(len(word) - len(candidate)) <= 1
+            and SequenceMatcher(None, word, candidate).ratio() >= 0.86
+        ):
+            return True
+    return False
+
+
 def resolve_filename(filename: str, catalog: List[CatalogObject] = None) -> List[Hint]:
     objects = catalog if catalog is not None else load_catalog()
     tokens, normalized = extract_tokens(filename)
@@ -83,18 +112,33 @@ def resolve_filename(filename: str, catalog: List[CatalogObject] = None) -> List
                 continue
             seen.add(key)
             hints.append(Hint(obj, raw, source))
+    normalized_words = normalized.split()
+    exact_names = []
     for obj in objects:
         for name in obj.names:
-            if len(name) < 6:
+            if len(name) < 4:
                 continue
             needle = re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
             if needle and needle in normalized:
-                key = (round(obj.ra, 4), round(obj.dec, 4))
-                if key in seen:
-                    continue
-                seen.add(key)
-                hints.append(Hint(obj, name, "name"))
+                exact_names.append((obj, name))
                 break
+    name_matches = exact_names
+    if not name_matches and not tokens:
+        name_matches = []
+        for obj in objects:
+            for name in obj.names:
+                distinctive = _distinctive_words(name)
+                if distinctive and all(
+                    _word_present(word, normalized_words) for word in distinctive
+                ):
+                    name_matches.append((obj, name))
+                    break
+    for obj, name in name_matches:
+        key = (round(obj.ra, 4), round(obj.dec, 4))
+        if key in seen:
+            continue
+        seen.add(key)
+        hints.append(Hint(obj, name, "name"))
     return hints
 
 

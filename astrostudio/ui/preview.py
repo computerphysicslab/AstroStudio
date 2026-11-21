@@ -51,6 +51,8 @@ class PreviewPane(Gtk.DrawingArea):
         self.pyramid_levels = []
         self.logical_size = None
         self.level_scale = 1.0
+        self._last_allocation = (0, 0)
+        self._level_refresh_pending = False
         self.set_app_paintable(True)
         self.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
@@ -59,6 +61,7 @@ class PreviewPane(Gtk.DrawingArea):
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
         self.connect("draw", self._on_draw)
+        self.connect("size-allocate", self._on_size_allocate)
         self.connect("leave-notify-event", self._on_leave)
         self.hover_window = Gtk.Window(type=Gtk.WindowType.POPUP)
         self.hover_window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
@@ -110,10 +113,31 @@ class PreviewPane(Gtk.DrawingArea):
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(level[0])
         except GLib.Error:
             return
+        expected_width = max(1, int(round(width * level[1])))
+        expected_height = max(1, int(round(height * level[1])))
+        if (
+            abs(pixbuf.get_width() - expected_width) > 1
+            or abs(pixbuf.get_height() - expected_height) > 1
+        ):
+            return
         self.pixbuf = pixbuf
         self.path = level[0]
         self.level_scale = level[1]
         self.queue_draw()
+
+    def _on_size_allocate(self, widget, allocation) -> None:
+        size = (allocation.width, allocation.height)
+        if size == self._last_allocation or self._level_refresh_pending:
+            return
+        self._last_allocation = size
+        self._level_refresh_pending = True
+
+        def refresh():
+            self._level_refresh_pending = False
+            self._refresh_level()
+            return False
+
+        GLib.idle_add(refresh)
 
     def clear(self) -> None:
         self.pixbuf = None

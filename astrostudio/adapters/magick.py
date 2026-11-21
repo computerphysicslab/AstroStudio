@@ -61,8 +61,18 @@ class ImageMagickAdapter(CliAdapter):
             # restores them to one RGB working TIFF.
             return self._with_threads([self.binary, source, "-combine", "-depth", "16", tiff_path])
         if lowered.endswith((".psd", ".psb")):
-            # Flatten all layers into one composite frame before writing the TIFF.
-            return [self.binary, source, "-flatten", "-depth", "16", tiff_path]
+            # Flatten all layers and drop alpha so the working TIFF stays RGB
+            # with both ImageMagick 6 and 7.
+            return [
+                self.binary,
+                source,
+                "-flatten",
+                "-alpha",
+                "off",
+                "-depth",
+                "16",
+                tiff_path,
+            ]
         return self._with_threads([self.binary, source, "-depth", "16", tiff_path])
 
     def build_preview_argv(
@@ -86,8 +96,28 @@ class ImageMagickAdapter(CliAdapter):
                     "%.1f%%,%.1f%%" % (low / 255.0 * 100.0, high / 255.0 * 100.0),
                 )
             )
-        argv.extend(("-depth", "8", png_path))
+        # Force the PNG coder: scratch uses a ".png.next" suffix and
+        # ImageMagick 7 would otherwise infer TIFF from the ".next" extension.
+        argv.extend(("-depth", "8", "png:" + png_path))
         return self._with_threads(argv)
+
+    def build_pyramid_argv(
+        self,
+        tiff_path: str,
+        png_path: str,
+        scale: float,
+        display_stretch: bool = False,
+        stretch_points: tuple = None,
+        gamma: float = None,
+    ) -> Sequence[str]:
+        """Render a genuinely downscaled preview level for the resolution pyramid."""
+        argv = list(
+            self.build_preview_argv(
+                tiff_path, png_path, display_stretch, stretch_points, gamma
+            )
+        )
+        argv[-1:-1] = ["-resize", "%g%%" % (float(scale) * 100.0)]
+        return argv
 
     def build_diff_argv(self, current_tiff: str, before_tiff: str, output_png: str) -> List[str]:
         """Create a stretched difference map between two TIFF snapshots."""

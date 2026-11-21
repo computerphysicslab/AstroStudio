@@ -1,6 +1,11 @@
 """Core orchestration components."""
 
-from .astrometry import find_output, find_plate_solution, summarize_solution
+from .astrometry import (
+    find_output,
+    find_plate_solution,
+    sky_map_source_count,
+    summarize_solution,
+)
 from .backends import BackendRegistry, BackendSpec, BackendStatus
 from .annotations import Annotation, build_annotate_argv, draw_command
 from .bpm import validate_bpm_count
@@ -89,6 +94,7 @@ __all__ = [
     "parse_measurements",
     "find_output",
     "find_plate_solution",
+    "sky_map_source_count",
     "summarize_solution",
     "EXPORT_FORMATS",
     "ExportFormat",

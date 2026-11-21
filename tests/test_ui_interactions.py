@@ -10,10 +10,11 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, GdkPixbuf, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from astrostudio.app import AstroStudioApplication
 from astrostudio.core import WorkingImage
+from astrostudio.core.process_engine import JobResult
 from astrostudio.ui import MainWindow, PreviewPane
 
 pytestmark = pytest.mark.skipif(
@@ -486,6 +487,74 @@ def test_plate_solve_filename_hint(monkeypatch):
     window.destroy()
 
 
+def test_plate_solve_dumbbell_filename_hint(monkeypatch):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    messages = []
+    monkeypatch.setattr(window, "_log", messages.append)
+    center = window._filename_hint("Dumbell-86x30s-refr150-crop_2.png")
+    assert center == "299.901583,22.721028"
+    assert any("Catalog hint" in message for message in messages)
+    window.destroy()
+
+
+def test_sky_map_preview_opens_generated_image_in_canvas(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    png = tmp_path / "sky_map.png"
+    png.write_bytes(b"png")
+    opened = []
+    statuses = []
+    monkeypatch.setattr(
+        window,
+        "_open_file",
+        lambda path, display_stretch=False: opened.append((path, display_stretch)),
+    )
+    monkeypatch.setattr(window, "_status", statuses.append)
+    window._on_sky_map_preview(
+        JobResult("sky-map-preview", [], 0), str(png), "/tmp/map.svg", 105
+    )
+    assert opened == [(str(png), True)]
+    assert any("105" in text for text in statuses)
+    window.destroy()
+
+
+def test_sky_map_preview_reports_render_failure(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    errors = []
+    opened = []
+    monkeypatch.setattr(window, "_show_error", lambda *args: errors.append(args))
+    monkeypatch.setattr(window, "_open_file", lambda *args, **kwargs: opened.append(args))
+    result = JobResult("sky-map-preview", [], 1, stderr="renderer exploded")
+    window._on_sky_map_preview(result, str(tmp_path / "x.png"), "/tmp/map.svg", 5)
+    assert errors and "renderer exploded" in str(errors[0])
+    assert not opened
+    window.destroy()
+
+
+def test_sky_map_without_sources_is_reported(monkeypatch, tmp_path):
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    output_dir = tmp_path / "job"
+    output_dir.mkdir()
+    (output_dir / "empty.svg").write_text("<svg></svg>", encoding="utf-8")
+    errors = []
+    monkeypatch.setattr(window, "_show_error", lambda *args: errors.append(args))
+    window._on_sky_map_done(JobResult("sky-map", [], 0), str(output_dir))
+    assert errors and "empty sky map" in str(errors[0])
+    window.destroy()
+
+
+def test_sky_map_preview_argv_uses_explicit_png_coder():
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    argv = window._sky_map_preview_argv("in.svg", "out.png")
+    assert argv[1:3] == ["-density", "144"]
+    assert argv[-1] == "png:out.png"
+    window.destroy()
+
+
 def test_main_window_log_uses_structured_logger(monkeypatch):
     app = AstroStudioApplication()
     window = MainWindow(app, app.registry, app.scratch, app.engine)
@@ -493,4 +562,55 @@ def test_main_window_log_uses_structured_logger(monkeypatch):
     monkeypatch.setattr(window.structured_log, "info", seen.append)
     window._log("hello terminal")
     assert seen == ["hello terminal"]
+    window.destroy()
+
+
+def test_open_large_image_fit_survives_pyramid_and_real_allocation(tmp_path, monkeypatch):
+    from PIL import Image
+
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))
+    (tmp_path / "runtime").mkdir()
+    app = AstroStudioApplication()
+    window = MainWindow(app, app.registry, app.scratch, app.engine)
+    window.show_all()
+    while Gtk.events_pending():
+        Gtk.main_iteration()
+
+    source = tmp_path / "large.png"
+    Image.new("RGB", (1200, 900), "purple").save(str(source))
+    opened = []
+    window.workspace.prepare(str(source), opened.append, lambda m: pytest.fail(m))
+
+    def wait(predicate, seconds=20):
+        loop = GLib.MainLoop()
+
+        def check():
+            if predicate():
+                loop.quit()
+                return False
+            return True
+
+        GLib.timeout_add(50, check)
+        GLib.timeout_add(seconds * 1000, loop.quit)
+        loop.run()
+
+    wait(lambda: bool(opened))
+    image = opened[0]
+    window.preview.load(image.png_path)
+    levels_ready = []
+    window.workspace.ensure_pyramid(
+        image, levels_ready.append, lambda m: pytest.fail(m)
+    )
+    wait(lambda: bool(levels_ready))
+    with Image.open(str(image.png_path)) as preview_image:
+        full_size = preview_image.size
+    window.preview.set_pyramid(levels_ready[0], full_size)
+
+    allocation = window.preview.get_allocation()
+    assert allocation.width > 1 and allocation.height > 1
+    _, scale, offset_x, offset_y = window.preview._view_parameters()
+    assert window.preview.fit is True
+    assert 1200 * scale <= allocation.width + 1
+    assert 900 * scale <= allocation.height + 1
+    assert offset_x >= -1 and offset_y >= -1
     window.destroy()

@@ -11,6 +11,11 @@ PANEL_ATTRS = {
     "toggle-jobs": "job_panel",
 }
 
+PERSISTENT_PANEL_SETTINGS = {
+    "toggle-backends": "show_backends",
+    "toggle-jobs": "show_jobs",
+}
+
 
 class DockManager:
     """Owns close buttons and On/Off toggles for docked panels."""
@@ -48,6 +53,9 @@ class DockManager:
         if panel is None:
             return
         panel.set_visible(not panel.get_visible())
+        setting = PERSISTENT_PANEL_SETTINGS.get(action)
+        if setting is not None:
+            self.window.settings.set(setting, panel.get_visible())
         if action == "toggle-terminal" and panel.get_visible():
             self.window.log_view.scroll_to_iter(
                 self.window.log_buffer.get_end_iter(), 0.0, False, 0.0, 0.0

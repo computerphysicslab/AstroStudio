@@ -108,11 +108,19 @@ class ImageWorkspace:
             self._pyramids[image.key] = levels
             on_ready(levels)
             return
-        name, _scale = jobs[index]
+        builder = getattr(self.adapter, "build_pyramid_argv", None)
+        if builder is None:
+            if on_log:
+                on_log("Preview pyramid unsupported by %s" % type(self.adapter).__name__)
+            self._pyramids[image.key] = []
+            on_ready([])
+            return
+        name, scale = jobs[index]
         destination = os.path.join(image.directory, name)
-        argv = self.adapter.build_preview_argv(
+        argv = builder(
             image.tiff_path,
             destination,
+            scale,
             image.display_stretch,
             image.stretch_points,
             image.gamma,
@@ -153,11 +161,12 @@ class ImageWorkspace:
         on_ready: ReadyCallback,
         on_error: ErrorCallback,
         on_log: Optional[LogCallback] = None,
+        display_stretch: Optional[bool] = None,
     ) -> WorkingImage:
         self._counter += 1
         key = "image-%04d" % self._counter
         directory = self.scratch.job_dir(key)
-        display_stretch = source.lower().endswith(
+        auto_stretch = source.lower().endswith(
             (
                 ".fits",
                 ".fit",
@@ -171,6 +180,8 @@ class ImageWorkspace:
                 ".psb",
             )
         )
+        if display_stretch is None:
+            display_stretch = auto_stretch
         image = WorkingImage(
             key=key,
             source=source,
@@ -306,7 +317,7 @@ class ImageWorkspace:
         if not result.ok:
             self._fail("PNG preview failed: %s" % (result.error or result.stderr), on_error, on_log)
             return
-        os.replace(result.argv[-1], image.png_path)
+        os.replace(image.png_path + ".next", image.png_path)
         if on_log:
             on_log("CLI %s exit %d" % (result.job_id, result.exit_code))
         on_ready(image)

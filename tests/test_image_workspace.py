@@ -11,6 +11,11 @@ from astrostudio.core.export_formats import find_format
 from astrostudio.core.process_engine import JobResult
 
 
+def _output_path(argv):
+    output = argv[-1]
+    return output[4:] if output.startswith("png:") else output
+
+
 class FakeEngine:
     def __init__(self, fail_on=None):
         self.calls = []
@@ -21,7 +26,7 @@ class FakeEngine:
         if self.fail_on and job_id.endswith(self.fail_on):
             on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=1, stderr="boom"))
             return
-        Path(argv[-1]).write_bytes(("data:" + job_id).encode())
+        Path(_output_path(argv)).write_bytes(("data:" + job_id).encode())
         on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=0))
 
 
@@ -275,9 +280,9 @@ def test_skystacker_filter_receives_working_tiff_directly(tmp_path, monkeypatch)
     def fake_run(job_id, argv, on_log=None, on_done=None):
         calls.append((job_id, list(argv)))
         if job_id.endswith("-sky-tiff"):
-            Path(argv[-1]).write_bytes(b"tiff")
+            Path(_output_path(argv)).write_bytes(b"tiff")
         if job_id.endswith("-preview"):
-            Path(argv[-1]).write_bytes(b"png")
+            Path(_output_path(argv)).write_bytes(b"png")
         if on_done is not None:
             on_done(JobResult(job_id=job_id, argv=list(argv), exit_code=0))
 
@@ -359,3 +364,14 @@ def test_hardlink_snapshots_respect_history_depth(tmp_path, monkeypatch):
     workspace.undo(image, lambda *_: None, lambda message: pytest.fail(message))
     assert Path(image.tiff_path).read_bytes() != original
     assert os.stat(image.tiff_path).st_nlink >= 2
+
+
+def test_prepare_can_force_display_stretch(tmp_path, monkeypatch):
+    engine = FakeEngine()
+    workspace = _workspace(tmp_path, monkeypatch, engine)
+    source = tmp_path / "sky_map.png"
+    source.write_bytes(b"png")
+    image = workspace.prepare(
+        str(source), lambda *_: None, lambda m: pytest.fail(m), display_stretch=True
+    )
+    assert image.display_stretch is True
